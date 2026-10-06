@@ -1,0 +1,141 @@
+name: deploy
+
+# Requires repository variables: GCP_PROJECT_ID, GCP_REGION, GCP_ARTIFACT_REPO, GCP_WIF_PROVIDER,
+# GCP_DEPLOY_SA, GCP_CLOUDSQL_INSTANCE, MEDIA_BUCKET, API_URL (all printed by infra/gcp/bootstrap.sh). Secrets live in Secret Manager as <service>-database-url.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  TURBO_SCM_BASE: ${{ github.event.before }}
+
+jobs:
+  affected:
+    if: vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    outputs:
+      deployables: ${{ steps.list.outputs.deployables }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - id: list
+        run: echo "deployables=$(node scripts/affected-deployables.mjs)" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: affected
+    if: needs.affected.outputs.deployables != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        unit: ${{ fromJson(needs.affected.outputs.deployables) }}
+    env:
+      REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPO }}
+      UNIT: ${{ matrix.unit }}
+      PUBLIC: ${{ contains(fromJson('["gateway","web"]'), matrix.unit) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/${{ matrix.unit == 'web' && 'web' || 'service' }}.Dockerfile
+          build-args: |
+            SERVICE=${{ matrix.unit }}
+            NEXT_PUBLIC_API_URL=${{ vars.API_URL }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ matrix.unit }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.unit }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.unit }}
+
+      - name: Build and push migration image
+        if: hashFiles(format('services/{0}/prisma/schema.prisma', matrix.unit)) != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/service.Dockerfile
+          target: migrator
+          build-args: SERVICE=${{ matrix.unit }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ matrix.unit }}-migrate:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.unit }}
+
+      - name: Run migrations
+        if: hashFiles(format('services/{0}/prisma/schema.prisma', matrix.unit)) != ''
+        run: |
+          gcloud run jobs deploy "$UNIT-migrate" \
+            --image "$REGISTRY/$UNIT-migrate:${{ github.sha }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --service-account "$UNIT@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
+            --set-secrets "DATABASE_URL=$UNIT-database-url:latest" \
+            --execute-now --wait
+
+      - name: Deploy to Cloud Run
+        run: |
+          flags=(--image "$REGISTRY/$UNIT:${{ github.sha }}" --region "${{ vars.GCP_REGION }}"
+                 --service-account "$UNIT@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+                 --set-env-vars "SERVICE_NAME=$UNIT,PUBSUB_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},MEDIA_BUCKET=${{ vars.MEDIA_BUCKET }}")
+          if [ -f "services/$UNIT/prisma/schema.prisma" ]; then
+            flags+=(--set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" --set-secrets "DATABASE_URL=$UNIT-database-url:latest")
+          fi
+          if [ "$PUBLIC" = "true" ]; then flags+=(--allow-unauthenticated); else flags+=(--no-allow-unauthenticated); fi
+          gcloud run deploy "$UNIT" "${flags[@]}"
+
+      - name: Verify /health
+        run: |
+          url=$(gcloud run services describe "$UNIT" --region "${{ vars.GCP_REGION }}" --format 'value(status.url)')
+          path=$([ "$UNIT" = "web" ] && echo /api/health || echo /health)
+          token=$(gcloud auth print-identity-token --audiences="$url" 2>/dev/null || true)
+          curl --fail --retry 5 --retry-delay 5 -H "Authorization: Bearer $token" "$url$path"
+
+  pubsub:
+    needs: deploy
+    if: always() && needs.deploy.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - run: pnpm turbo run build --filter=@debus/contracts
+      - name: Provision topics, push subscriptions and dead-letters
+        run: |
+          if [ ! -f scripts/provision-pubsub.mjs ]; then echo "Provisioning script not implemented yet"; exit 0; fi
+          node scripts/provision-pubsub.mjs
+        env:
+          PUBSUB_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}

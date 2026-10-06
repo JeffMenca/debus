@@ -1,0 +1,298 @@
+/* debus design system (Tailwind v4 + shadcn/ui) */
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+:root {
+  --radius: 0.875rem;
+
+  --background: #f3f5ff;
+  --foreground: #1b1f3b;
+  --card: #ffffff;
+  --card-foreground: #1b1f3b;
+  --popover: #ffffff;
+  --popover-foreground: #1b1f3b;
+  --primary: #3e4fc7;
+  --primary-foreground: #ffffff;
+  --secondary: #dce2ff;
+  --secondary-foreground: #2b3896;
+  --muted: #eceffb;
+  --muted-foreground: #575c7d;
+  --accent: #ffce5c;
+  --accent-foreground: #1b1f3b;
+  --destructive: #c7354f;
+  --destructive-foreground: #ffffff;
+  --border: #e8ebf7;
+  --input: #eceffb;
+  --ring: #9aa8ff;
+
+  --sidebar: #262b66;
+  --sidebar-foreground: #c9cef5;
+  --sidebar-primary: #ffce5c;
+  --sidebar-primary-foreground: #1b1f3b;
+  --sidebar-accent: #323882;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #323882;
+  --sidebar-ring: #9aa8ff;
+
+  /* Families: 100 = surface, 300 = illustration/accent, 700 = text/icon on its 100 */
+  --sky-100: #ddebff;
+  --sky-300: #9cc4ff;
+  --sky-700: #1f4fa8;
+  --mint-100: #cff3e6;
+  --mint-300: #6fd3b2;
+  --mint-700: #0f6b53;
+  --coral-100: #ffe2d6;
+  --coral-300: #ff9f80;
+  --coral-700: #ae3a16;
+  --mango-100: #fff0c2;
+  --mango-300: #ffce5c;
+  --mango-700: #7a5200;
+  --lilac-100: #e9e2ff;
+  --lilac-300: #b7a3ff;
+  --lilac-700: #4d33b0;
+  --rose-100: #ffe0e8;
+  --rose-300: #ff9db5;
+  --rose-700: #b0234f;
+  --indigo-100: #dce2ff;
+  --indigo-500: #3e4fc7;
+  --indigo-700: #2b3896;
+  --road: #3b4063;
+  --glass: #e3eeff;
+
+  --ease-route: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@theme inline {
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-sky-100: var(--sky-100);
+  --color-sky-300: var(--sky-300);
+  --color-sky-700: var(--sky-700);
+  --color-mint-100: var(--mint-100);
+  --color-mint-300: var(--mint-300);
+  --color-mint-700: var(--mint-700);
+  --color-coral-100: var(--coral-100);
+  --color-coral-300: var(--coral-300);
+  --color-coral-700: var(--coral-700);
+  --color-mango-100: var(--mango-100);
+  --color-mango-300: var(--mango-300);
+  --color-mango-700: var(--mango-700);
+  --color-lilac-100: var(--lilac-100);
+  --color-lilac-300: var(--lilac-300);
+  --color-lilac-700: var(--lilac-700);
+  --color-rose-100: var(--rose-100);
+  --color-rose-300: var(--rose-300);
+  --color-rose-700: var(--rose-700);
+  --color-indigo-100: var(--indigo-100);
+  --color-indigo-500: var(--indigo-500);
+  --color-indigo-700: var(--indigo-700);
+  --color-road: var(--road);
+  --color-glass: var(--glass);
+
+  --radius-sm: calc(var(--radius) - 6px); /* 8 */
+  --radius-md: calc(var(--radius) - 2px); /* 12 */
+  --radius-lg: var(--radius); /* 14 */
+  --radius-xl: calc(var(--radius) + 6px); /* 20 */
+  --radius-2xl: calc(var(--radius) + 12px); /* 26 */
+  --radius-3xl: calc(var(--radius) + 22px); /* 36 */
+
+  --shadow-float: 0 18px 44px -18px rgb(27 31 59 / 0.3);
+  --shadow-lift: 0 18px 36px -24px rgb(27 31 59 / 0.35);
+
+  --animate-arrive: arrive 0.75s var(--ease-route) both;
+  --animate-route: route 0.8s linear infinite;
+  --animate-route-sm: route-sm 0.9s linear infinite;
+  --animate-draw: draw 2s var(--ease-route) forwards;
+  --animate-seat: seat 0.4s var(--ease-spring);
+  --animate-wheel: wheel 0.55s linear infinite;
+  --animate-bob: bob 0.7s ease-in-out infinite;
+  --animate-puff: puff 1.6s ease-out infinite;
+  --animate-float: float 5s ease-in-out infinite;
+  --animate-drift: drift 30s linear infinite;
+  --animate-parallax: parallax 22s linear infinite;
+  --animate-sun: sun 6s ease-in-out infinite;
+  --animate-grow-x: grow-x 1.3s var(--ease-route) both;
+  --animate-pulse-live: pulse-live 1.8s ease-out infinite;
+  --animate-drive-across: drive-across 9s linear infinite;
+  --animate-rise: rise 0.45s var(--ease-spring) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/60;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-[-0.02em];
+  }
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+@keyframes route {
+  to {
+    stroke-dashoffset: -26;
+  }
+}
+@keyframes route-sm {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes seat {
+  from {
+    transform: scale(0.8);
+  }
+}
+@keyframes wheel {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bob {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes puff {
+  0% {
+    opacity: 0.7;
+    transform: translate(0, 0) scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-26px, -10px) scale(1.6);
+  }
+}
+@keyframes float {
+  50% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+@keyframes drift {
+  from {
+    transform: translateX(105%);
+  }
+  to {
+    transform: translateX(-130%);
+  }
+}
+@keyframes parallax {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes sun {
+  50% {
+    transform: scale(1.06);
+  }
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes pulse-live {
+  0% {
+    box-shadow: 0 0 0 0 rgb(31 154 118 / 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgb(31 154 118 / 0);
+  }
+}
+@keyframes drive-across {
+  from {
+    left: -200px;
+  }
+  to {
+    left: 100%;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Wheels need fill-box origin to spin in place inside an SVG */
+.wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Leaflet skin (react-leaflet route map) */
+.leaflet-container {
+  background: var(--sky-100);
+  font-family: var(--font-sans);
+}
+.leaflet-control-zoom {
+  border: 0 !important;
+  box-shadow: var(--shadow-float) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+.route-line {
+  stroke-dasharray: 8 9;
+  animation: var(--animate-route);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

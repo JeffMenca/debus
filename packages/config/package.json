@@ -1,0 +1,17 @@
+{
+  "name": "@debus/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared tsconfig, ESLint, Prettier and Jest settings",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./tsconfig.node.json": "./tsconfig.node.json",
+    "./eslint": "./eslint.config.mjs",
+    "./prettier": "./prettier.config.mjs",
+    "./jest": "./jest.base.cjs",
+    "./jest-integration": "./jest.integration.cjs"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.5"
+  }
+}

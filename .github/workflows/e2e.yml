@@ -1,0 +1,37 @@
+name: e2e
+
+on:
+  workflow_run:
+    workflows: [deploy]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  api:
+    if: (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') && vars.API_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Run Postman collection
+        run: |
+          if [ ! -f postman/debus.postman_collection.json ]; then echo "Collection not generated yet"; exit 0; fi
+          npx --yes newman run postman/debus.postman_collection.json --env-var "baseUrl=${{ vars.API_URL }}" --reporters cli
+
+  web:
+    if: (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') && vars.WEB_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @debus/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @debus/web test:e2e
+        env:
+          E2E_BASE_URL: ${{ vars.WEB_URL }}

@@ -1,0 +1,40 @@
+{
+  "name": "debus",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "turbo run lint typecheck test",
+    "format": "prettier --write . --ignore-path .gitignore --ignore-path .git/info/exclude --ignore-path .prettierignore",
+    "format:check": "prettier --check . --ignore-path .gitignore --ignore-path .git/info/exclude --ignore-path .prettierignore",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "prepare": "husky",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e",
+    "new-service": "node scripts/new-service.mjs"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@debus/config": "workspace:*",
+    "@eslint/js": "^10.0.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.6.4",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "jest": "^30.5.2",
+    "prettier": "^3.9.9",
+    "ts-jest": "^29.4.14",
+    "turbo": "^2.11.7",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.1"
+  }
+}

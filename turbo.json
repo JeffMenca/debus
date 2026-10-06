@@ -1,0 +1,40 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["NODE_ENV", "CI"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build", "prisma:generate"],
+      "env": ["NEXT_PUBLIC_*", "NEXT_OUTPUT"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "lint": {
+      "dependsOn": ["^build", "prisma:generate"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build", "prisma:generate"]
+    },
+    "test": {
+      "dependsOn": ["^build", "prisma:generate"],
+      "outputs": ["coverage/**"]
+    },
+    "test:integration": {
+      "dependsOn": ["^build", "prisma:generate"],
+      "env": ["DATABASE_URL", "PUBSUB_EMULATOR_HOST", "PUBSUB_PROJECT_ID"],
+      "outputs": ["coverage-integration/**"]
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "env": ["E2E_BASE_URL"],
+      "outputs": ["playwright-report/**", "test-results/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build", "prisma:generate"]
+    },
+    "prisma:generate": {
+      "inputs": ["prisma/**", "prisma.config.ts"],
+      "outputs": ["src/generated/**"]
+    }
+  }
+}
