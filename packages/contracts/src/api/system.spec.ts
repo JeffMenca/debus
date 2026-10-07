@@ -4,7 +4,7 @@ import { probeStatusSchema, systemStatusSchema } from './system';
 describe('system API schemas', () => {
   it('accepts a system status with gateway and backends', () => {
     const status = {
-      environment: 'staging',
+      environment: 'production',
       checkedAt: '2026-10-06T12:00:00.000Z',
       units: [
         { unit: 'gateway', status: 'up', latencyMs: 0 },

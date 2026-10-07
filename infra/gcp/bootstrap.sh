@@ -31,23 +31,21 @@ exists gcloud sql instances describe "$SQL_INSTANCE" ||
   gcloud sql instances create "$SQL_INSTANCE" --database-version POSTGRES_17 --tier "$SQL_TIER" \
     --region "$REGION" --edition enterprise --storage-auto-increase
 if ! gcloud sql instances describe "$SQL_INSTANCE" --format='value(settings.databaseFlags)' | grep -q max_connections; then
-  # Staging and production share the instance: 14 services x pool 2 x up to 2 instances.
+  # 7 services with a database x pool 2 x up to 2 instances.
   gcloud sql instances patch "$SQL_INSTANCE" --database-flags max_connections=60 --quiet
 fi
 CONNECTION_NAME=$(gcloud sql instances describe "$SQL_INSTANCE" --format='value(connectionName)')
 for svc in "${DB_SERVICES[@]}"; do
-  for env_suffix in "" "-staging"; do
-    db="$svc${env_suffix//-/_}"
-    secret="$svc-database-url$env_suffix"
-    exists gcloud sql databases describe "$db" --instance "$SQL_INSTANCE" ||
-      gcloud sql databases create "$db" --instance "$SQL_INSTANCE"
-    if ! exists gcloud secrets describe "$secret"; then
-      password=$(openssl rand -hex 24)
-      gcloud sql users create "$db" --instance "$SQL_INSTANCE" --password "$password"
-      printf 'postgresql://%s:%s@localhost/%s?host=/cloudsql/%s' "$db" "$password" "$db" "$CONNECTION_NAME" |
-        gcloud secrets create "$secret" --data-file=-
-    fi
-  done
+  db="$svc"
+  secret="$svc-database-url"
+  exists gcloud sql databases describe "$db" --instance "$SQL_INSTANCE" ||
+    gcloud sql databases create "$db" --instance "$SQL_INSTANCE"
+  if ! exists gcloud secrets describe "$secret"; then
+    password=$(openssl rand -hex 24)
+    gcloud sql users create "$db" --instance "$SQL_INSTANCE" --password "$password"
+    printf 'postgresql://%s:%s@localhost/%s?host=/cloudsql/%s' "$db" "$password" "$db" "$CONNECTION_NAME" |
+      gcloud secrets create "$secret" --data-file=-
+  fi
 done
 
 echo "Service accounts"
@@ -110,8 +108,7 @@ Done. Set these GitHub repository variables (Settings > Secrets and variables > 
   GCP_WIF_PROVIDER=projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/github
   GCP_DEPLOY_SA=github-deployer@$PROJECT_ID.iam.gserviceaccount.com
   MEDIA_BUCKET=$MEDIA_BUCKET
-Create two GitHub environments (Settings > Environments): "staging" with no rules and
-"production" with required reviewers. Then run the deploy workflow once with all=true and,
-when staging looks right, the promote workflow.
+Create one GitHub environment (Settings > Environments): "production" with required reviewers.
+Then run the deploy workflow once with all=true.
 Pending: SMTP credentials as secret smtp-url, Cloud Scheduler jobs for /outbox/flush and license alerts.
 OUT

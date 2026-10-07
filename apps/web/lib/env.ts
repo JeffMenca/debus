@@ -15,7 +15,6 @@ export const LOCAL_RUNTIME_ENV: RuntimeEnv = { apiUrl: 'http://localhost:4000', 
 
 export const ENVIRONMENT_LABELS: Record<DebusEnv, string> = {
   local: 'Local',
-  staging: 'Pruebas',
   production: 'Producción',
 };
 
@@ -26,7 +25,7 @@ export function readRuntimeEnv(source: Record<string, string | undefined>): Runt
   };
 }
 
-// Set by /env.js at runtime so one image serves staging and production.
+// Set by /env.js at runtime so the image holds no environment-specific values.
 export function runtimeEnv(): RuntimeEnv {
   return (typeof window === 'undefined' ? undefined : window.__DEBUS_ENV__) ?? LOCAL_RUNTIME_ENV;
 }

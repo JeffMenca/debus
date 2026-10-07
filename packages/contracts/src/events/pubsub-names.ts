@@ -1,17 +1,12 @@
-import { type BackendService, type DebusEnv, resourceName } from '../topology';
+import type { BackendService } from '../topology';
 import type { EventProducer } from './registry';
 
-export const topicName = (producer: EventProducer, env: DebusEnv): string =>
-  resourceName(`${producer}-events`, env);
+export const topicName = (producer: EventProducer): string => `${producer}-events`;
 
-export const subscriptionName = (
-  consumer: BackendService,
-  producer: EventProducer,
-  env: DebusEnv,
-): string => resourceName(`${consumer}-from-${producer}`, env);
+export const subscriptionName = (consumer: BackendService, producer: EventProducer): string =>
+  `${consumer}-from-${producer}`;
 
-export const deadLetterTopicName = (consumer: BackendService, env: DebusEnv): string =>
-  resourceName(`${consumer}-dlq`, env);
+export const deadLetterTopicName = (consumer: BackendService): string => `${consumer}-dlq`;
 
-export const deadLetterSubscriptionName = (consumer: BackendService, env: DebusEnv): string =>
-  resourceName(`${consumer}-dlq-sub`, env);
+export const deadLetterSubscriptionName = (consumer: BackendService): string =>
+  `${consumer}-dlq-sub`;

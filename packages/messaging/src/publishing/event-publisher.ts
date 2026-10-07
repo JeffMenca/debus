@@ -16,7 +16,7 @@ export class EventPublisher {
     if (producer !== this.settings.service) {
       throw new Error(`${this.settings.service} cannot publish ${envelope.type}`);
     }
-    return this.pubsub.topic(topicName(producer, this.settings.environment)).publishMessage({
+    return this.pubsub.topic(topicName(producer)).publishMessage({
       json: envelope,
       attributes: {
         type: envelope.type,

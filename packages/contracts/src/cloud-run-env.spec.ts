@@ -9,11 +9,11 @@ const settings = {
 
 describe('cloudRunEnv', () => {
   it('points the web at the gateway of the same environment', () => {
-    expect(cloudRunEnv('web', 'staging', settings)).toEqual({
+    expect(cloudRunEnv('web', 'production', settings)).toEqual({
       SERVICE_NAME: 'web',
-      DEBUS_ENV: 'staging',
-      API_URL: 'https://gateway-staging-123456.us-central1.run.app',
-      APP_ENV: 'staging',
+      DEBUS_ENV: 'production',
+      API_URL: 'https://gateway-123456.us-central1.run.app',
+      APP_ENV: 'production',
     });
   });
 
@@ -30,11 +30,11 @@ describe('cloudRunEnv', () => {
   });
 
   it('configures push verification and a small pool for backend services', () => {
-    expect(cloudRunEnv('ventas', 'staging', settings)).toEqual({
+    expect(cloudRunEnv('ventas', 'production', settings)).toEqual({
       SERVICE_NAME: 'ventas',
-      DEBUS_ENV: 'staging',
+      DEBUS_ENV: 'production',
       PUBSUB_PROJECT_ID: 'debus-prod',
-      PUBSUB_AUDIENCE: 'https://ventas-staging-123456.us-central1.run.app',
+      PUBSUB_AUDIENCE: 'https://ventas-123456.us-central1.run.app',
       PUBSUB_PUSH_SA: 'pubsub-invoker@debus-prod.iam.gserviceaccount.com',
       DB_POOL_MAX: '2',
     });

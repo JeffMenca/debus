@@ -4,18 +4,14 @@ const location = { projectNumber: '123', region: 'us-central1' };
 
 describe('buildPubSubPlan', () => {
   it('creates one topic per producer and one dead-letter per consumer in the cloud', () => {
-    const plan = buildPubSubPlan({ env: 'staging', projectId: 'p', location });
+    const plan = buildPubSubPlan({ env: 'production', projectId: 'p', location });
 
     expect(plan.topics).toEqual(
-      expect.arrayContaining([
-        'gateway-events-staging',
-        'viajes-events-staging',
-        'ventas-dlq-staging',
-      ]),
+      expect.arrayContaining(['gateway-events', 'viajes-events', 'ventas-dlq']),
     );
     expect(plan.deadLetterSubscriptions).toContainEqual({
-      name: 'ventas-dlq-sub-staging',
-      topic: 'ventas-dlq-staging',
+      name: 'ventas-dlq-sub',
+      topic: 'ventas-dlq',
     });
   });
 
@@ -62,7 +58,7 @@ describe('buildPubSubPlan', () => {
   });
 
   it('keeps every filter within the 256-byte Pub/Sub limit', () => {
-    const plan = buildPubSubPlan({ env: 'staging', projectId: 'p', location });
+    const plan = buildPubSubPlan({ env: 'production', projectId: 'p', location });
 
     for (const { filter } of plan.subscriptions) {
       expect(Buffer.byteLength(filter)).toBeLessThanOrEqual(256);

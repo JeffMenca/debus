@@ -3,18 +3,18 @@ import { loadMessagingSettings } from './settings';
 describe('loadMessagingSettings', () => {
   it('reads cloud settings', () => {
     const settings = loadMessagingSettings('flota', {
-      DEBUS_ENV: 'staging',
+      DEBUS_ENV: 'production',
       PUBSUB_PROJECT_ID: 'p',
-      PUBSUB_AUDIENCE: 'https://flota-staging-1.r.run.app',
+      PUBSUB_AUDIENCE: 'https://flota-1.r.run.app',
       PUBSUB_PUSH_SA: 'pubsub-invoker@p.iam.gserviceaccount.com',
     });
 
     expect(settings).toEqual({
       service: 'flota',
-      environment: 'staging',
+      environment: 'production',
       projectId: 'p',
       emulator: false,
-      audience: 'https://flota-staging-1.r.run.app',
+      audience: 'https://flota-1.r.run.app',
       pushServiceAccount: 'pubsub-invoker@p.iam.gserviceaccount.com',
     });
   });

@@ -50,8 +50,8 @@ describe('gateway', () => {
     process.env.SERVICE_URL_REPORTES = 'http://127.0.0.1:1';
 
     const pubsub = new PubSub({ projectId: process.env.PUBSUB_PROJECT_ID });
-    const [exists] = await pubsub.topic(topicName('gateway', 'local')).exists();
-    if (!exists) await pubsub.createTopic(topicName('gateway', 'local'));
+    const [exists] = await pubsub.topic(topicName('gateway')).exists();
+    if (!exists) await pubsub.createTopic(topicName('gateway'));
     await pubsub.close();
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();

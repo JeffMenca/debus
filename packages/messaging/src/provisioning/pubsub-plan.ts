@@ -60,8 +60,8 @@ export function buildPubSubPlan(input: PlanInput): PubSubPlan {
       const types = eventsConsumedBy(consumer).filter((type) => published.includes(type));
       if (types.length === 0) continue;
       subscriptions.push({
-        name: subscriptionName(consumer, producer, env),
-        topic: topicName(producer, env),
+        name: subscriptionName(consumer, producer),
+        topic: topicName(producer),
         filter: subscriptionFilter(types, published),
         pushEndpoint: `${consumerUrl}/events/pubsub`,
         ...(cloud && {
@@ -69,7 +69,7 @@ export function buildPubSubPlan(input: PlanInput): PubSubPlan {
             serviceAccountEmail: pushServiceAccount(input.projectId),
             audience: consumerUrl,
           },
-          deadLetterTopic: deadLetterTopicName(consumer, env),
+          deadLetterTopic: deadLetterTopicName(consumer),
         }),
       });
     }
@@ -77,14 +77,14 @@ export function buildPubSubPlan(input: PlanInput): PubSubPlan {
 
   return {
     topics: [
-      ...producers.map((producer) => topicName(producer, env)),
-      ...(cloud ? BACKEND_SERVICES.map((consumer) => deadLetterTopicName(consumer, env)) : []),
+      ...producers.map((producer) => topicName(producer)),
+      ...(cloud ? BACKEND_SERVICES.map((consumer) => deadLetterTopicName(consumer)) : []),
     ],
     subscriptions,
     deadLetterSubscriptions: cloud
       ? BACKEND_SERVICES.map((consumer) => ({
-          name: deadLetterSubscriptionName(consumer, env),
-          topic: deadLetterTopicName(consumer, env),
+          name: deadLetterSubscriptionName(consumer),
+          topic: deadLetterTopicName(consumer),
         }))
       : [],
   };

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { SystemStatusView } from './system-status-view';
 
 const status = {
-  environment: 'staging',
+  environment: 'production',
   checkedAt: '2026-10-06T12:00:00.000Z',
   units: [
     { unit: 'gateway', status: 'up', latencyMs: 0 },
@@ -23,7 +23,7 @@ function renderView() {
 
 describe('SystemStatusView', () => {
   beforeEach(() => {
-    window.__DEBUS_ENV__ = { apiUrl: 'http://gw', appEnv: 'staging' };
+    window.__DEBUS_ENV__ = { apiUrl: 'http://gw', appEnv: 'production' };
   });
   afterEach(() => {
     jest.restoreAllMocks();
@@ -37,7 +37,7 @@ describe('SystemStatusView', () => {
     expect(await screen.findByText('Entrada principal')).toBeInTheDocument();
     expect(screen.getByText('En línea')).toBeInTheDocument();
     expect(screen.getByText('Sin respuesta')).toBeInTheDocument();
-    expect(screen.getByText('Entorno: Pruebas')).toBeInTheDocument();
+    expect(screen.getByText('Entorno: Producción')).toBeInTheDocument();
     expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 

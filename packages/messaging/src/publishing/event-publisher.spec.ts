@@ -5,7 +5,7 @@ import { EventPublisher } from './event-publisher';
 
 const settings: MessagingSettings = {
   service: 'gateway',
-  environment: 'staging',
+  environment: 'production',
   projectId: 'p',
   emulator: false,
 };
@@ -24,7 +24,7 @@ describe('EventPublisher', () => {
     const id = await new EventPublisher(pubsub, settings).publish(envelope);
 
     expect(id).toBe('message-1');
-    expect(topic).toHaveBeenCalledWith('gateway-events-staging');
+    expect(topic).toHaveBeenCalledWith('gateway-events');
     expect(publishMessage).toHaveBeenCalledWith({
       json: envelope,
       attributes: { type: 'SondeoEmitido', eventId: envelope.eventId, correlationId: 'c-1' },

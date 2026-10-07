@@ -1,17 +1,11 @@
-import { LOCAL_PORTS, isBackendService, resourceName, serviceUrl } from './topology';
+import { LOCAL_PORTS, isBackendService, serviceUrl } from './topology';
 
 const location = { projectNumber: '123456', region: 'us-central1' };
 
 describe('topology', () => {
-  it('adds the staging suffix only in staging', () => {
-    expect(resourceName('flota', 'staging')).toBe('flota-staging');
-    expect(resourceName('flota', 'production')).toBe('flota');
-    expect(resourceName('flota', 'local')).toBe('flota');
-  });
-
-  it('builds the deterministic Cloud Run URL per environment', () => {
-    expect(serviceUrl('gateway', 'staging', location)).toBe(
-      'https://gateway-staging-123456.us-central1.run.app',
+  it('builds the deterministic Cloud Run URL', () => {
+    expect(serviceUrl('gateway', 'production', location)).toBe(
+      'https://gateway-123456.us-central1.run.app',
     );
     expect(serviceUrl('web', 'production', location)).toBe(
       'https://web-123456.us-central1.run.app',
@@ -24,7 +18,7 @@ describe('topology', () => {
   });
 
   it('requires a Cloud Run location outside local', () => {
-    expect(() => serviceUrl('flota', 'staging')).toThrow('Cloud Run location is required');
+    expect(() => serviceUrl('flota', 'production')).toThrow('Cloud Run location is required');
   });
 
   it('recognizes backend services', () => {

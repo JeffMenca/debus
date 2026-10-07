@@ -1,6 +1,6 @@
 name: release
 
-# Deploys already-built images to one environment. Called by deploy (staging) and promote (production).
+# Deploys already-built images to production. Called by deploy.
 on:
   workflow_call:
     inputs:
@@ -28,8 +28,7 @@ jobs:
       UNIT: ${{ matrix.unit }}
       TAG: ${{ matrix.tag }}
       TARGET_ENV: ${{ inputs.environment }}
-      SUFFIX: ${{ inputs.environment == 'staging' && '-staging' || '' }}
-      MAX_INSTANCES: ${{ inputs.environment == 'staging' && '1' || '2' }}
+      MAX_INSTANCES: '1'
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       GCP_PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
       GCP_REGION: ${{ vars.GCP_REGION }}
@@ -52,12 +51,12 @@ jobs:
       - name: Run migrations
         if: hashFiles(format('services/{0}/prisma/schema.prisma', matrix.unit)) != ''
         run: |
-          gcloud run jobs deploy "$UNIT$SUFFIX-migrate" \
+          gcloud run jobs deploy "$UNIT-migrate" \
             --image "$REGISTRY/$UNIT-migrate:$TAG" \
             --region "$GCP_REGION" \
             --service-account "$UNIT@$GCP_PROJECT_ID.iam.gserviceaccount.com" \
             --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
-            --set-secrets "DATABASE_URL=$UNIT-database-url$SUFFIX:latest" \
+            --set-secrets "DATABASE_URL=$UNIT-database-url:latest" \
             --execute-now --wait
 
       - name: Deploy to Cloud Run
@@ -67,14 +66,14 @@ jobs:
                  --min-instances 0 --max-instances "$MAX_INSTANCES"
                  --set-env-vars "$(node scripts/cloud-run-env.mjs "$UNIT" "$TARGET_ENV")")
           if [ -f "services/$UNIT/prisma/schema.prisma" ]; then
-            flags+=(--set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" --set-secrets "DATABASE_URL=$UNIT-database-url$SUFFIX:latest")
+            flags+=(--set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" --set-secrets "DATABASE_URL=$UNIT-database-url:latest")
           fi
           if [ "$UNIT" = "gateway" ] || [ "$UNIT" = "web" ]; then flags+=(--allow-unauthenticated); else flags+=(--no-allow-unauthenticated); fi
-          gcloud run deploy "$UNIT$SUFFIX" "${flags[@]}"
+          gcloud run deploy "$UNIT" "${flags[@]}"
 
       - name: Verify /health
         run: |
-          url="https://$UNIT$SUFFIX-$GCP_PROJECT_NUMBER.$GCP_REGION.run.app"
+          url="https://$UNIT-$GCP_PROJECT_NUMBER.$GCP_REGION.run.app"
           path=$([ "$UNIT" = "web" ] && echo /api/health || echo /health)
           token=$(gcloud auth print-identity-token --audiences="$url" 2>/dev/null || true)
           curl --fail --retry 5 --retry-delay 5 --retry-all-errors -H "X-Serverless-Authorization: Bearer $token" "$url$path"

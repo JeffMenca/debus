@@ -6,9 +6,9 @@ describe('runtime env', () => {
   });
 
   it('reads the server variables', () => {
-    expect(readRuntimeEnv({ API_URL: 'https://gw/', APP_ENV: 'staging' })).toEqual({
+    expect(readRuntimeEnv({ API_URL: 'https://gw/', APP_ENV: 'production' })).toEqual({
       apiUrl: 'https://gw',
-      appEnv: 'staging',
+      appEnv: 'production',
     });
   });
 

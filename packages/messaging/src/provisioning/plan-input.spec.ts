@@ -6,7 +6,7 @@ describe('planInputFromEnv', () => {
   });
 
   it('requires the Cloud Run location in the cloud', () => {
-    expect(() => planInputFromEnv({ DEBUS_ENV: 'staging', PUBSUB_PROJECT_ID: 'p' })).toThrow(
+    expect(() => planInputFromEnv({ DEBUS_ENV: 'production', PUBSUB_PROJECT_ID: 'p' })).toThrow(
       'GCP_PROJECT_NUMBER and GCP_REGION are required',
     );
     expect(

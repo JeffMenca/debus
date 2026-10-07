@@ -24,7 +24,7 @@ export const LOCAL_PORTS: Readonly<Record<DeployUnit, number>> = {
   notificaciones: 4007,
 };
 
-export const DEBUS_ENVIRONMENTS = ['local', 'staging', 'production'] as const;
+export const DEBUS_ENVIRONMENTS = ['local', 'production'] as const;
 export type DebusEnv = (typeof DEBUS_ENVIRONMENTS)[number];
 export type CloudEnv = Exclude<DebusEnv, 'local'>;
 
@@ -33,14 +33,10 @@ export interface CloudRunLocation {
   region: string;
 }
 
-export function resourceName(base: string, env: DebusEnv): string {
-  return env === 'staging' ? `${base}-staging` : base;
-}
-
 export function serviceUrl(unit: DeployUnit, env: DebusEnv, location?: CloudRunLocation): string {
   if (env === 'local') return `http://localhost:${LOCAL_PORTS[unit]}`;
   if (!location) throw new Error('Cloud Run location is required outside local');
-  return `https://${resourceName(unit, env)}-${location.projectNumber}.${location.region}.run.app`;
+  return `https://${unit}-${location.projectNumber}.${location.region}.run.app`;
 }
 
 export function isBackendService(value: string): value is BackendService {
