@@ -24,7 +24,7 @@
     },
     "test:e2e": {
       "dependsOn": ["^build"],
-      "env": ["E2E_BASE_URL"],
+      "env": ["E2E_BASE_URL", "E2E_REAL_API"],
       "outputs": ["playwright-report/**", "test-results/**"]
     },
     "dev": {

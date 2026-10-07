@@ -18,12 +18,16 @@
     "prepare": "husky",
     "test:integration": "turbo run test:integration",
     "test:e2e": "turbo run test:e2e",
-    "new-service": "node scripts/new-service.mjs"
+    "new-service": "node scripts/new-service.mjs",
+    "dev": "turbo run dev",
+    "pubsub:provision": "turbo run build --filter=@debus/messaging && node scripts/provision-pubsub.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@debus/config": "workspace:*",
+    "@debus/contracts": "workspace:*",
+    "@debus/messaging": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.4",

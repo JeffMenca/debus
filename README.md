@@ -23,18 +23,35 @@ Node 22 o superior, pnpm 10 y Docker.
 
 ```bash
 pnpm install
-cp services/<servicio>/.env.example services/<servicio>/.env   # opcional, hay valores por defecto
+for d in services/* apps/web; do cp -n "$d/.env.example" "$d/.env"; done
 pnpm infra:up             # PostgreSQL, emulador de Pub/Sub (8085) y Mailpit (8025)
-pnpm check                # lint, typecheck y pruebas unitarias (umbral 85%)
-pnpm test:integration     # pruebas de integración (umbral 60%)
-pnpm test:e2e             # Playwright del web a 1440 y 390 px
-pnpm turbo run dev --filter=@debus/flota
-pnpm new-service <nombre> [--no-db]
+pnpm pubsub:provision     # tópicos y suscripciones push hacia los servicios locales
+for s in administracion flota viajes ventas clientes reportes notificaciones; do pnpm --filter @debus/$s prisma:deploy; done
+pnpm dev                  # web :3000, gateway :4000, servicios :4001-4007
 ```
 
-Cada servicio expone `GET /health` y Swagger en `/docs`.
+Abre `http://localhost:3000/estado`: muestra si cada servicio responde y permite enviar un aviso de prueba que viaja por Pub/Sub hasta los 7 servicios.
 
-Imágenes: `docker build -f infra/docker/service.Dockerfile --build-arg SERVICE=<servicio> .` (con `--target migrator` para la imagen de migraciones) y `docker build -f infra/docker/web.Dockerfile .`.
+```bash
+pnpm check                # lint, typecheck y pruebas unitarias (umbral 85%)
+pnpm test:integration     # pruebas de integración (umbral 60%), necesitan pnpm infra:up
+pnpm test:e2e             # Playwright del web a 1440 y 390 px
+pnpm new-service <nombre> --port <puerto> [--no-db]
+```
+
+Cada servicio expone `GET /health`, Swagger en `/docs`, `POST /events/pubsub` (entrega push de Pub/Sub) y `GET /events/processed/:eventId`. El gateway enruta `/api/<servicio>/*` al servicio correspondiente y oculta las rutas internas.
+
+Imágenes: `docker build -f infra/docker/service.Dockerfile --build-arg SERVICE=<servicio> .` (con `--target migrator` para la imagen de migraciones) y `docker build -f infra/docker/web.Dockerfile .`. El web recibe la URL del gateway al arrancar (`API_URL`), así la misma imagen sirve en cualquier entorno.
+
+## Entornos
+
+| Entorno    | Cómo llega un cambio               | Web                                             | API                                                 |
+| ---------- | ---------------------------------- | ----------------------------------------------- | --------------------------------------------------- |
+| Local      | `pnpm dev`                         | `http://localhost:3000`                         | `http://localhost:4000`                             |
+| Staging    | Merge a `main` (workflow `deploy`) | `https://web-staging-<número>.<región>.run.app` | `https://gateway-staging-<número>.<región>.run.app` |
+| Producción | Workflow `promote`, con aprobación | `https://web-<número>.<región>.run.app`         | `https://gateway-<número>.<región>.run.app`         |
+
+`promote` copia a producción la imagen exacta que corre en staging. La primera vez, después de correr `infra/gcp/bootstrap.sh` y cargar sus variables en GitHub, se ejecuta `deploy` a mano con `all=true`.
 
 ## Convenciones
 

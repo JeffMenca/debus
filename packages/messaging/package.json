@@ -6,16 +6,36 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "lint": "eslint src",
+    "lint": "eslint src test",
     "typecheck": "tsc --noEmit",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "test:integration": "jest --config test/jest-integration.cjs --coverage"
   },
   "devDependencies": {
-    "@debus/config": "workspace:*"
+    "@debus/config": "workspace:*",
+    "@nestjs/common": "^11.2.7",
+    "@nestjs/core": "^11.2.7",
+    "@nestjs/platform-express": "^11.2.7",
+    "@nestjs/swagger": "^11.4.7",
+    "@nestjs/testing": "^11.2.7",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "supertest": "^7.3.1"
   },
   "dependencies": {
     "@debus/contracts": "workspace:^",
     "@google-cloud/pubsub": "^6.1.0",
-    "google-auth-library": "^11.1.0"
+    "google-auth-library": "^11.1.0",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.2.7",
+    "@nestjs/core": "^11.2.7",
+    "@nestjs/swagger": "^11.4.7"
   }
 }

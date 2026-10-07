@@ -1,0 +1,56 @@
+name: promote
+
+# Copies exactly what runs in staging to production: the same image tag per unit, no rebuild.
+# The "production" environment requires a reviewer's approval before the release jobs start.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      releases: ${{ steps.list.outputs.releases }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@debus/contracts
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - id: list
+        env:
+          GCP_REGION: ${{ vars.GCP_REGION }}
+        run: |
+          releases='[]'
+          for unit in $(node -e "console.log(require('@debus/contracts').DEPLOY_UNITS.join(' '))"); do
+            image=$(gcloud run services describe "$unit-staging" --region "$GCP_REGION" \
+              --format 'value(spec.template.spec.containers[0].image)')
+            releases=$(jq -c --arg unit "$unit" --arg tag "${image##*:}" '. + [{unit: $unit, tag: $tag}]' <<<"$releases")
+          done
+          echo "releases=$releases" >> "$GITHUB_OUTPUT"
+          jq -r '.[] | "- \(.unit): \(.tag)"' <<<"$releases" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    needs: plan
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/release.yml
+    with:
+      environment: production
+      releases: ${{ needs.plan.outputs.releases }}

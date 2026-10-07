@@ -1,4 +1,5 @@
-# docker build -f infra/docker/web.Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.example .
+# docker build -f infra/docker/web.Dockerfile .
+# The gateway URL arrives at runtime through API_URL (served to the browser by /env.js).
 ARG NODE_VERSION=22
 
 FROM node:${NODE_VERSION}-alpine AS base
@@ -10,8 +11,7 @@ COPY . .
 RUN pnpm dlx turbo@2 prune @debus/web --docker
 
 FROM base AS builder
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} NEXT_OUTPUT=standalone NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_OUTPUT=standalone NEXT_TELEMETRY_DISABLED=1
 COPY --from=pruner /app/out/json/ .
 RUN pnpm install --frozen-lockfile
 COPY --from=pruner /app/out/full/ .

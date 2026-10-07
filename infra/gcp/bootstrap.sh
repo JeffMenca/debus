@@ -30,16 +30,24 @@ echo "Cloud SQL (PostgreSQL 17, one database and one user per service)"
 exists gcloud sql instances describe "$SQL_INSTANCE" ||
   gcloud sql instances create "$SQL_INSTANCE" --database-version POSTGRES_17 --tier "$SQL_TIER" \
     --region "$REGION" --edition enterprise --storage-auto-increase
+if ! gcloud sql instances describe "$SQL_INSTANCE" --format='value(settings.databaseFlags)' | grep -q max_connections; then
+  # Staging and production share the instance: 14 services x pool 2 x up to 2 instances.
+  gcloud sql instances patch "$SQL_INSTANCE" --database-flags max_connections=60 --quiet
+fi
 CONNECTION_NAME=$(gcloud sql instances describe "$SQL_INSTANCE" --format='value(connectionName)')
 for svc in "${DB_SERVICES[@]}"; do
-  exists gcloud sql databases describe "$svc" --instance "$SQL_INSTANCE" ||
-    gcloud sql databases create "$svc" --instance "$SQL_INSTANCE"
-  if ! exists gcloud secrets describe "$svc-database-url"; then
-    password=$(openssl rand -hex 24)
-    gcloud sql users create "$svc" --instance "$SQL_INSTANCE" --password "$password"
-    printf 'postgresql://%s:%s@localhost/%s?host=/cloudsql/%s' "$svc" "$password" "$svc" "$CONNECTION_NAME" |
-      gcloud secrets create "$svc-database-url" --data-file=-
-  fi
+  for env_suffix in "" "-staging"; do
+    db="$svc${env_suffix//-/_}"
+    secret="$svc-database-url$env_suffix"
+    exists gcloud sql databases describe "$db" --instance "$SQL_INSTANCE" ||
+      gcloud sql databases create "$db" --instance "$SQL_INSTANCE"
+    if ! exists gcloud secrets describe "$secret"; then
+      password=$(openssl rand -hex 24)
+      gcloud sql users create "$db" --instance "$SQL_INSTANCE" --password "$password"
+      printf 'postgresql://%s:%s@localhost/%s?host=/cloudsql/%s' "$db" "$password" "$db" "$CONNECTION_NAME" |
+        gcloud secrets create "$secret" --data-file=-
+    fi
+  done
 done
 
 echo "Service accounts"
@@ -66,6 +74,12 @@ done
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --member "serviceAccount:service-$PROJECT_NUMBER@gcp-sa-pubsub.iam.gserviceaccount.com" \
   --role roles/iam.serviceAccountTokenCreator --condition None >/dev/null
+# Dead-letter forwarding: the Pub/Sub service agent republishes to <service>-dlq and acks the source.
+for role in roles/pubsub.publisher roles/pubsub.subscriber; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member "serviceAccount:service-$PROJECT_NUMBER@gcp-sa-pubsub.iam.gserviceaccount.com" \
+    --role "$role" --condition None >/dev/null
+done
 
 echo "Media bucket (bus and driver photos)"
 exists gcloud storage buckets describe "gs://$MEDIA_BUCKET" ||
@@ -89,12 +103,15 @@ cat <<OUT
 
 Done. Set these GitHub repository variables (Settings > Secrets and variables > Actions > Variables):
   GCP_PROJECT_ID=$PROJECT_ID
+  GCP_PROJECT_NUMBER=$PROJECT_NUMBER
   GCP_REGION=$REGION
   GCP_ARTIFACT_REPO=$ARTIFACT_REPO
   GCP_CLOUDSQL_INSTANCE=$CONNECTION_NAME
   GCP_WIF_PROVIDER=projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/github
   GCP_DEPLOY_SA=github-deployer@$PROJECT_ID.iam.gserviceaccount.com
   MEDIA_BUCKET=$MEDIA_BUCKET
-After the first deploy: API_URL=<gateway URL> and WEB_URL=<web URL>.
+Create two GitHub environments (Settings > Environments): "staging" with no rules and
+"production" with required reviewers. Then run the deploy workflow once with all=true and,
+when staging looks right, the promote workflow.
 Pending: SMTP credentials as secret smtp-url, Cloud Scheduler jobs for /outbox/flush and license alerts.
 OUT

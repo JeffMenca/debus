@@ -20,6 +20,9 @@ services:
     command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=${PUBSUB_PROJECT_ID:-debus-local}
     ports:
       - '8085:8085'
+    # Push subscriptions reach the services running on the host.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
 
   mailpit:
     image: axllent/mailpit:latest

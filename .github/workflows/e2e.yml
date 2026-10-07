@@ -1,5 +1,6 @@
 name: e2e
 
+# Runs against staging after every deploy. URLs are the deterministic Cloud Run ones.
 on:
   workflow_run:
     workflows: [deploy]
@@ -8,7 +9,7 @@ on:
 
 jobs:
   api:
-    if: (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') && vars.API_URL != ''
+    if: (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') && vars.GCP_PROJECT_NUMBER != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,12 +17,14 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: Run Postman collection
+        env:
+          API_URL: https://gateway-staging-${{ vars.GCP_PROJECT_NUMBER }}.${{ vars.GCP_REGION }}.run.app
         run: |
           if [ ! -f postman/debus.postman_collection.json ]; then echo "Collection not generated yet"; exit 0; fi
-          npx --yes newman run postman/debus.postman_collection.json --env-var "baseUrl=${{ vars.API_URL }}" --reporters cli
+          npx --yes newman run postman/debus.postman_collection.json --env-var "baseUrl=$API_URL" --reporters cli
 
   web:
-    if: (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') && vars.WEB_URL != ''
+    if: (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') && vars.GCP_PROJECT_NUMBER != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,4 +37,5 @@ jobs:
       - run: pnpm --filter @debus/web exec playwright install --with-deps chromium
       - run: pnpm --filter @debus/web test:e2e
         env:
-          E2E_BASE_URL: ${{ vars.WEB_URL }}
+          E2E_BASE_URL: https://web-staging-${{ vars.GCP_PROJECT_NUMBER }}.${{ vars.GCP_REGION }}.run.app
+          E2E_REAL_API: '1'

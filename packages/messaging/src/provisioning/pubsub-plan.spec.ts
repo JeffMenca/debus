@@ -1,0 +1,71 @@
+import { buildPubSubPlan } from './pubsub-plan';
+
+const location = { projectNumber: '123', region: 'us-central1' };
+
+describe('buildPubSubPlan', () => {
+  it('creates one topic per producer and one dead-letter per consumer in the cloud', () => {
+    const plan = buildPubSubPlan({ env: 'staging', projectId: 'p', location });
+
+    expect(plan.topics).toEqual(
+      expect.arrayContaining([
+        'gateway-events-staging',
+        'viajes-events-staging',
+        'ventas-dlq-staging',
+      ]),
+    );
+    expect(plan.deadLetterSubscriptions).toContainEqual({
+      name: 'ventas-dlq-sub-staging',
+      topic: 'ventas-dlq-staging',
+    });
+  });
+
+  it('filters each push subscription to the types the consumer listens to', () => {
+    const plan = buildPubSubPlan({ env: 'production', projectId: 'p', location });
+    const reportsFromFleet = plan.subscriptions.find((s) => s.name === 'reportes-from-flota');
+
+    expect(reportsFromFleet).toEqual({
+      name: 'reportes-from-flota',
+      topic: 'flota-events',
+      filter:
+        'attributes.type = "BusRegistrado" OR attributes.type = "BusActualizado" OR attributes.type = "BusDesactivado" OR attributes.type = "RutaCreada" OR attributes.type = "RutaEliminada"',
+      pushEndpoint: 'https://reportes-123.us-central1.run.app/events/pubsub',
+      oidc: {
+        serviceAccountEmail: 'pubsub-invoker@p.iam.gserviceaccount.com',
+        audience: 'https://reportes-123.us-central1.run.app',
+      },
+      deadLetterTopic: 'reportes-dlq',
+    });
+  });
+
+  it('subscribes every backend service to the probe', () => {
+    const plan = buildPubSubPlan({ env: 'local', projectId: 'debus-local' });
+
+    expect(plan.subscriptions.filter((s) => s.topic === 'gateway-events')).toHaveLength(7);
+  });
+
+  it('pushes to the host without OIDC or dead-letters in local', () => {
+    const plan = buildPubSubPlan({ env: 'local', projectId: 'debus-local' });
+
+    expect(plan.subscriptions.find((s) => s.name === 'flota-from-gateway')).toEqual({
+      name: 'flota-from-gateway',
+      topic: 'gateway-events',
+      filter: '',
+      pushEndpoint: 'http://host.docker.internal:4002/events/pubsub',
+    });
+    expect(plan.deadLetterSubscriptions).toEqual([]);
+  });
+
+  it('skips the filter when the consumer takes every type of the producer', () => {
+    const plan = buildPubSubPlan({ env: 'local', projectId: 'debus-local' });
+
+    expect(plan.subscriptions.find((s) => s.name === 'viajes-from-flota')?.filter).toBe('');
+  });
+
+  it('keeps every filter within the 256-byte Pub/Sub limit', () => {
+    const plan = buildPubSubPlan({ env: 'staging', projectId: 'p', location });
+
+    for (const { filter } of plan.subscriptions) {
+      expect(Buffer.byteLength(filter)).toBeLessThanOrEqual(256);
+    }
+  });
+});

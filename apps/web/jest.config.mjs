@@ -4,7 +4,7 @@ const createJestConfig = nextJest({ dir: './' });
 
 /** @type {import('jest').Config} */
 const config = {
-  testEnvironment: 'jsdom',
+  testEnvironment: '<rootDir>/jest.environment.mjs',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testPathIgnorePatterns: ['<rootDir>/e2e/', '<rootDir>/.next/'],
   collectCoverageFrom: [

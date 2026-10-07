@@ -1,0 +1,42 @@
+import { BACKEND_SERVICES } from '../topology';
+import {
+  EVENT_REGISTRY,
+  EVENT_TYPES,
+  consumersOf,
+  eventsConsumedBy,
+  publisherOf,
+} from './registry';
+
+describe('event registry', () => {
+  it('declares the 19 business event types plus the diagnostic probe', () => {
+    const business = EVENT_TYPES.filter((type) => !EVENT_REGISTRY[type].diagnostic);
+
+    expect(business).toHaveLength(19);
+    expect(EVENT_REGISTRY.SondeoEmitido.diagnostic).toBe(true);
+  });
+
+  it('never lets a service consume its own events', () => {
+    for (const type of EVENT_TYPES) {
+      expect(consumersOf(type)).not.toContain(publisherOf(type));
+      expect(consumersOf(type).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('delivers the probe to every backend service', () => {
+    expect([...consumersOf('SondeoEmitido')].sort()).toEqual([...BACKEND_SERVICES].sort());
+    expect(publisherOf('SondeoEmitido')).toBe('gateway');
+  });
+
+  it('lists what each consumer listens to', () => {
+    expect(eventsConsumedBy('clientes')).toEqual(
+      expect.arrayContaining([
+        'ConfiguracionActualizada',
+        'UsuarioRegistrado',
+        'BoletoVendido',
+        'ReembolsoSolicitado',
+        'SondeoEmitido',
+      ]),
+    );
+    expect(eventsConsumedBy('clientes')).not.toContain('AlquilerPagado');
+  });
+});
