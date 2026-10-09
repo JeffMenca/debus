@@ -16,6 +16,16 @@ ALL_SERVICES=(gateway "${DB_SERVICES[@]}" web)
 gcloud config set project "$PROJECT_ID" >/dev/null
 PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
 exists() { "$@" >/dev/null 2>&1; }
+# Retries a command that can hit per-minute API quotas (for example service account creation).
+retry() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    "$@" && return 0
+    echo "Attempt $attempt failed; waiting 65s before retrying"
+    sleep 65
+  done
+  return 1
+}
 
 echo "Enabling APIs"
 gcloud services enable run.googleapis.com artifactregistry.googleapis.com sqladmin.googleapis.com \
@@ -48,21 +58,21 @@ for svc in "${DB_SERVICES[@]}"; do
   fi
 done
 
-echo "Service accounts"
-for svc in "${ALL_SERVICES[@]}" pubsub-invoker github-deployer; do
-  exists gcloud iam service-accounts describe "$svc@$PROJECT_ID.iam.gserviceaccount.com" ||
-    gcloud iam service-accounts create "$svc" --display-name "debus $svc"
+echo "Service accounts (account IDs need 6-30 characters, so each unit gets the debus- prefix)"
+for account in "${ALL_SERVICES[@]/#/debus-}" pubsub-invoker github-deployer; do
+  exists gcloud iam service-accounts describe "$account@$PROJECT_ID.iam.gserviceaccount.com" ||
+    retry gcloud iam service-accounts create "$account" --display-name "$account"
 done
 bind() { gcloud projects add-iam-policy-binding "$PROJECT_ID" --member "serviceAccount:$1@$PROJECT_ID.iam.gserviceaccount.com" --role "$2" --condition None >/dev/null; }
 for svc in "${DB_SERVICES[@]}"; do
-  bind "$svc" roles/cloudsql.client
-  bind "$svc" roles/secretmanager.secretAccessor
+  bind "debus-$svc" roles/cloudsql.client
+  bind "debus-$svc" roles/secretmanager.secretAccessor
 done
 for svc in "${ALL_SERVICES[@]}"; do
-  bind "$svc" roles/pubsub.publisher
+  bind "debus-$svc" roles/pubsub.publisher
   # Private services only accept identity tokens from these accounts (gateway, peer services, Pub/Sub).
-  bind "$svc" roles/run.invoker
-  bind "$svc" roles/iam.serviceAccountTokenCreator
+  bind "debus-$svc" roles/run.invoker
+  bind "debus-$svc" roles/iam.serviceAccountTokenCreator
 done
 bind pubsub-invoker roles/run.invoker
 for role in roles/run.admin roles/artifactregistry.writer roles/iam.serviceAccountUser roles/pubsub.admin \
@@ -83,7 +93,7 @@ echo "Media bucket (bus and driver photos)"
 exists gcloud storage buckets describe "gs://$MEDIA_BUCKET" ||
   gcloud storage buckets create "gs://$MEDIA_BUCKET" --location "$REGION" --uniform-bucket-level-access
 gcloud storage buckets add-iam-policy-binding "gs://$MEDIA_BUCKET" \
-  --member "serviceAccount:flota@$PROJECT_ID.iam.gserviceaccount.com" --role roles/storage.objectAdmin >/dev/null
+  --member "serviceAccount:debus-flota@$PROJECT_ID.iam.gserviceaccount.com" --role roles/storage.objectAdmin >/dev/null
 
 echo "Workload Identity Federation for GitHub Actions"
 exists gcloud iam workload-identity-pools describe github --location global ||

@@ -54,7 +54,7 @@ jobs:
           gcloud run jobs deploy "$UNIT-migrate" \
             --image "$REGISTRY/$UNIT-migrate:$TAG" \
             --region "$GCP_REGION" \
-            --service-account "$UNIT@$GCP_PROJECT_ID.iam.gserviceaccount.com" \
+            --service-account "debus-$UNIT@$GCP_PROJECT_ID.iam.gserviceaccount.com" \
             --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
             --set-secrets "DATABASE_URL=$UNIT-database-url:latest" \
             --execute-now --wait
@@ -62,7 +62,7 @@ jobs:
       - name: Deploy to Cloud Run
         run: |
           flags=(--image "$REGISTRY/$UNIT:$TAG" --region "$GCP_REGION"
-                 --service-account "$UNIT@$GCP_PROJECT_ID.iam.gserviceaccount.com"
+                 --service-account "debus-$UNIT@$GCP_PROJECT_ID.iam.gserviceaccount.com"
                  --min-instances 0 --max-instances "$MAX_INSTANCES"
                  --set-env-vars "$(node scripts/cloud-run-env.mjs "$UNIT" "$TARGET_ENV")")
           if [ -f "services/$UNIT/prisma/schema.prisma" ]; then
