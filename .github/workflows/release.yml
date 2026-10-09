@@ -75,8 +75,12 @@ jobs:
         run: |
           url="https://$UNIT-$GCP_PROJECT_NUMBER.$GCP_REGION.run.app"
           path=$([ "$UNIT" = "web" ] && echo /api/health || echo /health)
-          token=$(gcloud auth print-identity-token --audiences="$url" 2>/dev/null || true)
-          curl --fail --retry 5 --retry-delay 5 --retry-all-errors -H "X-Serverless-Authorization: Bearer $token" "$url$path"
+          auth=()
+          if [ "$UNIT" != "gateway" ] && [ "$UNIT" != "web" ]; then
+            token=$(gcloud auth print-identity-token --impersonate-service-account="${{ vars.GCP_DEPLOY_SA }}" --audiences="$url")
+            auth=(-H "X-Serverless-Authorization: Bearer $token")
+          fi
+          curl --fail --retry 5 --retry-delay 5 --retry-all-errors "${auth[@]}" "$url$path"
 
   pubsub:
     needs: deploy

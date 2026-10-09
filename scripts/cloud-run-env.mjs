@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Prints the --set-env-vars value for one unit, using @ as delimiter so values may contain commas.
+// Prints the --set-env-vars value for one unit, using | as delimiter so values may contain commas.
 // Usage: GCP_PROJECT_ID GCP_PROJECT_NUMBER GCP_REGION MEDIA_BUCKET node scripts/cloud-run-env.mjs <unit> production
 import { cloudRunEnv } from '@debus/contracts';
 
@@ -13,4 +13,4 @@ const settings = {
 const vars = Object.entries(cloudRunEnv(unit, env, settings)).map(
   ([key, value]) => `${key}=${value}`,
 );
-process.stdout.write(`^@^${vars.join('@')}`);
+process.stdout.write(`^|^${vars.join('|')}`);

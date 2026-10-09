@@ -75,6 +75,8 @@ for svc in "${ALL_SERVICES[@]}"; do
   bind "debus-$svc" roles/iam.serviceAccountTokenCreator
 done
 bind pubsub-invoker roles/run.invoker
+# The deploy health check mints identity tokens for the private services by impersonating this same account.
+bind github-deployer roles/iam.serviceAccountTokenCreator
 for role in roles/run.admin roles/artifactregistry.writer roles/iam.serviceAccountUser roles/pubsub.admin \
   roles/cloudscheduler.admin roles/secretmanager.secretAccessor roles/cloudsql.client; do
   bind github-deployer "$role"
