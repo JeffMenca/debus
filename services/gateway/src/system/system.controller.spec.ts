@@ -31,4 +31,24 @@ describe('SystemController', () => {
       'probes/:probeId',
     );
   });
+
+  it('documents the three responses in English', () => {
+    const descriptions = (handler: object) =>
+      Object.values(
+        Reflect.getMetadata(DECORATORS.API_RESPONSE, handler) as Record<
+          string,
+          { description: string }
+        >,
+      ).map((response) => response.description);
+
+    expect(descriptions(SystemController.prototype.check)).toEqual([
+      'Health of the gateway and every service.',
+    ]);
+    expect(descriptions(SystemController.prototype.emit)).toEqual([
+      'Probe accepted; its id is returned to follow the delivery.',
+    ]);
+    expect(descriptions(SystemController.prototype.probe)).toEqual([
+      'Which services received the probe so far.',
+    ]);
+  });
 });

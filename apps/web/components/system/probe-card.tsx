@@ -12,8 +12,8 @@ interface ProbeCardProps {
 
 export function ProbeCard({ onSend, isSending, status, elapsedMs, errorMessage }: ProbeCardProps) {
   return (
-    <section aria-labelledby="aviso" className="rounded-xl bg-lilac-100 p-6">
-      <h2 id="aviso" className="font-display text-xl font-semibold text-lilac-700">
+    <section aria-labelledby="probe" className="rounded-xl bg-lilac-100 p-6">
+      <h2 id="probe" className="font-display text-xl font-semibold text-lilac-700">
         Aviso de prueba
       </h2>
       <p className="mt-1 text-sm text-lilac-700">

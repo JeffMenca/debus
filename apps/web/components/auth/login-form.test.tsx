@@ -130,7 +130,7 @@ describe('LoginForm', () => {
   });
 
   it('confirms a freshly created password', () => {
-    render(<LoginForm next={null} notice="listo" />);
+    render(<LoginForm next={null} notice="passwordSet" />);
 
     expect(screen.getByRole('status')).toHaveTextContent(
       'Tu contraseña quedó lista. Ya puedes ingresar.',

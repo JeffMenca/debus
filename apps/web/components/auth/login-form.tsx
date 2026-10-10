@@ -27,7 +27,7 @@ type LoginValues = z.output<typeof loginRequestSchema>;
 
 interface LoginFormProps {
   next: string | null;
-  notice?: 'listo';
+  notice?: 'passwordSet';
 }
 
 export function LoginForm({ next, notice }: LoginFormProps) {
@@ -64,7 +64,7 @@ export function LoginForm({ next, notice }: LoginFormProps) {
         onSubmit={onSubmit}
         className="flex animate-[arrive_0.45s_var(--ease-route)_both] flex-col gap-4 motion-reduce:animate-none"
       >
-        {notice === 'listo' && (
+        {notice === 'passwordSet' && (
           <FormAlert tone="success" icon={CircleCheck}>
             Tu contraseña quedó lista. Ya puedes ingresar.
           </FormAlert>

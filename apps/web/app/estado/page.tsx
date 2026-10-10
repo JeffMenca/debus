@@ -3,6 +3,6 @@ import { SystemStatusView } from '@/components/system/system-status-view';
 
 export const metadata: Metadata = { title: 'Estado del sistema · debus' };
 
-export default function EstadoPage() {
+export default function StatusPage() {
   return <SystemStatusView />;
 }

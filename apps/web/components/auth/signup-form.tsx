@@ -53,7 +53,7 @@ export function SignupForm() {
       title="Crea tu cuenta"
       subtitle="Con tu cuenta compras en línea y alquilas buses para tu grupo."
     >
-      <AuthTabs active="registro" />
+      <AuthTabs active="signup" />
       <form
         noValidate
         onSubmit={onSubmit}

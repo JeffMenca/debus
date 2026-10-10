@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 const TABS = [
   { key: 'login', href: '/login', label: 'Iniciar sesión' },
-  { key: 'registro', href: '/registro', label: 'Crear cuenta' },
+  { key: 'signup', href: '/registro', label: 'Crear cuenta' },
 ] as const;
 
 export function AuthTabs({ active }: { active: (typeof TABS)[number]['key'] }) {

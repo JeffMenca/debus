@@ -3,7 +3,7 @@ import { AuthTabs } from './auth-tabs';
 
 describe('AuthTabs', () => {
   it('links both forms and marks the active one', () => {
-    render(<AuthTabs active="registro" />);
+    render(<AuthTabs active="signup" />);
 
     expect(screen.getByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', '/login');
     expect(screen.getByRole('link', { name: 'Crear cuenta' })).toHaveAttribute(
@@ -21,7 +21,7 @@ describe('AuthTabs', () => {
 
     expect(indicator()).toHaveClass('translate-x-0');
 
-    rerender(<AuthTabs active="registro" />);
+    rerender(<AuthTabs active="signup" />);
 
     expect(indicator()).toHaveClass('translate-x-full');
   });

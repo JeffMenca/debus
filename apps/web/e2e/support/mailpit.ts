@@ -15,10 +15,13 @@ export async function isReachable(mailpit: string): Promise<boolean> {
   }
 }
 
+// Pub/Sub may redeliver a push after its backoff (10 s minimum), so the wait covers a few retries.
+const EMAIL_WAIT_MS = 60_000;
+
 // Returns the path and query only: the email points at the configured public address,
 // which is not where the test web server listens.
 export async function latestLink(mailpit: string, to: string, path: string): Promise<string> {
-  const deadline = Date.now() + 20_000;
+  const deadline = Date.now() + EMAIL_WAIT_MS;
   while (Date.now() < deadline) {
     const search = await fetch(`${mailpit}/api/v1/search?query=${encodeURIComponent(`to:${to}`)}`);
     const { messages } = (await search.json()) as { messages: { ID: string }[] };

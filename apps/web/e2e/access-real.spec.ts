@@ -3,14 +3,14 @@ import { isReachable, latestLink, mailpitUrl } from './support/mailpit';
 
 test.describe('real access', () => {
   test.skip(!process.env.E2E_REAL_API, 'runs only against a running gateway');
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
 
   test('sign-up, email, password, sign-in and recovery', async ({ page, baseURL }, testInfo) => {
     const mailpit = mailpitUrl(baseURL);
     test.skip(!mailpit || !(await isReachable(mailpit)), 'needs a reachable Mailpit');
     const inbox = mailpit as string;
-    // One address per project: desktop and mobile run at the same time.
-    const email = `e2e-${testInfo.project.name}-${Date.now()}@correo.com`;
+    // One address per run: projects and repeats run at the same time and must not share an inbox.
+    const email = `e2e-${testInfo.project.name}-${testInfo.repeatEachIndex}-${Date.now()}@correo.com`;
 
     await page.goto('/registro');
     await page.getByLabel('Nombre completo').fill('Prueba de Punta a Punta');
@@ -39,11 +39,21 @@ test.describe('real access', () => {
     ).toBe(0);
 
     // Reloading loses the in-memory token; the page must get the session back from the cookie.
-    const restored = page.waitForResponse((response) =>
-      response.url().endsWith('/api/session/refresh'),
-    );
-    await page.reload();
-    expect((await restored).status()).toBe(200);
+    // Let the sign-in requests finish first, so the reload is the only thing using the cookie.
+    const refreshCookie = async () =>
+      (await page.context().cookies()).find((c) => c.name === 'debus_refresh')?.value;
+    await page.waitForLoadState('networkidle');
+    const before = await refreshCookie();
+    const [restored] = await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.url().endsWith('/api/session/refresh') && response.request().method() === 'POST',
+      ),
+      page.reload(),
+    ]);
+    expect(restored.status()).toBe(200);
+    // The refresh token rotates on every use, so a new cookie shows the session settled.
+    await expect.poll(refreshCookie).not.toBe(before);
 
     await page.goto('/recuperar');
     await page.getByLabel('Correo electrónico').fill(email);

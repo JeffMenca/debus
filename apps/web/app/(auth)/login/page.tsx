@@ -6,11 +6,11 @@ import { firstParam } from '@/lib/auth/search-params';
 export const metadata: Metadata = { title: 'Ingresar · debus' };
 
 export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
-  const { siguiente, listo } = await searchParams;
+  const { siguiente: next, listo: passwordSet } = await searchParams;
   return (
     <LoginForm
-      next={safeNext(firstParam(siguiente))}
-      notice={firstParam(listo) === '1' ? 'listo' : undefined}
+      next={safeNext(firstParam(next))}
+      notice={firstParam(passwordSet) === '1' ? 'passwordSet' : undefined}
     />
   );
 }

@@ -15,6 +15,32 @@ describe('event registry', () => {
     expect(EVENT_REGISTRY.ProbeSent.diagnostic).toBe(true);
   });
 
+  it('declares exactly the 21 agreed event names, in registry order', () => {
+    expect(EVENT_TYPES).toEqual([
+      'BranchCreated',
+      'BranchUpdated',
+      'SettingsUpdated',
+      'UserRegistered',
+      'AccountLinkSent',
+      'RepairExpenseAdded',
+      'BusAdded',
+      'BusUpdated',
+      'BusDeactivated',
+      'DriverAdded',
+      'DriverUpdated',
+      'RouteCreated',
+      'RouteDeleted',
+      'TripScheduled',
+      'TripDeleted',
+      'TripDeparted',
+      'TripCompleted',
+      'TicketSold',
+      'RefundRequested',
+      'RentalPaid',
+      'ProbeSent',
+    ]);
+  });
+
   it('sends account links from administracion to notificaciones', () => {
     expect(publisherOf('AccountLinkSent')).toBe('administracion');
     expect(consumersOf('AccountLinkSent')).toEqual(['notificaciones']);
