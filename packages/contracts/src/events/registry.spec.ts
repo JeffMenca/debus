@@ -8,11 +8,16 @@ import {
 } from './registry';
 
 describe('event registry', () => {
-  it('declares the 19 business event types plus the diagnostic probe', () => {
+  it('declares the 20 business event types plus the diagnostic probe', () => {
     const business = EVENT_TYPES.filter((type) => !EVENT_REGISTRY[type].diagnostic);
 
-    expect(business).toHaveLength(19);
+    expect(business).toHaveLength(20);
     expect(EVENT_REGISTRY.SondeoEmitido.diagnostic).toBe(true);
+  });
+
+  it('sends account links from administracion to notificaciones', () => {
+    expect(publisherOf('EnlaceDeCuentaEmitido')).toBe('administracion');
+    expect(consumersOf('EnlaceDeCuentaEmitido')).toEqual(['notificaciones']);
   });
 
   it('never lets a service consume its own events', () => {

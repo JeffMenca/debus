@@ -18,6 +18,7 @@ const definitions = {
   SucursalActualizada: { publisher: 'administracion', consumers: branchConsumers },
   ConfiguracionActualizada: { publisher: 'administracion', consumers: ['viajes', 'clientes'] },
   UsuarioRegistrado: { publisher: 'administracion', consumers: ['clientes'] },
+  EnlaceDeCuentaEmitido: { publisher: 'administracion', consumers: ['notificaciones'] },
   GastoTallerRegistrado: { publisher: 'administracion', consumers: ['reportes'] },
   BusRegistrado: { publisher: 'flota', consumers: busConsumers },
   BusActualizado: { publisher: 'flota', consumers: busConsumers },

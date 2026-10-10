@@ -1,4 +1,10 @@
-import type { InboxEvent, InboxOutcome, InboxStore, ProcessedEvent } from './inbox-store';
+import type {
+  InboxEvent,
+  InboxOutcome,
+  InboxStore,
+  InboxWork,
+  ProcessedEvent,
+} from './inbox-store';
 
 // Structural subset of PrismaClient, so every service can pass its own generated client.
 export interface SqlClient {
@@ -7,8 +13,16 @@ export interface SqlClient {
 }
 
 export interface SqlTransactional extends SqlClient {
-  $transaction<R>(fn: (tx: SqlClient) => Promise<R>): Promise<R>;
+  $transaction<R>(
+    fn: (tx: SqlClient) => Promise<R>,
+    options?: { timeout?: number; maxWait?: number },
+  ): Promise<R>;
 }
+
+// Handlers may call slow services (SMTP, HTTP) inside the transaction; Prisma's default is 5 s.
+export const INBOX_TRANSACTION_TIMEOUT_MS = 30_000;
+// Events beyond the pool size queue for a connection; Prisma's default wait is 2 s.
+export const INBOX_TRANSACTION_MAX_WAIT_MS = 10_000;
 
 const INSERT =
   'INSERT INTO processed_events (event_id, type) VALUES ($1, $2) ON CONFLICT (event_id) DO NOTHING';
@@ -19,13 +33,16 @@ const SELECT =
 export class SqlInboxStore implements InboxStore {
   constructor(private readonly db: SqlTransactional) {}
 
-  runOnce(event: InboxEvent, work: () => Promise<void>): Promise<InboxOutcome> {
-    return this.db.$transaction(async (tx) => {
-      const inserted = await tx.$executeRawUnsafe(INSERT, event.eventId, event.type);
-      if (inserted === 0) return 'duplicate';
-      await work();
-      return 'processed';
-    });
+  runOnce(event: InboxEvent, work: InboxWork): Promise<InboxOutcome> {
+    return this.db.$transaction(
+      async (tx) => {
+        const inserted = await tx.$executeRawUnsafe(INSERT, event.eventId, event.type);
+        if (inserted === 0) return 'duplicate';
+        await work(tx);
+        return 'processed';
+      },
+      { timeout: INBOX_TRANSACTION_TIMEOUT_MS, maxWait: INBOX_TRANSACTION_MAX_WAIT_MS },
+    );
   }
 
   async findProcessed(eventId: string): Promise<ProcessedEvent | null> {

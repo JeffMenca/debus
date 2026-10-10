@@ -38,4 +38,13 @@ describe('EventPublisher', () => {
       new EventPublisher(pubsub, settings).publish(createEnvelope('ViajeProgramado', {}, 'c')),
     ).rejects.toThrow('gateway cannot publish ViajeProgramado');
   });
+
+  it('closes the Pub/Sub client when the application shuts down, so no call outlives it', async () => {
+    const close = jest.fn().mockResolvedValue(undefined);
+    const publisher = new EventPublisher({ close } as unknown as PubSub, settings);
+
+    await publisher.onApplicationShutdown();
+
+    expect(close).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,6 +1,8 @@
 import { createEnvelope } from '@debus/contracts';
 import { NotFoundException } from '@nestjs/common';
 import { InMemoryInboxStore } from '../inbox/in-memory-inbox-store';
+import type { InboxStore } from '../inbox/inbox-store';
+import type { SqlClient } from '../inbox/sql-inbox-store';
 import type { EventDispatcher } from './event-dispatcher';
 import { InboundEvents } from './inbound-events';
 
@@ -28,6 +30,22 @@ describe('InboundEvents', () => {
     await expect(events.processed(envelope.eventId)).resolves.toMatchObject({
       type: 'SondeoEmitido',
     });
+  });
+
+  it('dispatches inside the inbox work with the transaction it provides', async () => {
+    const tx = {} as SqlClient;
+    const inbox: InboxStore = {
+      runOnce: (_event, work) => work(tx).then(() => 'processed'),
+      findProcessed: jest.fn(),
+    };
+    const dispatch = jest.fn().mockResolvedValue(1);
+    const envelope = createEnvelope('SondeoEmitido', {}, 'c');
+
+    await new InboundEvents(inbox, { dispatch } as unknown as EventDispatcher).receive(
+      push(envelope),
+    );
+
+    expect(dispatch).toHaveBeenCalledWith(envelope, tx);
   });
 
   it('still acknowledges events without handlers', async () => {

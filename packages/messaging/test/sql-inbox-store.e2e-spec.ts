@@ -1,41 +1,8 @@
-import { Pool, type PoolClient } from 'pg';
-import { SqlInboxStore, type SqlClient, type SqlTransactional } from '../src/inbox/sql-inbox-store';
-
-// Adapts node-postgres to the PrismaClient subset the store relies on.
-function sqlClient(runner: Pool | PoolClient): SqlClient {
-  return {
-    $executeRawUnsafe: (query, ...values) =>
-      runner.query(query, values).then((result) => result.rowCount ?? 0),
-    $queryRawUnsafe: <T>(query: string, ...values: unknown[]) =>
-      runner.query(query, values).then((result) => result.rows as T),
-  };
-}
-
-function transactional(pool: Pool): SqlTransactional {
-  return {
-    ...sqlClient(pool),
-    async $transaction(fn) {
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        const result = await fn(sqlClient(client));
-        await client.query('COMMIT');
-        return result;
-      } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-      } finally {
-        client.release();
-      }
-    },
-  };
-}
+import { SqlInboxStore } from '../src/inbox/sql-inbox-store';
+import { testPool, transactional } from './support/pg';
 
 describe('SqlInboxStore against PostgreSQL', () => {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    options: '-c search_path=messaging_test',
-  });
+  const pool = testPool('messaging_test');
   const store = new SqlInboxStore(transactional(pool));
 
   beforeAll(async () => {
@@ -44,7 +11,8 @@ describe('SqlInboxStore against PostgreSQL', () => {
       event_id TEXT PRIMARY KEY,
       type TEXT NOT NULL,
       processed_at TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-    await pool.query('TRUNCATE processed_events');
+    await pool.query('CREATE TABLE IF NOT EXISTS handler_notes (note TEXT NOT NULL)');
+    await pool.query('TRUNCATE processed_events, handler_notes');
   });
 
   afterAll(() => pool.end());
@@ -74,5 +42,23 @@ describe('SqlInboxStore against PostgreSQL', () => {
 
     expect(work).toHaveBeenCalledTimes(1);
     expect(outcomes.filter((outcome) => outcome === 'processed')).toHaveLength(1);
+  });
+
+  it('lets the handler write through the same transaction as the mark', async () => {
+    const failing = { eventId: 'd', type: 'SondeoEmitido' };
+    const passing = { eventId: 'e', type: 'SondeoEmitido' };
+
+    await expect(
+      store.runOnce(failing, async (tx) => {
+        await tx?.$executeRawUnsafe('INSERT INTO handler_notes (note) VALUES ($1)', 'rolled back');
+        throw new Error('boom');
+      }),
+    ).rejects.toThrow('boom');
+    await store.runOnce(passing, async (tx) => {
+      await tx?.$executeRawUnsafe('INSERT INTO handler_notes (note) VALUES ($1)', 'kept');
+    });
+
+    const { rows } = await pool.query('SELECT note FROM handler_notes');
+    expect(rows).toEqual([{ note: 'kept' }]);
   });
 });

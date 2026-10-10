@@ -2,16 +2,19 @@ import { createEnvelope, type EventEnvelope } from '@debus/contracts';
 import { Injectable } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
+import type { SqlClient } from '../inbox/sql-inbox-store';
 import { EventDispatcher } from './event-dispatcher';
 import { OnEvent } from './on-event.decorator';
 
 @Injectable()
 class BranchHandler {
   readonly seen: EventEnvelope[] = [];
+  readonly clients: unknown[] = [];
 
   @OnEvent('SucursalCreada')
-  onCreated(_payload: unknown, envelope: EventEnvelope): void {
+  onCreated(_payload: unknown, envelope: EventEnvelope, tx?: SqlClient): void {
     this.seen.push(envelope);
+    this.clients.push(tx);
   }
 
   notAHandler(): void {}
@@ -34,6 +37,16 @@ describe('EventDispatcher', () => {
 
     await expect(dispatcher.dispatch(envelope)).resolves.toBe(1);
     expect(handler.seen).toEqual([envelope]);
+    await app.close();
+  });
+
+  it('passes the transaction client to the handler as a third argument', async () => {
+    const { app, dispatcher, handler } = await setup();
+    const tx = {} as SqlClient;
+
+    await dispatcher.dispatch(createEnvelope('SucursalCreada', {}, 'c'), tx);
+
+    expect(handler.clients).toEqual([tx]);
     await app.close();
   });
 

@@ -1,9 +1,10 @@
 import type { EventEnvelope, EventType } from '@debus/contracts';
 import { Injectable, type OnApplicationBootstrap } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
+import type { SqlClient } from '../inbox/sql-inbox-store';
 import { OnEvent } from './on-event.decorator';
 
-type EventHandler = (envelope: EventEnvelope) => unknown;
+type EventHandler = (envelope: EventEnvelope, tx: SqlClient | undefined) => unknown;
 
 @Injectable()
 export class EventDispatcher implements OnApplicationBootstrap {
@@ -26,15 +27,15 @@ export class EventDispatcher implements OnApplicationBootstrap {
         const type = this.reflector.get(OnEvent, method);
         if (!type) continue;
         const handlers = this.handlers.get(type) ?? [];
-        handlers.push((envelope) => method.call(instance, envelope.payload, envelope));
+        handlers.push((envelope, tx) => method.call(instance, envelope.payload, envelope, tx));
         this.handlers.set(type, handlers);
       }
     }
   }
 
-  async dispatch(envelope: EventEnvelope): Promise<number> {
+  async dispatch(envelope: EventEnvelope, tx?: SqlClient): Promise<number> {
     const handlers = this.handlers.get(envelope.type) ?? [];
-    for (const handler of handlers) await handler(envelope);
+    for (const handler of handlers) await handler(envelope, tx);
     return handlers.length;
   }
 }

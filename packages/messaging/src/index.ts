@@ -1,6 +1,7 @@
 export * from './settings';
 export * from './tokens';
 export * from './correlation-id';
+export * from './http-logging';
 export * from './publishing/event-publisher';
 export * from './inbox/inbox-store';
 export * from './inbox/sql-inbox-store';
@@ -12,3 +13,5 @@ export * from './messaging.module';
 export * from './provisioning/pubsub-plan';
 export * from './provisioning/plan-input';
 export * from './provisioning/apply-pubsub-plan';
+export * from './outbox/sql-outbox-store';
+export * from './outbox/outbox';

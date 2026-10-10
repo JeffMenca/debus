@@ -20,4 +20,12 @@ describe('InMemoryInboxStore', () => {
     await expect(store.runOnce(event, () => Promise.reject(new Error('x')))).rejects.toThrow('x');
     expect(await store.findProcessed('e')).toBeNull();
   });
+
+  it('hands the work an undefined transaction, since there is no database', async () => {
+    const work = jest.fn().mockResolvedValue(undefined);
+
+    await new InMemoryInboxStore().runOnce(event, work);
+
+    expect(work).toHaveBeenCalledWith(undefined);
+  });
 });

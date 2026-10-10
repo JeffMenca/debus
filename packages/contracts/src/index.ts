@@ -6,3 +6,5 @@ export * from './events/envelope';
 export * from './events/pubsub-names';
 export * from './api/http';
 export * from './api/system';
+export * from './events/account-payloads';
+export * from './api/auth';
