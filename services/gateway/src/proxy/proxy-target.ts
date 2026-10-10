@@ -1,4 +1,5 @@
 import { type BackendService, isBackendService } from '@debus/contracts';
+import { canonicalPath, isUnderPrefix } from '../routing/canonical-path';
 
 export type ProxyResolution =
   | { kind: 'service'; service: BackendService; target: string; path: string }
@@ -26,9 +27,12 @@ export function resolveProxyTarget(
   } catch {
     return NOT_FOUND;
   }
-  if (decoded.split('/').includes('..')) return NOT_FOUND;
-  if (INTERNAL_PREFIXES.some((prefix) => decoded === prefix || decoded.startsWith(`${prefix}/`))) {
+  // Dot segments and `;` parameters are read differently by each hop, so none may pass.
+  const segments = decoded.split('/');
+  if (segments.includes('..') || segments.includes('.') || decoded.includes(';')) {
     return NOT_FOUND;
   }
+  const routed = canonicalPath(decoded);
+  if (INTERNAL_PREFIXES.some((prefix) => isUnderPrefix(routed, prefix))) return NOT_FOUND;
   return { kind: 'service', service, target: serviceUrls[service], path: `${path}${search}` };
 }

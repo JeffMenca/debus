@@ -1,5 +1,4 @@
-import { createServer, type IncomingMessage, type Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
+import type { Server } from 'node:http';
 import { probeStatusSchema, systemStatusSchema, topicName } from '@debus/contracts';
 import { PubSub } from '@google-cloud/pubsub';
 import type { INestApplication } from '@nestjs/common';
@@ -7,47 +6,19 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureGateway } from '../src/bootstrap';
+import { pointServicesAt, received, startStub } from './support/stub';
+import { bearer, useTestKeys } from './support/tokens';
 
-const received: { url?: string; headers: IncomingMessage['headers'] }[] = [];
-
-// One stub plays every backend under /<service>; reportes points to a closed port.
-function startStub(): Promise<Server> {
-  const server = createServer((req, res) => {
-    let body = '';
-    req.on('data', (chunk: Buffer) => (body += chunk.toString()));
-    req.on('end', () => {
-      received.push({ url: req.url, headers: req.headers });
-      const json = (status: number, value: unknown) =>
-        res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(value));
-      if (req.url?.endsWith('/health')) return json(200, { status: 'ok' });
-      if (req.url?.startsWith('/flota/events/processed/')) {
-        return json(200, { processedAt: '2026-10-06T12:00:00.000Z' });
-      }
-      if (req.url?.includes('/events/processed/')) return json(404, {});
-      return json(200, { url: req.url, body });
-    });
-  });
-  return new Promise((resolve) => server.listen(0, () => resolve(server)));
-}
+const session = () => bearer({ role: 'CLIENT' });
 
 describe('gateway', () => {
   let app: INestApplication;
   let stub: Server;
 
   beforeAll(async () => {
+    useTestKeys();
     stub = await startStub();
-    const base = `http://127.0.0.1:${(stub.address() as AddressInfo).port}`;
-    for (const service of [
-      'administracion',
-      'flota',
-      'viajes',
-      'ventas',
-      'clientes',
-      'notificaciones',
-    ]) {
-      process.env[`SERVICE_URL_${service.toUpperCase()}`] = `${base}/${service}`;
-    }
-    process.env.SERVICE_URL_REPORTES = 'http://127.0.0.1:1';
+    pointServicesAt(stub);
 
     const pubsub = new PubSub({ projectId: process.env.PUBSUB_PROJECT_ID });
     const [exists] = await pubsub.topic(topicName('gateway')).exists();
@@ -68,6 +39,7 @@ describe('gateway', () => {
   it('proxies by prefix keeping path, query and correlation id', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/flota/buses?estado=activo')
+      .set('authorization', session())
       .set('x-correlation-id', 'c-1')
       .expect(200);
 
@@ -79,6 +51,7 @@ describe('gateway', () => {
   it('forwards JSON bodies already parsed by Nest', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/ventas/eco')
+      .set('authorization', session())
       .send({ a: 1 })
       .expect(200);
 
@@ -86,10 +59,20 @@ describe('gateway', () => {
   });
 
   it('hides internal endpoints and unknown services', async () => {
-    const internal = await request(app.getHttpServer())
+    const server = app.getHttpServer();
+    const internal = await request(server)
       .post('/api/flota/events/pubsub')
+      .set('authorization', session())
       .expect(404);
-    await request(app.getHttpServer()).get('/api/desconocido/x').expect(404);
+    await request(server).get('/api/desconocido/x').set('authorization', session()).expect(404);
+    for (const path of [
+      '/api/flota/outbox/flush',
+      '/api/flota//outbox/flush',
+      '/api/flota/OUTBOX/flush',
+      '/api/flota//events/pubsub',
+    ]) {
+      await request(server).post(path).set('authorization', session()).expect(404);
+    }
 
     expect(internal.body).toMatchObject({
       statusCode: 404,
@@ -98,7 +81,10 @@ describe('gateway', () => {
   });
 
   it('answers 502 with a friendly message when a service is down', async () => {
-    const response = await request(app.getHttpServer()).get('/api/reportes/x').expect(502);
+    const response = await request(app.getHttpServer())
+      .get('/api/reportes/x')
+      .set('authorization', session())
+      .expect(502);
 
     expect(response.body.message).toBe(
       'El servicio no respondió. Intenta de nuevo en unos segundos.',

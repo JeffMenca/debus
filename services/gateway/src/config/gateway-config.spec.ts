@@ -8,6 +8,7 @@ const urls = {
   SERVICE_URL_CLIENTES: 'http://c',
   SERVICE_URL_REPORTES: 'http://r',
   SERVICE_URL_NOTIFICACIONES: 'http://n',
+  JWT_PUBLIC_KEY: 'k',
 };
 
 describe('loadGatewayConfig', () => {
@@ -17,6 +18,7 @@ describe('loadGatewayConfig', () => {
     expect(config).toEqual({
       environment: 'local',
       serviceAuth: 'none',
+      jwtPublicKey: 'k',
       corsOrigins: ['http://a.com', 'http://b.com'],
       serviceUrls: expect.objectContaining({ flota: 'http://f', notificaciones: 'http://n' }),
     });
@@ -35,5 +37,18 @@ describe('loadGatewayConfig', () => {
 
   it('rejects unknown auth modes', () => {
     expect(() => loadGatewayConfig({ ...urls, SERVICE_AUTH: 'basic' })).toThrow();
+  });
+
+  it('restores the new lines of the public key', () => {
+    const config = loadGatewayConfig({ ...urls, JWT_PUBLIC_KEY: 'a\\nb' });
+
+    expect(config.jwtPublicKey).toBe('a\nb');
+  });
+
+  it('requires the public key', () => {
+    const partial: Record<string, string | undefined> = { ...urls };
+    delete partial.JWT_PUBLIC_KEY;
+
+    expect(() => loadGatewayConfig(partial)).toThrow('JWT_PUBLIC_KEY is required');
   });
 });
