@@ -15,3 +15,16 @@ model ProcessedEvent {
 
   @@map("processed_events")
 }
+
+model OutboxEvent {
+  eventId     String    @id @map("event_id")
+  type        String
+  envelope    Json
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  claimedUntil DateTime? @map("claimed_until") @db.Timestamptz(3)
+
+  @@map("outbox")
+}

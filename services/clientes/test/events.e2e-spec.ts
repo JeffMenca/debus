@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { createEnvelope } from '@debus/contracts';
+import { createEnvelope, type EventEnvelope } from '@debus/contracts';
+import { EventPublisher, Outbox } from '@debus/messaging';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -42,11 +43,100 @@ describe('Pub/Sub push endpoint', () => {
     expect(stored).toBe(1);
   });
 
+  it('flushes the outbox on demand', async () => {
+    const response = await request(app.getHttpServer()).post('/outbox/flush').expect(200);
+
+    expect(response.body).toEqual({ published: expect.any(Number), failed: 0 });
+  });
+
   it('answers 404 for events it never received', async () => {
     await request(app.getHttpServer()).get('/events/processed/never').expect(404);
   });
 
   it('answers 400 to a malformed push', async () => {
     await request(app.getHttpServer()).post('/events/pubsub').send({ message: {} }).expect(400);
+  });
+});
+
+describe('Outbox with the service database client', () => {
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const published: string[] = [];
+  let delayMs = 2500;
+  let app: INestApplication;
+  let prisma: PrismaService;
+
+  beforeEach(async () => {
+    published.length = 0;
+    delayMs = 2500;
+    await prisma.outboxEvent.deleteMany();
+  });
+
+  beforeAll(async () => {
+    const publisher = {
+      publish: async (envelope: EventEnvelope) => {
+        await pause(delayMs);
+        if (envelope.correlationId === 'rejected') throw new Error('pubsub unavailable');
+        published.push(envelope.eventId);
+        return 'message-id';
+      },
+    };
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(EventPublisher)
+      .useValue(publisher)
+      .compile();
+    app = moduleRef.createNestApplication();
+    await app.init();
+    prisma = app.get(PrismaService);
+  });
+
+  afterAll(async () => {
+    await prisma.outboxEvent.deleteMany();
+    await app.close();
+  });
+
+  // Publishing takes longer than Prisma's interactive transaction timeout (5 s) in total.
+  it('marks every event correctly when publishing is slow', async () => {
+    const outbox = app.get(Outbox);
+    const added = await prisma.$transaction(async (tx) => {
+      const ids: string[] = [];
+      for (const correlationId of ['first', 'second', 'rejected']) {
+        ids.push((await outbox.add(tx, 'SondeoEmitido', {}, correlationId)).eventId);
+      }
+      return ids;
+    });
+
+    const result = await outbox.flush();
+
+    expect(result).toEqual({ published: 2, failed: 1 });
+    expect([...published].sort()).toEqual(added.slice(0, 2).sort());
+    const rows = await prisma.outboxEvent.findMany();
+    const byCorrelation = (correlationId: string) =>
+      rows.find(
+        (row) => (row.envelope as { correlationId?: string }).correlationId === correlationId,
+      );
+    expect(byCorrelation('first')?.publishedAt).not.toBeNull();
+    expect(byCorrelation('second')?.publishedAt).not.toBeNull();
+    expect(byCorrelation('rejected')).toMatchObject({
+      publishedAt: null,
+      attempts: 1,
+      lastError: 'pubsub unavailable',
+    });
+  }, 30000);
+
+  it('releases the events it did not reach when the budget runs out', async () => {
+    delayMs = 300;
+    const outbox = app.get(Outbox);
+    await prisma.$transaction(async (tx) => {
+      for (const correlationId of ['first', 'second', 'third']) {
+        await outbox.add(tx, 'SondeoEmitido', {}, correlationId);
+      }
+    });
+
+    const result = await outbox.flush({ budgetMs: 250 });
+
+    expect(result).toEqual({ published: 0, failed: 1 });
+    const rows = await prisma.outboxEvent.findMany();
+    expect(rows.filter((row) => row.attempts === 1)).toHaveLength(1);
+    expect(rows.filter((row) => row.attempts === 0 && row.claimedUntil === null)).toHaveLength(2);
   });
 });
