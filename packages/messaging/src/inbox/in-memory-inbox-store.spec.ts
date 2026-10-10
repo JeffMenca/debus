@@ -1,6 +1,6 @@
 import { InMemoryInboxStore } from './in-memory-inbox-store';
 
-const event = { eventId: 'e', type: 'SondeoEmitido' };
+const event = { eventId: 'e', type: 'ProbeSent' };
 
 describe('InMemoryInboxStore', () => {
   it('processes each event id once and remembers it', async () => {

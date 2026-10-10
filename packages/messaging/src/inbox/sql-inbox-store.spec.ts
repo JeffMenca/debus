@@ -18,7 +18,7 @@ function fakeDb(insertedRows: number) {
   return { db: raw as unknown as SqlTransactional, tx, raw };
 }
 
-const event = { eventId: 'e-1', type: 'SondeoEmitido' };
+const event = { eventId: 'e-1', type: 'ProbeSent' };
 
 describe('SqlInboxStore', () => {
   it('runs the work once when the event is new', async () => {
@@ -29,7 +29,7 @@ describe('SqlInboxStore', () => {
     expect(tx.$executeRawUnsafe).toHaveBeenCalledWith(
       expect.stringContaining('ON CONFLICT (event_id) DO NOTHING'),
       'e-1',
-      'SondeoEmitido',
+      'ProbeSent',
     );
     expect(work).toHaveBeenCalledTimes(1);
   });
@@ -77,7 +77,7 @@ describe('SqlInboxStore', () => {
 
   it('finds processed events', async () => {
     const { db, raw } = fakeDb(1);
-    const row = { eventId: 'e-1', type: 'SondeoEmitido', processedAt: new Date() };
+    const row = { eventId: 'e-1', type: 'ProbeSent', processedAt: new Date() };
     raw.$queryRawUnsafe.mockResolvedValueOnce([row]).mockResolvedValueOnce([]);
     const store = new SqlInboxStore(db);
 

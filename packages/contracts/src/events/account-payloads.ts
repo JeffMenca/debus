@@ -9,7 +9,7 @@ export const ACCOUNT_LINK_REASONS = [
 ] as const;
 export type AccountLinkReason = (typeof ACCOUNT_LINK_REASONS)[number];
 
-export const accountLinkIssuedPayloadSchema = z
+export const accountLinkSentPayloadSchema = z
   .object({
     userId: z.uuid(),
     email: z.email(),
@@ -22,7 +22,7 @@ export const accountLinkIssuedPayloadSchema = z
     message: 'link and expiresAt are required for this reason',
     path: ['link'],
   });
-export type AccountLinkIssuedPayload = z.infer<typeof accountLinkIssuedPayloadSchema>;
+export type AccountLinkSentPayload = z.infer<typeof accountLinkSentPayloadSchema>;
 
 export const userRegisteredPayloadSchema = z.object({
   userId: z.uuid(),

@@ -2,7 +2,7 @@ import { createEnvelope } from '@debus/contracts';
 import type { SqlClient } from '../inbox/sql-inbox-store';
 import { SqlOutboxStore } from './sql-outbox-store';
 
-const envelope = createEnvelope('SondeoEmitido', { requestedAt: '2026-10-09T12:00:00.000Z' }, 'c');
+const envelope = createEnvelope('ProbeSent', { requestedAt: '2026-10-09T12:00:00.000Z' }, 'c');
 
 function fakeDb(rows: unknown[] = []) {
   const db = {

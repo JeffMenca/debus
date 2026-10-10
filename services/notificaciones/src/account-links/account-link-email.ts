@@ -1,4 +1,4 @@
-import type { AccountLinkIssuedPayload, AccountLinkReason } from '@debus/contracts';
+import type { AccountLinkSentPayload, AccountLinkReason } from '@debus/contracts';
 import { renderEmailLayout } from '../mail/email-layout';
 import type { MailMessage } from '../mail/mailer';
 
@@ -49,7 +49,7 @@ function formatExpiry(iso: string): string {
   }).format(new Date(iso));
 }
 
-export function accountLinkEmail(payload: AccountLinkIssuedPayload): MailMessage {
+export function accountLinkEmail(payload: AccountLinkSentPayload): MailMessage {
   const copy = COPY[payload.reason];
   const action =
     copy.action && payload.link ? { label: copy.action, href: payload.link } : undefined;

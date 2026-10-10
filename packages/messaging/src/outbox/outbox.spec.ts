@@ -27,16 +27,16 @@ describe('Outbox.add', () => {
     const { store, outbox } = setup();
     const tx = {} as SqlClient;
 
-    const envelope = await outbox.add(tx, 'SondeoEmitido', { requestedAt: 'x' }, 'c-1');
+    const envelope = await outbox.add(tx, 'ProbeSent', { requestedAt: 'x' }, 'c-1');
 
     expect(store.enqueue).toHaveBeenCalledWith(tx, envelope);
-    expect(envelope).toMatchObject({ type: 'SondeoEmitido', correlationId: 'c-1' });
+    expect(envelope).toMatchObject({ type: 'ProbeSent', correlationId: 'c-1' });
   });
 
   it('creates a correlation id when none arrives', async () => {
     const { outbox } = setup();
 
-    const envelope = await outbox.add({} as SqlClient, 'SondeoEmitido', {});
+    const envelope = await outbox.add({} as SqlClient, 'ProbeSent', {});
 
     expect(envelope.correlationId).toEqual(expect.any(String));
     expect(envelope.correlationId).not.toBe('');

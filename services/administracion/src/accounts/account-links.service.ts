@@ -55,7 +55,7 @@ export class AccountLinksService {
       await tx.accountLink.create({
         data: { userId: user.id, purpose, tokenHash: hash, expiresAt },
       });
-      await this.events.linkIssued(
+      await this.events.linkSent(
         tx,
         {
           ...recipient(user),
@@ -78,7 +78,7 @@ export class AccountLinksService {
     if (!canSendNotice(user.lastNoticeAt, now)) return;
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({ where: { id: user.id }, data: { lastNoticeAt: now } });
-      await this.events.linkIssued(
+      await this.events.linkSent(
         tx,
         { ...recipient(user), reason: 'ALREADY_REGISTERED' },
         correlationId,

@@ -57,7 +57,7 @@ export const CurrentIdentity = createParamDecorator((_: unknown, context: Execut
 export const Roles = (...roles: UserRole[]) =>
   applyDecorators(
     SetMetadata(ROLES_KEY, roles),
-    ApiOperation({ description: `Roles permitidos: ${roles.join(', ')}.` }),
+    ApiOperation({ description: `Allowed roles: ${roles.join(', ')}.` }),
     apiErrors(401, 403),
   );
 

@@ -10,9 +10,9 @@ describe('apiRequest', () => {
   it('calls the gateway and validates the response', async () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json({ ok: true }));
 
-    await expect(apiRequest('/api/sistema/estado', schema)).resolves.toEqual({ ok: true });
+    await expect(apiRequest('/api/system/status', schema)).resolves.toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:4000/api/sistema/estado',
+      'http://localhost:4000/api/system/status',
       expect.objectContaining({ headers: expect.objectContaining({ accept: 'application/json' }) }),
     );
   });
@@ -97,7 +97,7 @@ describe('apiRequest with a session', () => {
 
     await apiRequest('/api/x', schema);
 
-    expect(fetchMock.mock.calls[1][0]).toBe('/api/sesion/refresh');
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/session/refresh');
     expect(fetchMock.mock.calls[2][1].headers.authorization).toBe('Bearer new');
   });
 
@@ -111,7 +111,7 @@ describe('apiRequest with a session', () => {
 
     // The request, one renewal, the retry; nothing more.
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/sesion/refresh')).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/session/refresh')).toHaveLength(1);
   });
 
   it('reports a connection problem, not an ended session, when the renewal cannot reach the server', async () => {

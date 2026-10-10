@@ -12,7 +12,7 @@ import { ZodBody, apiBody } from '../common/zod-body.pipe';
 import { CurrentIdentity, type Identity } from '../identity/identity';
 import { SessionsService } from './sessions.service';
 
-@ApiTags('sesiones')
+@ApiTags('sessions')
 @Controller('auth')
 export class SessionsController {
   constructor(private readonly sessions: SessionsService) {}

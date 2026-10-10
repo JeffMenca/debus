@@ -85,7 +85,7 @@ describe('Roles', () => {
       Controller.prototype.handler,
     ) as Record<string, unknown>;
 
-    expect(operation.description).toBe('Roles permitidos: SYSTEM_ADMIN, BRANCH_ADMIN.');
+    expect(operation.description).toBe('Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN.');
     expect(Object.keys(responses)).toEqual(['401', '403']);
   });
 });

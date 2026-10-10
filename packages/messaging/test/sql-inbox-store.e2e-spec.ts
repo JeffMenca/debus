@@ -20,14 +20,14 @@ describe('SqlInboxStore against PostgreSQL', () => {
   it('processes an event once and finds it afterwards', async () => {
     const work = jest.fn().mockResolvedValue(undefined);
 
-    expect(await store.runOnce({ eventId: 'a', type: 'SondeoEmitido' }, work)).toBe('processed');
-    expect(await store.runOnce({ eventId: 'a', type: 'SondeoEmitido' }, work)).toBe('duplicate');
+    expect(await store.runOnce({ eventId: 'a', type: 'ProbeSent' }, work)).toBe('processed');
+    expect(await store.runOnce({ eventId: 'a', type: 'ProbeSent' }, work)).toBe('duplicate');
     expect(work).toHaveBeenCalledTimes(1);
-    expect(await store.findProcessed('a')).toMatchObject({ eventId: 'a', type: 'SondeoEmitido' });
+    expect(await store.findProcessed('a')).toMatchObject({ eventId: 'a', type: 'ProbeSent' });
   });
 
   it('rolls the mark back when the handler fails so a retry can process it', async () => {
-    const event = { eventId: 'b', type: 'SondeoEmitido' };
+    const event = { eventId: 'b', type: 'ProbeSent' };
 
     await expect(store.runOnce(event, () => Promise.reject(new Error('boom')))).rejects.toThrow();
     expect(await store.findProcessed('b')).toBeNull();
@@ -36,7 +36,7 @@ describe('SqlInboxStore against PostgreSQL', () => {
 
   it('runs the handler exactly once for concurrent duplicate deliveries', async () => {
     const work = jest.fn(() => new Promise<void>((resolve) => setTimeout(resolve, 50)));
-    const event = { eventId: 'c', type: 'SondeoEmitido' };
+    const event = { eventId: 'c', type: 'ProbeSent' };
 
     const outcomes = await Promise.all(Array.from({ length: 5 }, () => store.runOnce(event, work)));
 
@@ -45,8 +45,8 @@ describe('SqlInboxStore against PostgreSQL', () => {
   });
 
   it('lets the handler write through the same transaction as the mark', async () => {
-    const failing = { eventId: 'd', type: 'SondeoEmitido' };
-    const passing = { eventId: 'e', type: 'SondeoEmitido' };
+    const failing = { eventId: 'd', type: 'ProbeSent' };
+    const passing = { eventId: 'e', type: 'ProbeSent' };
 
     await expect(
       store.runOnce(failing, async (tx) => {

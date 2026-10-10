@@ -11,7 +11,7 @@ import { ZodBody, apiBody } from '../common/zod-body.pipe';
 import { CurrentIdentity, type Identity, Roles } from '../identity/identity';
 import { UsersService } from './users.service';
 
-@ApiTags('usuarios')
+@ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
 export class UsersController {

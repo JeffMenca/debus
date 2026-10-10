@@ -17,7 +17,7 @@ describe('SessionBootstrap', () => {
     render(<SessionBootstrap />);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/sesion/refresh');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/session/refresh');
   });
 
   it('does nothing when the session is already there', () => {

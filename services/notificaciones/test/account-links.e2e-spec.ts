@@ -11,7 +11,7 @@ const push = (value: unknown) => ({
   subscription: 'test',
 });
 
-describe('EnlaceDeCuentaEmitido', () => {
+describe('AccountLinkSent', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -27,7 +27,7 @@ describe('EnlaceDeCuentaEmitido', () => {
   it('sends exactly one email even when the event arrives twice', async () => {
     const email = `link-${Date.now()}@correo.com`;
     const envelope = createEnvelope(
-      'EnlaceDeCuentaEmitido',
+      'AccountLinkSent',
       {
         userId: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
         email,
@@ -58,7 +58,7 @@ describe('EnlaceDeCuentaEmitido', () => {
   ] as const)('delivers the %s email in Spanish', async (reason, subject, linkPart) => {
     const email = `${reason.toLowerCase()}-${Date.now()}@correo.com`;
     const envelope = createEnvelope(
-      'EnlaceDeCuentaEmitido',
+      'AccountLinkSent',
       {
         userId: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
         email,
@@ -83,7 +83,7 @@ describe('EnlaceDeCuentaEmitido', () => {
   });
 
   it('answers 5xx on a broken payload so Pub/Sub retries', async () => {
-    const envelope = createEnvelope('EnlaceDeCuentaEmitido', { email: 'x' }, 'c');
+    const envelope = createEnvelope('AccountLinkSent', { email: 'x' }, 'c');
 
     const response = await request(app.getHttpServer()).post('/events/pubsub').send(push(envelope));
 

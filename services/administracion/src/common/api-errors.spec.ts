@@ -15,8 +15,8 @@ describe('apiErrors', () => {
     ) as Record<string, { description: string }>;
 
     expect(Object.keys(responses)).toEqual(['400', '409', '423']);
-    expect(responses['409']?.description).toMatch(/conflicto|ya/i);
-    expect(responses['423']?.description).toMatch(/bloquead/i);
+    expect(responses['409']?.description).toMatch(/conflict|already/i);
+    expect(responses['423']?.description).toMatch(/locked/i);
   });
 });
 

@@ -37,25 +37,25 @@ describe('isPublicRoute', () => {
   });
 
   it('keeps the diagnostics and CORS preflights open', () => {
-    expect(isPublicRoute('GET', '/api/sistema/estado')).toBe(true);
-    expect(isPublicRoute('POST', '/api//Sistema/sondeos')).toBe(true);
+    expect(isPublicRoute('GET', '/api/system/status')).toBe(true);
+    expect(isPublicRoute('POST', '/api//System/probes')).toBe(true);
     expect(isPublicRoute('OPTIONS', '/api/flota/buses')).toBe(true);
     expect(isPublicRoute('HEAD', '/api/flota/buses')).toBe(false);
   });
 
   it('protects everything else', () => {
     expect(isPublicRoute('GET', '/api/flota/buses')).toBe(false);
-    expect(isPublicRoute('GET', '/api/sistemas/x')).toBe(false);
-    expect(isPublicRoute('GET', '/api/sistema')).toBe(false);
+    expect(isPublicRoute('GET', '/api/systems/x')).toBe(false);
+    expect(isPublicRoute('GET', '/api/system')).toBe(false);
   });
 
   it('refuses paths that try to climb out of a public prefix', () => {
     expect(isPublicRoute('POST', '/api/administracion/auth/signup/../users')).toBe(false);
-    expect(isPublicRoute('GET', '/api/sistema/../flota/buses')).toBe(false);
-    expect(isPublicRoute('GET', '/api/sistema/%2e%2e/flota/buses')).toBe(false);
-    expect(isPublicRoute('GET', '/api/sistema/..%2fflota/buses')).toBe(false);
+    expect(isPublicRoute('GET', '/api/system/../flota/buses')).toBe(false);
+    expect(isPublicRoute('GET', '/api/system/%2e%2e/flota/buses')).toBe(false);
+    expect(isPublicRoute('GET', '/api/system/..%2fflota/buses')).toBe(false);
     expect(isPublicRoute('POST', '/api/administracion/auth%2flogin')).toBe(false);
-    expect(isPublicRoute('GET', '/api/sistema/x\\..\\flota')).toBe(false);
+    expect(isPublicRoute('GET', '/api/system/x\\..\\flota')).toBe(false);
   });
 });
 

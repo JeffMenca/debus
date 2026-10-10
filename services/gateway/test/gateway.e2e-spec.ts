@@ -38,12 +38,12 @@ describe('gateway', () => {
 
   it('proxies by prefix keeping path, query and correlation id', async () => {
     const response = await request(app.getHttpServer())
-      .get('/api/flota/buses?estado=activo')
+      .get('/api/flota/buses?status=active')
       .set('authorization', session())
       .set('x-correlation-id', 'c-1')
       .expect(200);
 
-    expect(response.body.url).toBe('/flota/buses?estado=activo');
+    expect(response.body.url).toBe('/flota/buses?status=active');
     expect(received.at(-1)?.headers['x-correlation-id']).toBe('c-1');
     expect(response.headers['x-correlation-id']).toBe('c-1');
   });
@@ -92,7 +92,7 @@ describe('gateway', () => {
   });
 
   it('reports the status of every unit', async () => {
-    const response = await request(app.getHttpServer()).get('/api/sistema/estado').expect(200);
+    const response = await request(app.getHttpServer()).get('/api/system/status').expect(200);
     const status = systemStatusSchema.parse(response.body);
 
     expect(status.units).toHaveLength(8);
@@ -101,9 +101,9 @@ describe('gateway', () => {
   });
 
   it('emits a probe and reports who received it', async () => {
-    const created = await request(app.getHttpServer()).post('/api/sistema/sondeos').expect(202);
+    const created = await request(app.getHttpServer()).post('/api/system/probes').expect(202);
     const response = await request(app.getHttpServer())
-      .get(`/api/sistema/sondeos/${created.body.probeId}`)
+      .get(`/api/system/probes/${created.body.probeId}`)
       .expect(200);
     const status = probeStatusSchema.parse(response.body);
 
@@ -113,16 +113,14 @@ describe('gateway', () => {
   });
 
   it('rejects malformed probe ids with the common error', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/api/sistema/sondeos/nope')
-      .expect(400);
+    const response = await request(app.getHttpServer()).get('/api/system/probes/nope').expect(400);
 
     expect(response.body).toMatchObject({ statusCode: 400, error: 'Bad Request' });
   });
 
   it('allows the configured web origin', async () => {
     const response = await request(app.getHttpServer())
-      .options('/api/sistema/estado')
+      .options('/api/system/status')
       .set('Origin', 'http://localhost:3000')
       .set('Access-Control-Request-Method', 'GET');
 

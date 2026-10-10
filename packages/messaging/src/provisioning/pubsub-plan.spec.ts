@@ -23,7 +23,7 @@ describe('buildPubSubPlan', () => {
       name: 'reportes-from-flota',
       topic: 'flota-events',
       filter:
-        'attributes.type = "BusRegistrado" OR attributes.type = "BusActualizado" OR attributes.type = "BusDesactivado" OR attributes.type = "RutaCreada" OR attributes.type = "RutaEliminada"',
+        'attributes.type = "BusAdded" OR attributes.type = "BusUpdated" OR attributes.type = "BusDeactivated" OR attributes.type = "RouteCreated" OR attributes.type = "RouteDeleted"',
       pushEndpoint: 'https://reportes-123.us-central1.run.app/events/pubsub',
       oidc: {
         serviceAccountEmail: 'pubsub-invoker@p.iam.gserviceaccount.com',

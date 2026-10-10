@@ -363,14 +363,14 @@ describe('Pub/Sub push endpoint', () => {
   });
 
   it('records a probe exactly once even when delivered twice', async () => {
-    const envelope = createEnvelope('SondeoEmitido', { requestedAt: new Date().toISOString() }, 'c');
+    const envelope = createEnvelope('ProbeSent', { requestedAt: new Date().toISOString() }, 'c');
     const server = app.getHttpServer();
 
     await request(server).post('/events/pubsub').send(push(envelope)).expect(204);
     await request(server).post('/events/pubsub').send(push(envelope)).expect(204);
 
     const response = await request(server).get(\`/events/processed/\${envelope.eventId}\`).expect(200);
-    expect(response.body).toMatchObject({ eventId: envelope.eventId, type: 'SondeoEmitido' });
+    expect(response.body).toMatchObject({ eventId: envelope.eventId, type: 'ProbeSent' });
     const stored = await app
       .get(PrismaService)
       .processedEvent.count({ where: { eventId: envelope.eventId } });
@@ -434,7 +434,7 @@ describe('Outbox with the service database client', () => {
     const added = await prisma.$transaction(async (tx) => {
       const ids: string[] = [];
       for (const correlationId of ['first', 'second', 'rejected']) {
-        ids.push((await outbox.add(tx, 'SondeoEmitido', {}, correlationId)).eventId);
+        ids.push((await outbox.add(tx, 'ProbeSent', {}, correlationId)).eventId);
       }
       return ids;
     });
@@ -460,7 +460,7 @@ describe('Outbox with the service database client', () => {
     const outbox = app.get(Outbox);
     await prisma.$transaction(async (tx) => {
       for (const correlationId of ['first', 'second', 'third']) {
-        await outbox.add(tx, 'SondeoEmitido', {}, correlationId);
+        await outbox.add(tx, 'ProbeSent', {}, correlationId);
       }
     });
 

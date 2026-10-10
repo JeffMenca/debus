@@ -7,13 +7,13 @@ const POLL_MS = 1500;
 
 export function useProbe() {
   const emit = useMutation({
-    mutationFn: () => apiRequest('/api/sistema/sondeos', probeCreatedSchema, { method: 'POST' }),
+    mutationFn: () => apiRequest('/api/system/probes', probeCreatedSchema, { method: 'POST' }),
   });
   const probeId = emit.data?.probeId;
   const startedAt = emit.submittedAt;
   const deliveries = useQuery({
     queryKey: ['probe', probeId],
-    queryFn: () => apiRequest(`/api/sistema/sondeos/${probeId}`, probeStatusSchema),
+    queryFn: () => apiRequest(`/api/system/probes/${probeId}`, probeStatusSchema),
     enabled: Boolean(probeId),
     // Elapsed time is measured at each poll, so the last render always reflects the final state.
     refetchInterval: (query) =>

@@ -21,7 +21,7 @@ const setup = (linksThisHour = 0) => {
     $transaction: jest.fn((fn) => fn(tx)),
   };
   const events = {
-    linkIssued: jest.fn().mockResolvedValue(undefined),
+    linkSent: jest.fn().mockResolvedValue(undefined),
     flush: jest.fn().mockResolvedValue(undefined),
   };
   const settings = { webUrl: 'http://web', privateKey: 'k', bootstrapAdminEmail: null };
@@ -51,10 +51,10 @@ describe('AccountLinksService.issue', () => {
       data: { expiresAt: now },
     });
     const created = tx.accountLink.create.mock.calls[0][0].data;
-    expect(events.linkIssued.mock.calls[0][0]).toBe(tx);
-    expect(events.linkIssued.mock.calls[0][2]).toBe('c');
+    expect(events.linkSent.mock.calls[0][0]).toBe(tx);
+    expect(events.linkSent.mock.calls[0][2]).toBe('c');
     expect(events.flush).toHaveBeenCalled();
-    const sent = events.linkIssued.mock.calls[0][1];
+    const sent = events.linkSent.mock.calls[0][1];
     const token = new URL(sent.link).searchParams.get('token')!;
     expect(created.tokenHash).toBe(hashOpaqueToken(token));
     expect(JSON.stringify(created)).not.toContain(token);
@@ -69,7 +69,7 @@ describe('AccountLinksService.issue', () => {
     const { events, service } = setup(3);
 
     expect(await service.issue(user, 'PASSWORD_RESET', 'PASSWORD_RESET', 'c', now)).toBe(false);
-    expect(events.linkIssued).not.toHaveBeenCalled();
+    expect(events.linkSent).not.toHaveBeenCalled();
   });
 });
 
@@ -80,8 +80,8 @@ describe('AccountLinksService.noticeAlreadyRegistered', () => {
     await service.noticeAlreadyRegistered({ ...user, lastNoticeAt: null }, 'c', now);
     await service.noticeAlreadyRegistered({ ...user, lastNoticeAt: now }, 'c', now);
 
-    expect(events.linkIssued).toHaveBeenCalledTimes(1);
-    expect(events.linkIssued.mock.calls[0][1]).toMatchObject({ reason: 'ALREADY_REGISTERED' });
+    expect(events.linkSent).toHaveBeenCalledTimes(1);
+    expect(events.linkSent.mock.calls[0][1]).toMatchObject({ reason: 'ALREADY_REGISTERED' });
     expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: user.id },
       data: { lastNoticeAt: now },

@@ -1,4 +1,4 @@
-import type { AccountLinkIssuedPayload, UserRole } from '@debus/contracts';
+import type { AccountLinkSentPayload, UserRole } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -27,8 +27,8 @@ export async function activeAccount(
     },
   });
   await request(app.getHttpServer()).post('/auth/password/forgot').send({ email }).expect(202);
-  const sent = await events.next<AccountLinkIssuedPayload>(
-    'EnlaceDeCuentaEmitido',
+  const sent = await events.next<AccountLinkSentPayload>(
+    'AccountLinkSent',
     (p) => p.email === email,
   );
   await request(app.getHttpServer())

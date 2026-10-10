@@ -19,7 +19,7 @@ function fakePubSub() {
 describe('EventPublisher', () => {
   it('publishes to the producer topic with routing attributes', async () => {
     const { pubsub, topic, publishMessage } = fakePubSub();
-    const envelope = createEnvelope('SondeoEmitido', {}, 'c-1');
+    const envelope = createEnvelope('ProbeSent', {}, 'c-1');
 
     const id = await new EventPublisher(pubsub, settings).publish(envelope);
 
@@ -27,7 +27,7 @@ describe('EventPublisher', () => {
     expect(topic).toHaveBeenCalledWith('gateway-events');
     expect(publishMessage).toHaveBeenCalledWith({
       json: envelope,
-      attributes: { type: 'SondeoEmitido', eventId: envelope.eventId, correlationId: 'c-1' },
+      attributes: { type: 'ProbeSent', eventId: envelope.eventId, correlationId: 'c-1' },
     });
   });
 
@@ -35,8 +35,8 @@ describe('EventPublisher', () => {
     const { pubsub } = fakePubSub();
 
     await expect(
-      new EventPublisher(pubsub, settings).publish(createEnvelope('ViajeProgramado', {}, 'c')),
-    ).rejects.toThrow('gateway cannot publish ViajeProgramado');
+      new EventPublisher(pubsub, settings).publish(createEnvelope('TripScheduled', {}, 'c')),
+    ).rejects.toThrow('gateway cannot publish TripScheduled');
   });
 
   it('closes the Pub/Sub client when the application shuts down, so no call outlives it', async () => {

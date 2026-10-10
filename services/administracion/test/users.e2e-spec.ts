@@ -1,4 +1,4 @@
-import type { AccountLinkIssuedPayload } from '@debus/contracts';
+import type { AccountLinkSentPayload } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -45,8 +45,8 @@ describe('users', () => {
     expect(created.body).toMatchObject({ email, status: 'PENDING', branchId: branch });
     const stored = await app.get(PrismaService).user.findUnique({ where: { email } });
     expect(stored?.passwordHash).toBeNull();
-    await events.next<AccountLinkIssuedPayload>(
-      'EnlaceDeCuentaEmitido',
+    await events.next<AccountLinkSentPayload>(
+      'AccountLinkSent',
       (p) => p.email === email && p.reason === 'INVITATION',
     );
   });

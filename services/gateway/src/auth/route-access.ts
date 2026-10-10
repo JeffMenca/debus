@@ -13,7 +13,7 @@ const ACCESS_ENDPOINTS = [
 ];
 const PUBLIC_POST = new Set(ACCESS_ENDPOINTS.map((path) => `/api/administracion/auth/${path}`));
 // Diagnostics stay open until the status page moves behind the admin session (J1-5).
-const PUBLIC_PREFIXES = ['/api/sistema/'];
+const PUBLIC_PREFIXES = ['/api/system/'];
 const ROUTE_ROLES: readonly { prefix: string; roles: readonly UserRole[] }[] = [];
 
 // Encoded or backslash characters could be decoded by a service into a different route.

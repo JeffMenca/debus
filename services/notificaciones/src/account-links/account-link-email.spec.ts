@@ -1,4 +1,4 @@
-import type { AccountLinkIssuedPayload } from '@debus/contracts';
+import type { AccountLinkSentPayload } from '@debus/contracts';
 import { accountLinkEmail } from './account-link-email';
 
 const base = {
@@ -39,7 +39,7 @@ describe('account link email', () => {
   });
 
   it('warns about an existing account without any link', () => {
-    const payload: AccountLinkIssuedPayload = {
+    const payload: AccountLinkSentPayload = {
       userId: base.userId,
       email: base.email,
       fullName: base.fullName,

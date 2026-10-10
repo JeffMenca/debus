@@ -19,7 +19,7 @@ export class ProbeService {
 
   async emit(correlationId: string): Promise<ProbeCreated> {
     const envelope = createEnvelope(
-      'SondeoEmitido',
+      'ProbeSent',
       { requestedAt: new Date().toISOString() },
       correlationId,
     );
@@ -29,7 +29,7 @@ export class ProbeService {
 
   async status(probeId: string, correlationId: string): Promise<ProbeStatus> {
     const services = await Promise.all(
-      consumersOf('SondeoEmitido').map((service) => this.delivery(service, probeId, correlationId)),
+      consumersOf('ProbeSent').map((service) => this.delivery(service, probeId, correlationId)),
     );
     return { probeId, services };
   }

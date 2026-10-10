@@ -1,6 +1,6 @@
 import { createPublicKey } from 'node:crypto';
 import {
-  type AccountLinkIssuedPayload,
+  type AccountLinkSentPayload,
   accessTokenClaimsSchema,
   authTokensSchema,
 } from '@debus/contracts';
@@ -223,8 +223,8 @@ async function resetPassword(
   email: string,
 ): Promise<void> {
   await request(app.getHttpServer()).post('/auth/password/forgot').send({ email }).expect(202);
-  const sent = await events.next<AccountLinkIssuedPayload>(
-    'EnlaceDeCuentaEmitido',
+  const sent = await events.next<AccountLinkSentPayload>(
+    'AccountLinkSent',
     (p) => p.email === email && p.reason === 'PASSWORD_RESET',
   );
   await request(app.getHttpServer())

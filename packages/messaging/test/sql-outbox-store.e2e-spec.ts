@@ -6,7 +6,7 @@ import { recreateOutboxTable, sqlClient, testPool, transactional } from './suppo
 
 const SCHEMA = 'messaging_test_outbox';
 const newEvent = (correlationId = 'c') =>
-  createEnvelope('SondeoEmitido', { requestedAt: new Date().toISOString() }, correlationId);
+  createEnvelope('ProbeSent', { requestedAt: new Date().toISOString() }, correlationId);
 const ids = (events: { eventId: string }[]) => events.map((event) => event.eventId);
 
 describe('SqlOutboxStore against PostgreSQL', () => {
@@ -190,7 +190,7 @@ describe('Outbox against PostgreSQL', () => {
   afterAll(() => pool.end());
 
   it('returns within its budget when a publication never resolves and retries it later', async () => {
-    const event = await db.$transaction((tx) => outbox.add(tx, 'SondeoEmitido', {}, 'hung'));
+    const event = await db.$transaction((tx) => outbox.add(tx, 'ProbeSent', {}, 'hung'));
     publisher.publish.mockReturnValue(new Promise(() => undefined));
     const startedAt = Date.now();
 

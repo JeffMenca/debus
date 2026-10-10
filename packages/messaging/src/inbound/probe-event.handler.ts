@@ -7,7 +7,7 @@ import { OnEvent } from './on-event.decorator';
 export class ProbeEventHandler {
   private readonly logger = new Logger(ProbeEventHandler.name);
 
-  @OnEvent('SondeoEmitido')
+  @OnEvent('ProbeSent')
   handle(_payload: unknown, envelope: EventEnvelope): void {
     this.logger.log(`Probe ${envelope.eventId} received`);
   }

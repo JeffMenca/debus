@@ -11,7 +11,7 @@ class BranchHandler {
   readonly seen: EventEnvelope[] = [];
   readonly clients: unknown[] = [];
 
-  @OnEvent('SucursalCreada')
+  @OnEvent('BranchCreated')
   onCreated(_payload: unknown, envelope: EventEnvelope, tx?: SqlClient): void {
     this.seen.push(envelope);
     this.clients.push(tx);
@@ -33,7 +33,7 @@ describe('EventDispatcher', () => {
 
   it('routes an envelope to the decorated method', async () => {
     const { app, dispatcher, handler } = await setup();
-    const envelope = createEnvelope('SucursalCreada', { id: 1 }, 'c');
+    const envelope = createEnvelope('BranchCreated', { id: 1 }, 'c');
 
     await expect(dispatcher.dispatch(envelope)).resolves.toBe(1);
     expect(handler.seen).toEqual([envelope]);
@@ -44,7 +44,7 @@ describe('EventDispatcher', () => {
     const { app, dispatcher, handler } = await setup();
     const tx = {} as SqlClient;
 
-    await dispatcher.dispatch(createEnvelope('SucursalCreada', {}, 'c'), tx);
+    await dispatcher.dispatch(createEnvelope('BranchCreated', {}, 'c'), tx);
 
     expect(handler.clients).toEqual([tx]);
     await app.close();
@@ -53,7 +53,7 @@ describe('EventDispatcher', () => {
   it('reports zero handlers for types nobody listens to', async () => {
     const { app, dispatcher } = await setup();
 
-    await expect(dispatcher.dispatch(createEnvelope('BoletoVendido', {}, 'c'))).resolves.toBe(0);
+    await expect(dispatcher.dispatch(createEnvelope('TicketSold', {}, 'c'))).resolves.toBe(0);
     await app.close();
   });
 });

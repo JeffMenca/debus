@@ -1,4 +1,4 @@
-import type { AccountLinkIssuedPayload, UserRegisteredPayload } from '@debus/contracts';
+import type { AccountLinkSentPayload, UserRegisteredPayload } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -27,8 +27,8 @@ describe('accounts', () => {
   const linkStatus = (token: string) =>
     request(app.getHttpServer()).post('/auth/links/status').send({ token });
   const linkFor = (email: string, reason?: string) =>
-    events.next<AccountLinkIssuedPayload>(
-      'EnlaceDeCuentaEmitido',
+    events.next<AccountLinkSentPayload>(
+      'AccountLinkSent',
       (p) => p.email === email && (!reason || p.reason === reason),
     );
   const tokenFor = async (email: string, reason?: string) =>
@@ -66,7 +66,7 @@ describe('accounts', () => {
     await setPassword(token).expect(204);
 
     const registered = await events.next<UserRegisteredPayload>(
-      'UsuarioRegistrado',
+      'UserRegistered',
       (p) => p.email === email,
     );
     expect(registered.profile).toEqual({
@@ -107,7 +107,7 @@ describe('accounts', () => {
 
     await forgotPassword(email);
 
-    await events.none<AccountLinkIssuedPayload>('EnlaceDeCuentaEmitido', (p) => p.email === email);
+    await events.none<AccountLinkSentPayload>('AccountLinkSent', (p) => p.email === email);
   });
 
   it('renews an expired link without asking for the email', async () => {
@@ -122,8 +122,8 @@ describe('accounts', () => {
     await setPassword(first).expect(410);
     await request(app.getHttpServer()).post('/auth/links/renew').send({ token: first }).expect(202);
 
-    const renewed = await events.next<AccountLinkIssuedPayload>(
-      'EnlaceDeCuentaEmitido',
+    const renewed = await events.next<AccountLinkSentPayload>(
+      'AccountLinkSent',
       (p) => p.email === email && tokenOf(p.link!) !== first,
     );
     await setPassword(tokenOf(renewed.link!)).expect(204);
@@ -155,11 +155,11 @@ describe('accounts', () => {
     await setPassword(secondToken).expect(204);
 
     const first = await events.next<UserRegisteredPayload>(
-      'UsuarioRegistrado',
+      'UserRegistered',
       (p) => p.email === firstEmail,
     );
     const second = await events.next<UserRegisteredPayload>(
-      'UsuarioRegistrado',
+      'UserRegistered',
       (p) => p.email === secondEmail,
     );
     expect(first.profile?.nit).toBe(nit);
@@ -202,8 +202,8 @@ describe('accounts', () => {
 
     await signUp(email, { fullName: 'Ana María López' }).expect(202);
 
-    const second = await events.next<AccountLinkIssuedPayload>(
-      'EnlaceDeCuentaEmitido',
+    const second = await events.next<AccountLinkSentPayload>(
+      'AccountLinkSent',
       (p) => p.email === email && tokenOf(p.link!) !== first,
     );
     await linkStatus(first).expect(200, { state: 'expired', purpose: 'ACTIVATION' });
@@ -234,7 +234,7 @@ describe('accounts', () => {
     const statuses = responses.map((response) => response.status).sort();
     expect(statuses).toEqual([204, 409, 409, 409, 409]);
     const registered = await events.count<UserRegisteredPayload>(
-      'UsuarioRegistrado',
+      'UserRegistered',
       (p) => p.email === email,
     );
     expect(registered).toBe(1);

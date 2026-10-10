@@ -1,4 +1,4 @@
-import { type EventEnvelope, accountLinkIssuedPayloadSchema } from '@debus/contracts';
+import { type EventEnvelope, accountLinkSentPayloadSchema } from '@debus/contracts';
 import { OnEvent, type SqlClient } from '@debus/messaging';
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client';
@@ -13,9 +13,9 @@ export class AccountLinkHandler {
     private readonly prisma: PrismaService,
   ) {}
 
-  @OnEvent('EnlaceDeCuentaEmitido')
+  @OnEvent('AccountLinkSent')
   async handle(payload: unknown, envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
-    const parsed = accountLinkIssuedPayloadSchema.parse(payload);
+    const parsed = accountLinkSentPayloadSchema.parse(payload);
     await this.mailer.send(accountLinkEmail(parsed));
     // The link is deliberately not stored: the ledger keeps who got which kind of email.
     await this.ledger(tx).sentEmail.create({

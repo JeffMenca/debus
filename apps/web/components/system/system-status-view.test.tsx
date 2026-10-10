@@ -57,7 +57,7 @@ describe('SystemStatusView', () => {
     const probeId = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
     jest.spyOn(global, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
-      if (url.endsWith('/api/sistema/estado')) return Promise.resolve(Response.json(status));
+      if (url.endsWith('/api/system/status')) return Promise.resolve(Response.json(status));
       if (init?.method === 'POST') {
         return Promise.resolve(Response.json({ probeId }, { status: 202 }));
       }

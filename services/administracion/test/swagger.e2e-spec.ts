@@ -47,10 +47,38 @@ describe('API documentation', () => {
 
   it('lists the allowed roles on the routes that need a role', () => {
     expect(document.paths['/users/{id}/deactivate']?.post?.description).toBe(
-      'Roles permitidos: SYSTEM_ADMIN.',
+      'Allowed roles: SYSTEM_ADMIN.',
     );
     expect(document.paths['/users']?.post?.description).toBe(
-      'Roles permitidos: SYSTEM_ADMIN, BRANCH_ADMIN.',
+      'Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN.',
     );
+  });
+
+  it('groups the routes under English tags', () => {
+    const tagOf = (path: string, method: 'get' | 'post') => document.paths[path]?.[method]?.tags;
+
+    expect(tagOf('/auth/signup', 'post')).toEqual(['accounts']);
+    expect(tagOf('/auth/password', 'post')).toEqual(['accounts']);
+    expect(tagOf('/auth/login', 'post')).toEqual(['sessions']);
+    expect(tagOf('/auth/me', 'get')).toEqual(['sessions']);
+    expect(tagOf('/users', 'post')).toEqual(['users']);
+  });
+
+  it('describes every response in English', () => {
+    const descriptions = Object.values(document.paths).flatMap((methods) =>
+      Object.values(methods ?? {}).flatMap((operation: { responses?: object }) =>
+        Object.values(operation.responses ?? {}).map(
+          (r: { description?: string }) => r.description ?? '',
+        ),
+      ),
+    );
+
+    expect(descriptions.length).toBeGreaterThan(0);
+    for (const description of descriptions) {
+      expect(description).not.toMatch(/[áéíóúñ¿¡]/i);
+    }
+    expect(document.paths['/auth/login']?.post?.responses['423']).toMatchObject({
+      description: 'Account temporarily locked after failed attempts.',
+    });
   });
 });

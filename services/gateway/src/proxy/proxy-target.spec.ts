@@ -6,11 +6,11 @@ const resolve = (url: string) => resolveProxyTarget(url, urls);
 
 describe('resolveProxyTarget', () => {
   it('maps the prefix to the service and keeps the rest of the path and query', () => {
-    expect(resolve('/api/flota/buses?estado=activo')).toEqual({
+    expect(resolve('/api/flota/buses?status=active')).toEqual({
       kind: 'service',
       service: 'flota',
       target: 'https://flota',
-      path: '/buses?estado=activo',
+      path: '/buses?status=active',
     });
     expect(resolve('/api/ventas')).toMatchObject({ kind: 'service', path: '/' });
   });

@@ -2,7 +2,7 @@
 import { isSameOrigin } from './same-origin';
 
 const request = (headers: Record<string, string>) =>
-  new Request('http://localhost:3000/api/sesion/login', { method: 'POST', headers });
+  new Request('http://localhost:3000/api/session/login', { method: 'POST', headers });
 
 describe('isSameOrigin', () => {
   it('accepts requests from the web itself', () => {
@@ -46,7 +46,7 @@ describe('isSameOrigin', () => {
 
   it('compares the scheme the visitor used when a proxy terminates TLS', () => {
     const behindProxy = (origin: string) =>
-      new Request('http://internal:8080/api/sesion/login', {
+      new Request('http://internal:8080/api/session/login', {
         method: 'POST',
         headers: {
           host: 'internal:8080',

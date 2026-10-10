@@ -1,4 +1,4 @@
-import { accountLinkIssuedPayloadSchema, userRegisteredPayloadSchema } from './account-payloads';
+import { accountLinkSentPayloadSchema, userRegisteredPayloadSchema } from './account-payloads';
 
 const userId = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 const base = { userId, email: 'ana@correo.com', fullName: 'Ana López' };
@@ -6,9 +6,9 @@ const base = { userId, email: 'ana@correo.com', fullName: 'Ana López' };
 describe('account link payload', () => {
   it('requires a link and an expiry for every reason that carries one', () => {
     for (const reason of ['INVITATION', 'SIGNUP', 'PASSWORD_RESET'] as const) {
-      expect(accountLinkIssuedPayloadSchema.safeParse({ ...base, reason }).success).toBe(false);
+      expect(accountLinkSentPayloadSchema.safeParse({ ...base, reason }).success).toBe(false);
       expect(
-        accountLinkIssuedPayloadSchema.safeParse({
+        accountLinkSentPayloadSchema.safeParse({
           ...base,
           reason,
           link: 'https://web.example/crear-contrasena?token=abc',
@@ -20,7 +20,7 @@ describe('account link payload', () => {
 
   it('accepts an already registered notice without a link', () => {
     expect(
-      accountLinkIssuedPayloadSchema.safeParse({ ...base, reason: 'ALREADY_REGISTERED' }).success,
+      accountLinkSentPayloadSchema.safeParse({ ...base, reason: 'ALREADY_REGISTERED' }).success,
     ).toBe(true);
   });
 
@@ -36,15 +36,15 @@ describe('account link payload', () => {
       expiresAt: '2026-10-11T12:00:00.000Z',
     };
 
-    expect(accountLinkIssuedPayloadSchema.safeParse(payload).success).toBe(false);
+    expect(accountLinkSentPayloadSchema.safeParse(payload).success).toBe(false);
     expect(
-      accountLinkIssuedPayloadSchema.safeParse({ ...payload, link: 'http://localhost:3000/x?t=1' })
+      accountLinkSentPayloadSchema.safeParse({ ...payload, link: 'http://localhost:3000/x?t=1' })
         .success,
     ).toBe(true);
   });
 
   it('rejects unknown reasons', () => {
-    expect(accountLinkIssuedPayloadSchema.safeParse({ ...base, reason: 'OTHER' }).success).toBe(
+    expect(accountLinkSentPayloadSchema.safeParse({ ...base, reason: 'OTHER' }).success).toBe(
       false,
     );
   });

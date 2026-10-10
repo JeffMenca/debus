@@ -9,26 +9,26 @@ import { ApiTags } from '@nestjs/swagger';
 import { ProbeService } from './probe.service';
 import { SystemStatusService } from './system-status.service';
 
-@ApiTags('sistema')
-@Controller('api/sistema')
+@ApiTags('system')
+@Controller('api/system')
 export class SystemController {
   constructor(
     private readonly status: SystemStatusService,
     private readonly probes: ProbeService,
   ) {}
 
-  @Get('estado')
+  @Get('status')
   check(@Headers(CORRELATION_HEADER) correlationId: string): Promise<SystemStatus> {
     return this.status.check(correlationId);
   }
 
-  @Post('sondeos')
+  @Post('probes')
   @HttpCode(202)
   emit(@Headers(CORRELATION_HEADER) correlationId: string): Promise<ProbeCreated> {
     return this.probes.emit(correlationId);
   }
 
-  @Get('sondeos/:probeId')
+  @Get('probes/:probeId')
   probe(
     @Param('probeId', new ParseUUIDPipe()) probeId: string,
     @Headers(CORRELATION_HEADER) correlationId: string,

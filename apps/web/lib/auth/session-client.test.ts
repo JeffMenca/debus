@@ -29,7 +29,7 @@ describe('session client', () => {
     await signIn('a@b.com', 'clave');
 
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/sesion/login',
+      '/api/session/login',
       expect.objectContaining({ method: 'POST' }),
     );
     expect(getSession()?.accessToken).toBe('a');
@@ -155,7 +155,7 @@ describe('session client', () => {
     await signOut();
 
     expect(fetchMock).toHaveBeenLastCalledWith(
-      '/api/sesion/logout',
+      '/api/session/logout',
       expect.objectContaining({ method: 'POST' }),
     );
     expect(getSession()).toBeNull();

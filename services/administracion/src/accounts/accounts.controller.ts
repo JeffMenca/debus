@@ -21,7 +21,7 @@ const PRIVATE_ANSWER_MIN_MS = 300;
 const accepted = { message: ACCEPTED_MESSAGE };
 const sameTime = () => new MinimumDurationInterceptor(PRIVATE_ANSWER_MIN_MS);
 
-@ApiTags('cuentas')
+@ApiTags('accounts')
 @Controller('auth')
 export class AccountsController {
   constructor(private readonly registration: RegistrationService) {}

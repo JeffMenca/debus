@@ -17,7 +17,7 @@ const tokens = {
   },
 };
 const post = (path: string, body?: unknown, headers: Record<string, string> = {}) =>
-  new Request(`http://localhost:3000/api/sesion/${path}`, {
+  new Request(`http://localhost:3000/api/session/${path}`, {
     method: 'POST',
     headers: {
       host: 'localhost:3000',
@@ -36,7 +36,7 @@ beforeEach(() => {
   global.fetch = gateway as unknown as typeof fetch;
 });
 
-describe('POST /api/sesion/login', () => {
+describe('POST /api/session/login', () => {
   it('keeps the refresh token in an http only cookie and returns only the access token', async () => {
     gateway.mockResolvedValue(Response.json(tokens));
 
@@ -87,7 +87,7 @@ describe('POST /api/sesion/login', () => {
     gateway.mockResolvedValue(
       Response.json({ statusCode: 400, error: 'Bad Request', message: 'x' }, { status: 400 }),
     );
-    const request = new Request('http://localhost:3000/api/sesion/login', {
+    const request = new Request('http://localhost:3000/api/session/login', {
       method: 'POST',
       headers: { host: 'localhost:3000', origin: 'http://localhost:3000' },
       body: 'not json',
@@ -115,7 +115,7 @@ describe('POST /api/sesion/login', () => {
   });
 });
 
-describe('POST /api/sesion/refresh', () => {
+describe('POST /api/session/refresh', () => {
   it('rotates the cookie', async () => {
     gateway.mockResolvedValue(Response.json({ ...tokens, refreshToken: 'rotated' }));
 
@@ -171,7 +171,7 @@ describe('POST /api/sesion/refresh', () => {
   });
 });
 
-describe('POST /api/sesion/logout', () => {
+describe('POST /api/session/logout', () => {
   it('revokes the session and always clears the cookie', async () => {
     gateway.mockResolvedValue(new Response(null, { status: 204 }));
 

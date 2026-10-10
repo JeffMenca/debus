@@ -12,12 +12,12 @@ describe('event registry', () => {
     const business = EVENT_TYPES.filter((type) => !EVENT_REGISTRY[type].diagnostic);
 
     expect(business).toHaveLength(20);
-    expect(EVENT_REGISTRY.SondeoEmitido.diagnostic).toBe(true);
+    expect(EVENT_REGISTRY.ProbeSent.diagnostic).toBe(true);
   });
 
   it('sends account links from administracion to notificaciones', () => {
-    expect(publisherOf('EnlaceDeCuentaEmitido')).toBe('administracion');
-    expect(consumersOf('EnlaceDeCuentaEmitido')).toEqual(['notificaciones']);
+    expect(publisherOf('AccountLinkSent')).toBe('administracion');
+    expect(consumersOf('AccountLinkSent')).toEqual(['notificaciones']);
   });
 
   it('never lets a service consume its own events', () => {
@@ -28,20 +28,20 @@ describe('event registry', () => {
   });
 
   it('delivers the probe to every backend service', () => {
-    expect([...consumersOf('SondeoEmitido')].sort()).toEqual([...BACKEND_SERVICES].sort());
-    expect(publisherOf('SondeoEmitido')).toBe('gateway');
+    expect([...consumersOf('ProbeSent')].sort()).toEqual([...BACKEND_SERVICES].sort());
+    expect(publisherOf('ProbeSent')).toBe('gateway');
   });
 
   it('lists what each consumer listens to', () => {
     expect(eventsConsumedBy('clientes')).toEqual(
       expect.arrayContaining([
-        'ConfiguracionActualizada',
-        'UsuarioRegistrado',
-        'BoletoVendido',
-        'ReembolsoSolicitado',
-        'SondeoEmitido',
+        'SettingsUpdated',
+        'UserRegistered',
+        'TicketSold',
+        'RefundRequested',
+        'ProbeSent',
       ]),
     );
-    expect(eventsConsumedBy('clientes')).not.toContain('AlquilerPagado');
+    expect(eventsConsumedBy('clientes')).not.toContain('RentalPaid');
   });
 });

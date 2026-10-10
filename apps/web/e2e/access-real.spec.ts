@@ -1,14 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { isReachable, latestLink, mailpitUrl } from './support/mailpit';
 
-test.describe('acceso real', () => {
+test.describe('real access', () => {
   test.skip(!process.env.E2E_REAL_API, 'runs only against a running gateway');
   test.setTimeout(120_000);
 
-  test('registro, correo, contraseña, ingreso y recuperación', async ({
-    page,
-    baseURL,
-  }, testInfo) => {
+  test('sign-up, email, password, sign-in and recovery', async ({ page, baseURL }, testInfo) => {
     const mailpit = mailpitUrl(baseURL);
     test.skip(!mailpit || !(await isReachable(mailpit)), 'needs a reachable Mailpit');
     const inbox = mailpit as string;
@@ -43,7 +40,7 @@ test.describe('acceso real', () => {
 
     // Reloading loses the in-memory token; the page must get the session back from the cookie.
     const restored = page.waitForResponse((response) =>
-      response.url().endsWith('/api/sesion/refresh'),
+      response.url().endsWith('/api/session/refresh'),
     );
     await page.reload();
     expect((await restored).status()).toBe(200);

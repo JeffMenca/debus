@@ -20,9 +20,9 @@ describe('AccountEvents', () => {
     const { outbox, events } = setup();
     const tx = {} as never;
 
-    await events.linkIssued(tx, payload, 'c-1');
+    await events.linkSent(tx, payload, 'c-1');
 
-    expect(outbox.add).toHaveBeenCalledWith(tx, 'EnlaceDeCuentaEmitido', payload, 'c-1');
+    expect(outbox.add).toHaveBeenCalledWith(tx, 'AccountLinkSent', payload, 'c-1');
   });
 
   it('writes the registration in the caller transaction', async () => {
@@ -39,7 +39,7 @@ describe('AccountEvents', () => {
 
     await events.userRegistered(tx, registered);
 
-    expect(outbox.add).toHaveBeenCalledWith(tx, 'UsuarioRegistrado', registered, undefined);
+    expect(outbox.add).toHaveBeenCalledWith(tx, 'UserRegistered', registered, undefined);
   });
 
   it('flushes after the commit', async () => {

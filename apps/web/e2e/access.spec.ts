@@ -32,12 +32,12 @@ async function expectNoHorizontalScroll(page: Page) {
   );
 }
 
-test.describe('acceso con gateway simulado', () => {
+test.describe('access with a mocked gateway', () => {
   test.skip(realApi, 'runs only without a real gateway');
 
-  test('inicia sesión y llega al panel de su rol', async ({ page, baseURL }) => {
-    await page.route('**/api/sesion/refresh', (route) => route.fulfill({ status: 401, json: {} }));
-    await page.route('**/api/sesion/login', (route) =>
+  test('signs in and reaches the dashboard of its role', async ({ page, baseURL }) => {
+    await page.route('**/api/session/refresh', (route) => route.fulfill({ status: 401, json: {} }));
+    await page.route('**/api/session/login', (route) =>
       route.fulfill({ json: session('BRANCH_ADMIN') }),
     );
     await page.goto('/login');
@@ -61,9 +61,9 @@ test.describe('acceso con gateway simulado', () => {
     await expect(page).toHaveURL(/\/login/);
   });
 
-  test('vuelve a la página que se pidió antes de ingresar', async ({ page, baseURL }) => {
-    await page.route('**/api/sesion/refresh', (route) => route.fulfill({ status: 401, json: {} }));
-    await page.route('**/api/sesion/login', (route) =>
+  test('returns to the page requested before signing in', async ({ page, baseURL }) => {
+    await page.route('**/api/session/refresh', (route) => route.fulfill({ status: 401, json: {} }));
+    await page.route('**/api/session/login', (route) =>
       route.fulfill({ json: session('SYSTEM_ADMIN') }),
     );
     await page
@@ -78,8 +78,8 @@ test.describe('acceso con gateway simulado', () => {
     await expect(page).toHaveURL(/\/admin$/);
   });
 
-  test('muestra el error del servidor sin perder lo escrito', async ({ page }) => {
-    await page.route('**/api/sesion/login', (route) =>
+  test('shows the server error without losing what was typed', async ({ page }) => {
+    await page.route('**/api/session/login', (route) =>
       route.fulfill({
         status: 401,
         json: {
@@ -101,7 +101,7 @@ test.describe('acceso con gateway simulado', () => {
     await expect(page.getByLabel('Correo electrónico')).toHaveValue('marta@correo.com');
   });
 
-  test('explica los campos mal escritos antes de llamar al servidor', async ({ page }) => {
+  test('explains invalid fields before calling the server', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Correo electrónico').fill('no-es-correo');
     await page.getByRole('button', { name: /Ingresar/ }).click();
@@ -110,7 +110,7 @@ test.describe('acceso con gateway simulado', () => {
     await expect(page.getByText('Escribe tu contraseña.')).toBeVisible();
   });
 
-  test('crea una cuenta sin contraseña y pide revisar el correo', async ({ page }) => {
+  test('creates an account without a password and asks to check the email', async ({ page }) => {
     let body: unknown;
     await page.route('**/api/administracion/auth/signup', async (route) => {
       if (route.request().method() === 'OPTIONS') {
@@ -139,7 +139,7 @@ test.describe('acceso con gateway simulado', () => {
     await expectNoHorizontalScroll(page);
   });
 
-  test('pide el correo para recuperar la contraseña', async ({ page }) => {
+  test('asks for the email to recover the password', async ({ page }) => {
     await mockGateway(page, 'password/forgot', { status: 202, json: { message: 'ok' } });
     await page.goto('/recuperar');
 
@@ -150,7 +150,7 @@ test.describe('acceso con gateway simulado', () => {
     await expect(page.getByText(/Vence en 1 hora/)).toBeVisible();
   });
 
-  test('crea la contraseña desde el enlace', async ({ page }) => {
+  test('sets the password from the link', async ({ page }) => {
     await mockGateway(page, 'links/status', { json: { state: 'valid', purpose: 'ACTIVATION' } });
     await mockGateway(page, 'password', { status: 204 });
     await page.goto('/crear-contrasena?token=abc');
@@ -165,7 +165,7 @@ test.describe('acceso con gateway simulado', () => {
     );
   });
 
-  test('ofrece un enlace nuevo cuando venció', async ({ page }) => {
+  test('offers a new link when it expired', async ({ page }) => {
     await mockGateway(page, 'links/status', {
       json: { state: 'expired', purpose: 'PASSWORD_RESET' },
     });
@@ -177,7 +177,7 @@ test.describe('acceso con gateway simulado', () => {
     await expect(page.getByRole('heading', { name: 'Revisa tu correo' })).toBeVisible();
   });
 
-  test('invita a ingresar cuando el enlace ya se usó', async ({ page }) => {
+  test('invites to sign in when the link was already used', async ({ page }) => {
     await mockGateway(page, 'links/status', { json: { state: 'used', purpose: 'ACTIVATION' } });
     await page.goto('/crear-contrasena?token=abc');
 
@@ -186,7 +186,7 @@ test.describe('acceso con gateway simulado', () => {
     await expect(page).toHaveURL(/\/login$/);
   });
 
-  test('explica un enlace inválido o incompleto', async ({ page }) => {
+  test('explains an invalid or incomplete link', async ({ page }) => {
     await mockGateway(page, 'links/status', { json: { state: 'invalid' } });
     await page.goto('/crear-contrasena?token=x');
     await expect(page.getByRole('heading', { name: 'No pudimos abrir este enlace' })).toBeVisible();
@@ -197,14 +197,14 @@ test.describe('acceso con gateway simulado', () => {
     await expect(page).toHaveURL(/\/recuperar$/);
   });
 
-  test('protege las áreas privadas', async ({ page }) => {
+  test('protects the private areas', async ({ page }) => {
     await page.goto('/sucursal');
 
     await expect(page).toHaveURL(/\/login\?siguiente=%2Fsucursal$/);
   });
 
-  test('rechaza un inicio de sesión que viene de otro sitio', async ({ request }) => {
-    const response = await request.post('/api/sesion/login', {
+  test('rejects a sign-in coming from another site', async ({ request }) => {
+    const response = await request.post('/api/session/login', {
       headers: { origin: 'https://evil.example' },
       data: { email: 'a@b.com', password: 'x' },
     });
@@ -213,20 +213,20 @@ test.describe('acceso con gateway simulado', () => {
   });
 
   for (const [name, encoded] of [
-    ['un tabulador', '%2F%09%2Fevil.example'],
-    ['un salto de línea', '%2F%0A%2Fevil.example'],
-    ['un retorno de carro', '%2F%0D%2Fevil.example'],
-    ['dos barras', '%2F%2Fevil.example'],
-    ['una barra invertida', '%2F%5Cevil.example'],
+    ['a tab', '%2F%09%2Fevil.example'],
+    ['a line break', '%2F%0A%2Fevil.example'],
+    ['a carriage return', '%2F%0D%2Fevil.example'],
+    ['two slashes', '%2F%2Fevil.example'],
+    ['a backslash', '%2F%5Cevil.example'],
   ] as const) {
-    test(`no sale del sitio si siguiente trae ${name}`, async ({ page, baseURL }) => {
+    test(`stays on the site when siguiente carries ${name}`, async ({ page, baseURL }) => {
       const visited: string[] = [];
       await page.route('**://evil.example/**', (route) => {
         visited.push(route.request().url());
         return route.abort();
       });
-      await page.route('**/api/sesion/refresh', (route) => route.fulfill({ status: 204 }));
-      await page.route('**/api/sesion/login', (route) =>
+      await page.route('**/api/session/refresh', (route) => route.fulfill({ status: 204 }));
+      await page.route('**/api/session/login', (route) =>
         route.fulfill({ json: session('CLIENT') }),
       );
       await page.goto(`/login?siguiente=${encoded}`);
@@ -241,8 +241,8 @@ test.describe('acceso con gateway simulado', () => {
     });
   }
 
-  test('muestra el aviso de cuenta bloqueada con el cuerpo real del servidor', async ({ page }) => {
-    await page.route('**/api/sesion/login', (route) =>
+  test('shows the locked account notice with the real server body', async ({ page }) => {
+    await page.route('**/api/session/login', (route) =>
       route.fulfill({
         status: 423,
         // The real body has no "error" field.
@@ -263,14 +263,16 @@ test.describe('acceso con gateway simulado', () => {
     );
   });
 
-  test('una visita sin sesión no deja errores en la consola ni en la red', async ({ page }) => {
+  test('a visit without a session leaves no errors in the console or the network', async ({
+    page,
+  }) => {
     const problems: string[] = [];
     page.on('console', (message) => {
       if (message.type() === 'error') problems.push(message.text());
     });
     page.on('pageerror', (error) => problems.push(error.message));
     const refresh = page.waitForResponse((response) =>
-      response.url().endsWith('/api/sesion/refresh'),
+      response.url().endsWith('/api/session/refresh'),
     );
 
     await page.goto('/login');
@@ -279,7 +281,7 @@ test.describe('acceso con gateway simulado', () => {
     expect(problems).toEqual([]);
   });
 
-  test('si el servicio no responde no cierra la sesión: avisa y deja reintentar', async ({
+  test('when the service does not answer it keeps the session: warns and allows a retry', async ({
     page,
     baseURL,
   }) => {
@@ -287,7 +289,7 @@ test.describe('acceso con gateway simulado', () => {
       .context()
       .addCookies([{ name: 'debus_refresh', value: 'x', url: baseURL!, httpOnly: true }]);
     let available = false;
-    await page.route('**/api/sesion/refresh', (route) =>
+    await page.route('**/api/session/refresh', (route) =>
       available
         ? route.fulfill({ json: session('BRANCH_ADMIN') })
         : route.fulfill({ status: 503, json: { message: 'No pudimos conectarnos.' } }),
@@ -305,14 +307,14 @@ test.describe('acceso con gateway simulado', () => {
     await expect(page.getByRole('heading', { name: 'Hola, Marta Ruiz' })).toBeVisible();
   });
 
-  test('si la sesión terminó va al ingreso y vuelve después a donde estaba', async ({
+  test('when the session ended it goes to sign-in and returns to where it was', async ({
     page,
     baseURL,
   }) => {
     await page
       .context()
       .addCookies([{ name: 'debus_refresh', value: 'x', url: baseURL!, httpOnly: true }]);
-    await page.route('**/api/sesion/refresh', (route) =>
+    await page.route('**/api/session/refresh', (route) =>
       route.fulfill({
         status: 401,
         json: {},
@@ -325,7 +327,7 @@ test.describe('acceso con gateway simulado', () => {
     await expect(page).toHaveURL(/\/login\?siguiente=%2Fsucursal$/);
   });
 
-  test('los enlaces de texto muestran el anillo de foco del diseño', async ({ page }) => {
+  test('text links show the focus ring of the design', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Correo electrónico').focus();
     await page.keyboard.press('Tab');
@@ -336,7 +338,7 @@ test.describe('acceso con gateway simulado', () => {
     expect(await link.evaluate((el) => getComputedStyle(el).outlineWidth)).toBe('2px');
   });
 
-  test.describe('con dos pestañas del mismo navegador', () => {
+  test.describe('with two tabs of the same browser', () => {
     const CLEARED = 'debus_refresh=; Path=/; Max-Age=0';
 
     // A stand-in for the web session routes that behaves like the real refresh rotation:
@@ -347,7 +349,7 @@ test.describe('acceso con gateway simulado', () => {
       await context.addCookies([
         { name: 'debus_refresh', value: state.current, url: baseURL, httpOnly: true },
       ]);
-      await context.route('**/api/sesion/refresh', async (route) => {
+      await context.route('**/api/session/refresh', async (route) => {
         // What the browser would send right now.
         const sent = (await context.cookies()).find((c) => c.name === 'debus_refresh')?.value;
         // The gateway takes a moment, so two refreshes that start together overlap.
@@ -364,13 +366,13 @@ test.describe('acceso con gateway simulado', () => {
           headers: { 'set-cookie': `debus_refresh=${state.current}; Path=/; HttpOnly` },
         });
       });
-      await context.route('**/api/sesion/logout', (route) =>
+      await context.route('**/api/session/logout', (route) =>
         route.fulfill({ status: 204, headers: { 'set-cookie': CLEARED } }),
       );
       return state;
     }
 
-    test('siguen con la sesión cuando recargan a la vez', async ({ context, baseURL }) => {
+    test('keep the session when they reload at the same time', async ({ context, baseURL }) => {
       const state = await mockRotatingSession(context, baseURL!);
       const first = await context.newPage();
       const second = await context.newPage();
@@ -388,7 +390,7 @@ test.describe('acceso con gateway simulado', () => {
       expect(state.rejected).toBe(0);
     });
 
-    test('salen juntas cuando una cierra la sesión', async ({ context, baseURL }) => {
+    test('sign out together when one signs out', async ({ context, baseURL }) => {
       await mockRotatingSession(context, baseURL!);
       const first = await context.newPage();
       const second = await context.newPage();
@@ -404,7 +406,7 @@ test.describe('acceso con gateway simulado', () => {
     });
   });
 
-  test('el foco del teclado se ve en los campos', async ({ page }) => {
+  test('keyboard focus is visible on the fields', async ({ page }) => {
     await page.goto('/login');
     await page.keyboard.press('Tab');
     await page.getByLabel('Correo electrónico').focus();
@@ -415,7 +417,7 @@ test.describe('acceso con gateway simulado', () => {
     expect(ring).not.toBe('none');
   });
 
-  test('anima la escena y respeta reduced motion', async ({ page }) => {
+  test('animates the scene and respects reduced motion', async ({ page }) => {
     const animated = () =>
       page.evaluate(
         () =>
@@ -439,7 +441,7 @@ test.describe('acceso con gateway simulado', () => {
     '/crear-contrasena?token=x',
     '/restablecer?token=x',
   ]) {
-    test(`sin scroll horizontal ni más de un botón principal en ${path}`, async ({ page }) => {
+    test(`has no horizontal scroll and a single primary button on ${path}`, async ({ page }) => {
       await mockGateway(page, 'links/status', { json: { state: 'valid', purpose: 'ACTIVATION' } });
       await page.goto(path);
       await expect(page.getByRole('heading', { level: 2 })).toBeVisible();

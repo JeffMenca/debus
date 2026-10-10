@@ -17,6 +17,6 @@ it('closes the session and returns to the login', async () => {
 
   await userEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
 
-  expect(fetchMock).toHaveBeenCalledWith('/api/sesion/logout', expect.anything());
+  expect(fetchMock).toHaveBeenCalledWith('/api/session/logout', expect.anything());
   expect(replace).toHaveBeenCalledWith('/login');
 });

@@ -21,14 +21,14 @@ function setup(handled = 1) {
 describe('InboundEvents', () => {
   it('dispatches a new event once even if Pub/Sub delivers it twice', async () => {
     const { events, dispatch } = setup();
-    const envelope = createEnvelope('SondeoEmitido', {}, 'c');
+    const envelope = createEnvelope('ProbeSent', {}, 'c');
 
     await events.receive(push(envelope));
     await events.receive(push(envelope));
 
     expect(dispatch).toHaveBeenCalledTimes(1);
     await expect(events.processed(envelope.eventId)).resolves.toMatchObject({
-      type: 'SondeoEmitido',
+      type: 'ProbeSent',
     });
   });
 
@@ -39,7 +39,7 @@ describe('InboundEvents', () => {
       findProcessed: jest.fn(),
     };
     const dispatch = jest.fn().mockResolvedValue(1);
-    const envelope = createEnvelope('SondeoEmitido', {}, 'c');
+    const envelope = createEnvelope('ProbeSent', {}, 'c');
 
     await new InboundEvents(inbox, { dispatch } as unknown as EventDispatcher).receive(
       push(envelope),
@@ -52,7 +52,7 @@ describe('InboundEvents', () => {
     const { events } = setup(0);
 
     await expect(
-      events.receive(push(createEnvelope('BoletoVendido', {}, 'c'))),
+      events.receive(push(createEnvelope('TicketSold', {}, 'c'))),
     ).resolves.toBeUndefined();
   });
 

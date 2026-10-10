@@ -34,7 +34,7 @@ async function post(path: string, body?: unknown): Promise<Response> {
 }
 
 export async function signIn(email: string, password: string): Promise<WebSession> {
-  const response = await post('/api/sesion/login', { email, password });
+  const response = await post('/api/session/login', { email, password });
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) throw apiErrorFrom(response.status, body);
   const session = webSessionSchema.parse(body);
@@ -52,7 +52,7 @@ export function refreshSession(): Promise<WebSession | null> {
       return await withRefreshLock(async () => {
         const current = getSession();
         if (adopted !== adoptedBefore && current) return current;
-        const response = await post('/api/sesion/refresh');
+        const response = await post('/api/session/refresh');
         // 204: nobody is signed in. 401: the cookie was refused. Either way the session is over.
         if (response.status === 204 || response.status === 401) {
           clearSession();
@@ -79,7 +79,7 @@ export function refreshSession(): Promise<WebSession | null> {
 }
 
 export async function signOut(): Promise<void> {
-  await post('/api/sesion/logout').catch(() => undefined);
+  await post('/api/session/logout').catch(() => undefined);
   clearSession();
   announceSignOut();
 }

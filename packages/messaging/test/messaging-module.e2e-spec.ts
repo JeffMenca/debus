@@ -31,18 +31,14 @@ describe('MessagingModule', () => {
   afterAll(() => app.close());
 
   it('records a probe once and exposes it', async () => {
-    const envelope = createEnvelope(
-      'SondeoEmitido',
-      { requestedAt: new Date().toISOString() },
-      'c',
-    );
+    const envelope = createEnvelope('ProbeSent', { requestedAt: new Date().toISOString() }, 'c');
     const server = app.getHttpServer();
 
     await request(server).post('/events/pubsub').send(push(envelope)).expect(204);
     await request(server).post('/events/pubsub').send(push(envelope)).expect(204);
     const response = await request(server).get(`/events/processed/${envelope.eventId}`).expect(200);
 
-    expect(response.body).toMatchObject({ eventId: envelope.eventId, type: 'SondeoEmitido' });
+    expect(response.body).toMatchObject({ eventId: envelope.eventId, type: 'ProbeSent' });
   });
 
   it('answers 400 to a malformed push and 404 to an unknown id', async () => {
@@ -125,7 +121,7 @@ describe('MessagingModule outbox', () => {
       });
     });
     const envelope = await db.$transaction((tx) =>
-      app.get(Outbox).add(tx, 'BusRegistrado', { busId: 'b-1' }, 'c-outbox'),
+      app.get(Outbox).add(tx, 'BusAdded', { busId: 'b-1' }, 'c-outbox'),
     );
 
     const response = await request(app.getHttpServer()).post('/outbox/flush').expect(200);
@@ -139,7 +135,7 @@ describe('MessagingModule outbox', () => {
   it('keeps an event the service may not publish pending and counts the attempt', async () => {
     await pool.query('TRUNCATE outbox');
     const envelope = await db.$transaction((tx) =>
-      app.get(Outbox).add(tx, 'SondeoEmitido', { requestedAt: new Date().toISOString() }),
+      app.get(Outbox).add(tx, 'ProbeSent', { requestedAt: new Date().toISOString() }),
     );
 
     const response = await request(app.getHttpServer()).post('/outbox/flush').expect(200);
@@ -151,7 +147,7 @@ describe('MessagingModule outbox', () => {
     );
     expect(rows[0]).toEqual({
       attempts: 1,
-      last_error: 'flota cannot publish SondeoEmitido',
+      last_error: 'flota cannot publish ProbeSent',
     });
   });
 

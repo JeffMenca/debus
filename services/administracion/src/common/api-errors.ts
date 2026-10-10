@@ -2,13 +2,13 @@ import { HttpCode, applyDecorators } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 
 const DESCRIPTIONS = {
-  400: 'Datos inválidos o enlace no válido.',
-  401: 'Falta la sesión o las credenciales no son correctas.',
-  403: 'El rol no permite esta acción.',
-  404: 'No existe lo que se pidió.',
-  409: 'Conflicto con el estado actual: ya existe, ya se usó o no se puede cambiar.',
-  410: 'El enlace ya venció.',
-  423: 'Cuenta bloqueada temporalmente por intentos fallidos.',
+  400: 'Invalid data or invalid link.',
+  401: 'Missing session or wrong credentials.',
+  403: 'The role does not allow this action.',
+  404: 'The requested resource does not exist.',
+  409: 'Conflict with the current state: it already exists, was already used or cannot be changed.',
+  410: 'The link has expired.',
+  423: 'Account temporarily locked after failed attempts.',
 } as const;
 
 export type DocumentedError = keyof typeof DESCRIPTIONS;
@@ -20,10 +20,10 @@ export function apiErrors(...statuses: DocumentedError[]): MethodDecorator {
 }
 
 const SUCCESS = {
-  200: 'Hecho.',
-  201: 'Creado.',
-  202: 'Recibido. La respuesta es la misma exista o no la cuenta.',
-  204: 'Hecho, sin contenido.',
+  200: 'Done.',
+  201: 'Created.',
+  202: 'Accepted. The response is the same whether or not the account exists.',
+  204: 'Done, no content.',
 } as const;
 
 export type DocumentedSuccess = keyof typeof SUCCESS;

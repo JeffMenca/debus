@@ -15,7 +15,7 @@ const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const accountLink = (email: string) =>
   createEnvelope(
-    'EnlaceDeCuentaEmitido',
+    'AccountLinkSent',
     {
       userId: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
       email,

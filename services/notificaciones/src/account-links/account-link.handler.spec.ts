@@ -21,7 +21,7 @@ describe('AccountLinkHandler', () => {
 
   it('sends the email and records it without the link', async () => {
     const { mailer, prisma, handler } = setup();
-    const envelope = createEnvelope('EnlaceDeCuentaEmitido', payload, 'c');
+    const envelope = createEnvelope('AccountLinkSent', payload, 'c');
 
     await handler.handle(payload, envelope);
 
@@ -36,7 +36,7 @@ describe('AccountLinkHandler', () => {
 
   it('records the email through the inbox transaction, not a second connection', async () => {
     const { prisma, tx, handler } = setup();
-    const envelope = createEnvelope('EnlaceDeCuentaEmitido', payload, 'c');
+    const envelope = createEnvelope('AccountLinkSent', payload, 'c');
 
     await handler.handle(payload, envelope, tx as never);
 
@@ -48,7 +48,7 @@ describe('AccountLinkHandler', () => {
     const { mailer, handler } = setup();
 
     await expect(
-      handler.handle({ email: 'x' }, createEnvelope('EnlaceDeCuentaEmitido', {}, 'c')),
+      handler.handle({ email: 'x' }, createEnvelope('AccountLinkSent', {}, 'c')),
     ).rejects.toThrow();
     expect(mailer.send).not.toHaveBeenCalled();
   });
@@ -58,7 +58,7 @@ describe('AccountLinkHandler', () => {
     mailer.send.mockRejectedValue(new Error('smtp down'));
 
     await expect(
-      handler.handle(payload, createEnvelope('EnlaceDeCuentaEmitido', payload, 'c')),
+      handler.handle(payload, createEnvelope('AccountLinkSent', payload, 'c')),
     ).rejects.toThrow('smtp down');
     expect(prisma.sentEmail.create).not.toHaveBeenCalled();
   });
