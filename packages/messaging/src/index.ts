@@ -15,3 +15,4 @@ export * from './provisioning/plan-input';
 export * from './provisioning/apply-pubsub-plan';
 export * from './outbox/sql-outbox-store';
 export * from './outbox/outbox';
+export * from './testing/capture-logs';

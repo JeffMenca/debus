@@ -34,10 +34,12 @@
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@debus/config": "workspace:*",
+    "@google-cloud/pubsub": "^6.1.0",
     "@nestjs/cli": "^11.0.24",
     "@nestjs/testing": "^11.2.7",
     "@testcontainers/postgresql": "^12.2.0",

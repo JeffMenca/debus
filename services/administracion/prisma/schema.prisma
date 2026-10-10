@@ -15,3 +15,89 @@ model ProcessedEvent {
 
   @@map("processed_events")
 }
+
+model OutboxEvent {
+  eventId      String    @id @map("event_id")
+  type         String
+  envelope     Json
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt  DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts     Int       @default(0)
+  lastError    String?   @map("last_error")
+  claimedUntil DateTime? @map("claimed_until") @db.Timestamptz(3)
+
+  @@map("outbox")
+}
+
+enum UserRole {
+  SYSTEM_ADMIN
+  BRANCH_ADMIN
+  CASHIER
+  DRIVER
+  CLIENT
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+enum AccountLinkPurpose {
+  ACTIVATION
+  PASSWORD_RESET
+}
+
+model User {
+  id               String         @id @default(uuid()) @db.Uuid
+  email            String         @unique
+  fullName         String         @map("full_name")
+  role             UserRole
+  branchId         String?        @map("branch_id") @db.Uuid
+  status           UserStatus     @default(PENDING)
+  passwordHash     String?        @map("password_hash")
+  nit              String?        @unique
+  pendingProfile   Json?          @map("pending_profile")
+  failedLoginCount Int            @default(0) @map("failed_login_count")
+  lockedUntil      DateTime?      @map("locked_until") @db.Timestamptz(3)
+  lastNoticeAt     DateTime?      @map("last_notice_at") @db.Timestamptz(3)
+  createdById      String?        @map("created_by_id") @db.Uuid
+  activatedAt      DateTime?      @map("activated_at") @db.Timestamptz(3)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  links            AccountLink[]
+  refreshTokens    RefreshToken[]
+
+  @@index([role, status])
+  @@map("users")
+}
+
+model AccountLink {
+  id        String             @id @default(uuid()) @db.Uuid
+  userId    String             @map("user_id") @db.Uuid
+  purpose   AccountLinkPurpose
+  tokenHash String             @unique @map("token_hash")
+  expiresAt DateTime           @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime?          @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  user      User               @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("account_links")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  familyId  String    @map("family_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([familyId])
+  @@index([userId])
+  @@map("refresh_tokens")
+}

@@ -10,6 +10,9 @@ export const ACCOUNT_LINK_PURPOSES = ['ACTIVATION', 'PASSWORD_RESET'] as const;
 export type AccountLinkPurpose = (typeof ACCOUNT_LINK_PURPOSES)[number];
 
 export const ACCESS_TOKEN_TTL_SECONDS = 900;
+// Who signs access tokens and who accepts them: the gateway rejects tokens minted for anything else.
+export const ACCESS_TOKEN_ISSUER = 'debus-administracion';
+export const ACCESS_TOKEN_AUDIENCE = 'debus';
 export const REFRESH_TOKEN_TTL_DAYS = 7;
 export const IDENTITY_HEADERS = {
   userId: 'x-user-id',
