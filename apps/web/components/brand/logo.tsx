@@ -1,12 +1,26 @@
 import { Bus as BusIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export function Logo() {
+// `compact` shrinks it on narrow screens, for rows that must also fit other controls.
+export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="flex size-[42px] items-center justify-center rounded-[14px] bg-primary text-mango-300">
+      <div
+        className={cn(
+          'flex size-[42px] items-center justify-center rounded-[14px] bg-primary text-mango-300',
+          compact && 'max-sm:size-9 max-sm:rounded-xl',
+        )}
+      >
         <BusIcon aria-hidden strokeWidth={1.75} className="size-5" />
       </div>
-      <span className="font-display text-[26px] font-bold text-foreground">debus</span>
+      <span
+        className={cn(
+          'font-display text-[26px] font-bold text-foreground',
+          compact && 'max-sm:text-[22px]',
+        )}
+      >
+        debus
+      </span>
     </div>
   );
 }

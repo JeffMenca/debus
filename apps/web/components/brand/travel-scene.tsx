@@ -37,7 +37,13 @@ function ParallaxLayer({ className, children }: { className: string; children: R
   );
 }
 
-export function TravelScene({ className }: { className?: string }) {
+interface TravelSceneProps {
+  className?: string;
+  // Shown on the right of the logo row, e.g. the sign-in links of the home page.
+  actions?: ReactNode;
+}
+
+export function TravelScene({ className, actions }: TravelSceneProps) {
   return (
     <section
       className={cn(
@@ -76,8 +82,9 @@ export function TravelScene({ className }: { className?: string }) {
         </svg>
       </div>
 
-      <div className="relative z-[2] animate-arrive motion-reduce:animate-none">
-        <Logo />
+      <div className="relative z-[2] flex animate-arrive flex-wrap items-center justify-between gap-2 min-[380px]:flex-nowrap motion-reduce:animate-none">
+        <Logo compact={Boolean(actions)} />
+        {actions}
       </div>
       <div className="relative z-[2] flex max-w-[540px] animate-arrive flex-col gap-4 [animation-delay:120ms] motion-reduce:animate-none">
         <h1 className="font-display text-[clamp(46px,5.4vw,76px)] leading-[0.95] font-bold text-balance text-foreground">
