@@ -1,0 +1,30 @@
+name: smtp-check
+
+# Sends one real test email to BOOTSTRAP_ADMIN_EMAIL with the production mail settings, to tell an SMTP
+# problem apart from an event delivery problem. Run it by hand; the log says what failed without printing secrets.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smtp-check:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@debus/notificaciones
+      - name: Send the test email
+        run: node scripts/send-test-email.mjs
+        env:
+          DEBUS_ENV: production
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          BOOTSTRAP_ADMIN_EMAIL: ${{ vars.BOOTSTRAP_ADMIN_EMAIL }}

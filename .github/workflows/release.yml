@@ -20,7 +20,54 @@ on:
         required: false
 
 jobs:
+  # Topics and filtered push subscriptions must exist before any service starts: a message published to
+  # a topic without a matching subscription is discarded. Push endpoints are deterministic Cloud Run URLs,
+  # so subscriptions can be created before their service; Pub/Sub retries a push up to 5 times (about
+  # 2.5 minutes) and then sends the message to the consumer's dead-letter subscription.
+  # Required values are checked first so a missing secret aborts the release before it changes anything.
+  pubsub:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@debus/messaging
+      - name: Check required values of every unit
+        run: |
+          status=0
+          while read -r unit; do
+            node scripts/check-release-env.mjs "$unit" || status=1
+          done < <(jq -r '.[].unit' <<<"$RELEASES")
+          exit "$status"
+        env:
+          RELEASES: ${{ inputs.releases }}
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
+          JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
+          BOOTSTRAP_ADMIN_EMAIL: ${{ vars.BOOTSTRAP_ADMIN_EMAIL }}
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - name: Provision topics, push subscriptions and dead-letters
+        run: node scripts/provision-pubsub.mjs
+        env:
+          DEBUS_ENV: ${{ inputs.environment }}
+          PUBSUB_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+
   deploy:
+    needs: pubsub
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     permissions:
@@ -49,14 +96,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build --filter=@debus/contracts
-      - name: Check required values
-        run: node scripts/check-release-env.mjs "$UNIT"
-        env:
-          SMTP_USER: ${{ vars.SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
-          JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
-          BOOTSTRAP_ADMIN_EMAIL: ${{ vars.BOOTSTRAP_ADMIN_EMAIL }}
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
@@ -116,32 +155,3 @@ jobs:
           else
             gcloud scheduler jobs create http "$job" "${args[@]}"
           fi
-
-  pubsub:
-    needs: deploy
-    if: always() && needs.deploy.result == 'success'
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_DEPLOY_SA }}
-      - run: pnpm turbo run build --filter=@debus/messaging
-      - name: Provision topics, push subscriptions and dead-letters
-        run: node scripts/provision-pubsub.mjs
-        env:
-          DEBUS_ENV: ${{ inputs.environment }}
-          PUBSUB_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-          GCP_PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
-          GCP_REGION: ${{ vars.GCP_REGION }}
