@@ -4,7 +4,11 @@ import Script from 'next/script';
 import { Providers } from './providers';
 import './globals.css';
 
-const bricolage = Bricolage_Grotesque({ variable: '--font-bricolage', subsets: ['latin'] });
+const bricolage = Bricolage_Grotesque({
+  variable: '--font-bricolage',
+  subsets: ['latin'],
+  axes: ['opsz'],
+});
 const figtree = Figtree({ variable: '--font-figtree', subsets: ['latin'] });
 const jetbrains = JetBrains_Mono({ variable: '--font-jetbrains', subsets: ['latin'] });
 

@@ -85,6 +85,7 @@ describe('sessions', () => {
     }
     const locked = await login(wrong).expect(423);
     expect(locked.body.message).toContain('bloqueamos tu cuenta 15 minutos');
+    expect(locked.body).toMatchObject({ statusCode: 423, error: 'Locked' });
     await login(account).expect(423);
   });
 

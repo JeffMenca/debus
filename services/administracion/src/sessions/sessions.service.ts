@@ -22,7 +22,11 @@ interface AttemptReservation {
 
 const sessionEnded = () => new UnauthorizedException(MESSAGES.sessionEnded);
 const invalidCredentials = () => new UnauthorizedException(MESSAGES.invalidCredentials);
-const accountLocked = () => new HttpException(MESSAGES.locked, HttpStatus.LOCKED);
+const accountLocked = () =>
+  new HttpException(
+    { statusCode: HttpStatus.LOCKED, error: 'Locked', message: MESSAGES.locked },
+    HttpStatus.LOCKED,
+  );
 
 export function toSessionUser(user: User): SessionUser {
   return {

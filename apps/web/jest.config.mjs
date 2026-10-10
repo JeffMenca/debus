@@ -12,6 +12,7 @@ const config = {
     'components/**/*.{ts,tsx}',
     'hooks/**/*.{ts,tsx}',
     'lib/**/*.{ts,tsx}',
+    'proxy.ts',
     '!**/*.test.{ts,tsx}',
     '!app/layout.tsx',
     '!components/ui/**',

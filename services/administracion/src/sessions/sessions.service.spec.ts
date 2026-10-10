@@ -1,4 +1,4 @@
-import { HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, type HttpException, UnauthorizedException } from '@nestjs/common';
 import * as crypto from '../accounts/crypto';
 import { hashOpaqueToken, hashPassword } from '../accounts/crypto';
 import { SessionsService } from './sessions.service';
@@ -115,6 +115,22 @@ describe('login', () => {
     await expect(
       service.login({ email: 'ana@correo.com', password: 'mala' }, now),
     ).rejects.toMatchObject({ status: HttpStatus.LOCKED });
+  });
+
+  it('answers 423 with the same body shape as every other error', async () => {
+    const { prisma, service } = await setup();
+    prisma.$queryRaw.mockResolvedValue([{ locked: true }]);
+
+    const error = await service
+      .login({ email: 'ana@correo.com', password: 'mala' }, now)
+      .catch((e: HttpException) => e);
+
+    expect((error as HttpException).getResponse()).toEqual({
+      statusCode: 423,
+      error: 'Locked',
+      message:
+        'Por seguridad bloqueamos tu cuenta 15 minutos. Intenta más tarde o restablece tu contraseña.',
+    });
   });
 
   it('refuses without checking the password when no attempt can be reserved', async () => {
