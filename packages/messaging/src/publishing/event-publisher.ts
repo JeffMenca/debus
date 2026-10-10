@@ -1,11 +1,11 @@
 import { type EventEnvelope, publisherOf, topicName } from '@debus/contracts';
 import type { PubSub } from '@google-cloud/pubsub';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import type { MessagingSettings } from '../settings';
 import { MESSAGING_SETTINGS, PUBSUB_CLIENT } from '../tokens';
 
 @Injectable()
-export class EventPublisher {
+export class EventPublisher implements OnApplicationShutdown {
   constructor(
     @Inject(PUBSUB_CLIENT) private readonly pubsub: PubSub,
     @Inject(MESSAGING_SETTINGS) private readonly settings: MessagingSettings,
@@ -24,5 +24,10 @@ export class EventPublisher {
         correlationId: envelope.correlationId,
       },
     });
+  }
+
+  // Pending publications finish or are cancelled while the process is still alive to handle them.
+  async onApplicationShutdown(): Promise<void> {
+    await this.pubsub.close();
   }
 }

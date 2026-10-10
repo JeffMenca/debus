@@ -28,11 +28,11 @@ describe('useProbe', () => {
     await waitFor(() => expect(result.current.status?.services[0]?.state).toBe('received'));
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      'http://localhost:4000/api/sistema/sondeos',
+      'http://localhost:4000/api/system/probes',
       expect.objectContaining({ method: 'POST' }),
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      `http://localhost:4000/api/sistema/sondeos/${probeId}`,
+      `http://localhost:4000/api/system/probes/${probeId}`,
       expect.anything(),
     );
     expect(result.current.elapsedMs).toBeGreaterThanOrEqual(0);

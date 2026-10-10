@@ -2,6 +2,7 @@
 // Scaffolds a NestJS service under services/<name>.
 // Usage: node scripts/new-service.mjs <name> [--no-db] [--port <n>] [--update]
 // --update rewrites the template files of an existing service and keeps its package.json dependencies.
+// It never overwrites the files a service customizes (module wiring, Prisma schema, env example, integration Jest config) and lists what it skipped.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,9 +17,13 @@ if (!name || !/^[a-z][a-z0-9-]*$/.test(name)) {
 const withDb = !flags.includes('--no-db');
 const update = flags.includes('--update');
 const portFlag = flags.indexOf('--port');
-const port = portFlag === -1 ? 3000 : Number(flags[portFlag + 1]);
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'services', name);
+// An update keeps the port the service already uses unless --port says otherwise.
+const currentPort = update
+  ? /^PORT=(\d+)$/m.exec(readFileSync(join(dir, '.env.example'), 'utf8'))?.[1]
+  : undefined;
+const port = portFlag === -1 ? Number(currentPort ?? 3000) : Number(flags[portFlag + 1]);
 if (existsSync(join(dir, 'package.json')) && !update) {
   console.error(`services/${name} already exists (use --update to refresh its template files)`);
   process.exit(1);
@@ -118,7 +123,7 @@ async function bootstrap(): Promise<void> {
 
 void bootstrap();
 `,
-  'src/app.module.ts': `import { MessagingModule, ${withDb ? 'SqlInboxStore, ' : ''}correlationIdFor } from '@debus/messaging';
+  'src/app.module.ts': `import { MessagingModule, ${withDb ? 'SqlInboxStore, ' : ''}httpLoggerOptions } from '@debus/messaging';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
@@ -127,9 +132,7 @@ ${withDb ? "import { PrismaModule } from './prisma/prisma.module';\nimport { Pri
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    LoggerModule.forRoot({
-      pinoHttp: { level: process.env.LOG_LEVEL ?? 'info', genReqId: correlationIdFor },
-    }),
+    LoggerModule.forRoot({ pinoHttp: httpLoggerOptions() }),
     HealthModule,${
       withDb
         ? `
@@ -140,6 +143,7 @@ ${withDb ? "import { PrismaModule } from './prisma/prisma.module';\nimport { Pri
         inject: [PrismaService],
         useFactory: (prisma: PrismaService) => new SqlInboxStore(prisma),
       },
+      outbox: { inject: [PrismaService], useFactory: (prisma: PrismaService) => prisma },
     }),`
         : `
     MessagingModule.forRoot({ service: '${name}' }),`
@@ -243,6 +247,19 @@ model ProcessedEvent {
 
   @@map("processed_events")
 }
+
+model OutboxEvent {
+  eventId     String    @id @map("event_id")
+  type        String
+  envelope    Json
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts    Int       @default(0)
+  lastError   String?   @map("last_error")
+  claimedUntil DateTime? @map("claimed_until") @db.Timestamptz(3)
+
+  @@map("outbox")
+}
 `,
     'prisma/migrations/migration_lock.toml': 'provider = "postgresql"\n',
     'prisma/migrations/20261006000000_processed_events/migration.sql': `CREATE TABLE "processed_events" (
@@ -252,6 +269,23 @@ model ProcessedEvent {
 
     CONSTRAINT "processed_events_pkey" PRIMARY KEY ("event_id")
 );
+`,
+    // Together the two outbox migrations build OUTBOX_TABLE_SQL from @debus/messaging. Prisma cannot model the partial index.
+    'prisma/migrations/20261009000001_outbox/migration.sql': `CREATE TABLE "outbox" (
+    "event_id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "envelope" JSONB NOT NULL,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "published_at" TIMESTAMPTZ(3),
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "last_error" TEXT,
+
+    CONSTRAINT "outbox_pkey" PRIMARY KEY ("event_id")
+);
+
+CREATE INDEX "outbox_pending_idx" ON "outbox"("created_at") WHERE "published_at" IS NULL;
+`,
+    'prisma/migrations/20261009000002_outbox_claim/migration.sql': `ALTER TABLE "outbox" ADD COLUMN "claimed_until" TIMESTAMPTZ(3);
 `,
     'src/prisma/prisma.module.ts': `import { Global, Module } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
@@ -304,7 +338,8 @@ describe('PrismaService', () => {
 `,
     'test/events.e2e-spec.ts': `import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { createEnvelope } from '@debus/contracts';
+import { createEnvelope, type EventEnvelope } from '@debus/contracts';
+import { EventPublisher, Outbox } from '@debus/messaging';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -328,18 +363,24 @@ describe('Pub/Sub push endpoint', () => {
   });
 
   it('records a probe exactly once even when delivered twice', async () => {
-    const envelope = createEnvelope('SondeoEmitido', { requestedAt: new Date().toISOString() }, 'c');
+    const envelope = createEnvelope('ProbeSent', { requestedAt: new Date().toISOString() }, 'c');
     const server = app.getHttpServer();
 
     await request(server).post('/events/pubsub').send(push(envelope)).expect(204);
     await request(server).post('/events/pubsub').send(push(envelope)).expect(204);
 
     const response = await request(server).get(\`/events/processed/\${envelope.eventId}\`).expect(200);
-    expect(response.body).toMatchObject({ eventId: envelope.eventId, type: 'SondeoEmitido' });
+    expect(response.body).toMatchObject({ eventId: envelope.eventId, type: 'ProbeSent' });
     const stored = await app
       .get(PrismaService)
       .processedEvent.count({ where: { eventId: envelope.eventId } });
     expect(stored).toBe(1);
+  });
+
+  it('flushes the outbox on demand', async () => {
+    const response = await request(app.getHttpServer()).post('/outbox/flush').expect(200);
+
+    expect(response.body).toEqual({ published: expect.any(Number), failed: 0 });
   });
 
   it('answers 404 for events it never received', async () => {
@@ -348,6 +389,87 @@ describe('Pub/Sub push endpoint', () => {
 
   it('answers 400 to a malformed push', async () => {
     await request(app.getHttpServer()).post('/events/pubsub').send({ message: {} }).expect(400);
+  });
+});
+
+describe('Outbox with the service database client', () => {
+  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const published: string[] = [];
+  let delayMs = 2500;
+  let app: INestApplication;
+  let prisma: PrismaService;
+
+  beforeEach(async () => {
+    published.length = 0;
+    delayMs = 2500;
+    await prisma.outboxEvent.deleteMany();
+  });
+
+  beforeAll(async () => {
+    const publisher = {
+      publish: async (envelope: EventEnvelope) => {
+        await pause(delayMs);
+        if (envelope.correlationId === 'rejected') throw new Error('pubsub unavailable');
+        published.push(envelope.eventId);
+        return 'message-id';
+      },
+    };
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(EventPublisher)
+      .useValue(publisher)
+      .compile();
+    app = moduleRef.createNestApplication();
+    await app.init();
+    prisma = app.get(PrismaService);
+  });
+
+  afterAll(async () => {
+    await prisma.outboxEvent.deleteMany();
+    await app.close();
+  });
+
+  // Publishing takes longer than Prisma's interactive transaction timeout (5 s) in total.
+  it('marks every event correctly when publishing is slow', async () => {
+    const outbox = app.get(Outbox);
+    const added = await prisma.$transaction(async (tx) => {
+      const ids: string[] = [];
+      for (const correlationId of ['first', 'second', 'rejected']) {
+        ids.push((await outbox.add(tx, 'ProbeSent', {}, correlationId)).eventId);
+      }
+      return ids;
+    });
+
+    const result = await outbox.flush();
+
+    expect(result).toEqual({ published: 2, failed: 1 });
+    expect([...published].sort()).toEqual(added.slice(0, 2).sort());
+    const rows = await prisma.outboxEvent.findMany();
+    const byCorrelation = (correlationId: string) =>
+      rows.find((row) => (row.envelope as { correlationId?: string }).correlationId === correlationId);
+    expect(byCorrelation('first')?.publishedAt).not.toBeNull();
+    expect(byCorrelation('second')?.publishedAt).not.toBeNull();
+    expect(byCorrelation('rejected')).toMatchObject({
+      publishedAt: null,
+      attempts: 1,
+      lastError: 'pubsub unavailable',
+    });
+  }, 30000);
+
+  it('releases the events it did not reach when the budget runs out', async () => {
+    delayMs = 300;
+    const outbox = app.get(Outbox);
+    await prisma.$transaction(async (tx) => {
+      for (const correlationId of ['first', 'second', 'third']) {
+        await outbox.add(tx, 'ProbeSent', {}, correlationId);
+      }
+    });
+
+    const result = await outbox.flush({ budgetMs: 250 });
+
+    expect(result).toEqual({ published: 0, failed: 1 });
+    const rows = await prisma.outboxEvent.findMany();
+    expect(rows.filter((row) => row.attempts === 1)).toHaveLength(1);
+    expect(rows.filter((row) => row.attempts === 0 && row.claimedUntil === null)).toHaveLength(2);
   });
 });
 `,
@@ -360,9 +482,26 @@ if (update) {
   files['package.json'] = JSON.stringify(manifest, null, 2);
 }
 
+const CUSTOMIZED_FILES = [
+  'src/app.module.ts',
+  'prisma/schema.prisma',
+  '.env.example',
+  'test/jest-integration.cjs',
+];
+const skipped = [];
+
 for (const [file, content] of Object.entries(files)) {
   const path = join(dir, file);
+  if (update && CUSTOMIZED_FILES.includes(file) && existsSync(path)) {
+    skipped.push(file);
+    continue;
+  }
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content.endsWith('\n') ? content : `${content}\n`);
 }
 console.log(`services/${name} ${update ? 'updated' : 'created'}${withDb ? '' : ' (no database)'}`);
+if (skipped.length > 0) {
+  console.log(
+    `Skipped (the service may have customized them; merge by hand if needed): ${skipped.join(', ')}`,
+  );
+}

@@ -11,6 +11,13 @@ on:
         description: 'JSON array of {"unit": "<name>", "tag": "<image tag>"}'
         type: string
         required: true
+    secrets:
+      SMTP_PASSWORD:
+        required: false
+      JWT_PRIVATE_KEY:
+        required: false
+      JWT_PUBLIC_KEY:
+        required: false
 
 jobs:
   deploy:
@@ -42,6 +49,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build --filter=@debus/contracts
+      - name: Check required values
+        run: node scripts/check-release-env.mjs "$UNIT"
+        env:
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
+          JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
+          BOOTSTRAP_ADMIN_EMAIL: ${{ vars.BOOTSTRAP_ADMIN_EMAIL }}
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
@@ -60,6 +75,12 @@ jobs:
             --execute-now --wait
 
       - name: Deploy to Cloud Run
+        env:
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
+          JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
+          BOOTSTRAP_ADMIN_EMAIL: ${{ vars.BOOTSTRAP_ADMIN_EMAIL }}
         run: |
           flags=(--image "$REGISTRY/$UNIT:$TAG" --region "$GCP_REGION"
                  --service-account "debus-$UNIT@$GCP_PROJECT_ID.iam.gserviceaccount.com"
@@ -81,6 +102,20 @@ jobs:
             auth=(-H "X-Serverless-Authorization: Bearer $token")
           fi
           curl --fail --retry 5 --retry-delay 5 --retry-all-errors "${auth[@]}" "$url$path"
+
+      - name: Schedule outbox flush
+        if: hashFiles(format('services/{0}/prisma/schema.prisma', matrix.unit)) != ''
+        run: |
+          url="https://$UNIT-$GCP_PROJECT_NUMBER.$GCP_REGION.run.app"
+          job="$UNIT-outbox-flush"
+          args=(--location "$GCP_REGION" --schedule "* * * * *" --uri "$url/outbox/flush" --http-method POST
+                --oidc-service-account-email "pubsub-invoker@$GCP_PROJECT_ID.iam.gserviceaccount.com"
+                --oidc-token-audience "$url")
+          if gcloud scheduler jobs describe "$job" --location "$GCP_REGION" >/dev/null 2>&1; then
+            gcloud scheduler jobs update http "$job" "${args[@]}"
+          else
+            gcloud scheduler jobs create http "$job" "${args[@]}"
+          fi
 
   pubsub:
     needs: deploy

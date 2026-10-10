@@ -15,7 +15,7 @@ it('loads the system status from the gateway', async () => {
 
   await waitFor(() => expect(result.current.data).toEqual(status));
   expect(fetchMock).toHaveBeenCalledWith(
-    'http://localhost:4000/api/sistema/estado',
+    'http://localhost:4000/api/system/status',
     expect.anything(),
   );
   fetchMock.mockRestore();

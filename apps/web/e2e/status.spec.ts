@@ -15,7 +15,7 @@ const units = [
 const backends = units.slice(1);
 
 async function mockGateway(page: Page) {
-  await page.route('**/api/sistema/estado', (route) =>
+  await page.route('**/api/system/status', (route) =>
     route.fulfill({
       json: {
         environment: 'local',
@@ -24,10 +24,10 @@ async function mockGateway(page: Page) {
       },
     }),
   );
-  await page.route('**/api/sistema/sondeos', (route) =>
+  await page.route('**/api/system/probes', (route) =>
     route.fulfill({ status: 202, json: { probeId } }),
   );
-  await page.route(`**/api/sistema/sondeos/${probeId}`, (route) =>
+  await page.route(`**/api/system/probes/${probeId}`, (route) =>
     route.fulfill({
       json: { probeId, services: backends.map((service) => ({ service, state: 'received' })) },
     }),

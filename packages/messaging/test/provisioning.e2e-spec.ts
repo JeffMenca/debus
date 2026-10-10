@@ -28,9 +28,7 @@ describe('Pub/Sub provisioning against the emulator', () => {
     const changed = {
       ...plan,
       subscriptions: plan.subscriptions.map((s) =>
-        s.name === 'ventas-from-viajes'
-          ? { ...s, filter: 'attributes.type = "ViajeEliminado"' }
-          : s,
+        s.name === 'ventas-from-viajes' ? { ...s, filter: 'attributes.type = "TripDeleted"' } : s,
       ),
     };
     const log = jest.fn();

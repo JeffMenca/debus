@@ -39,6 +39,9 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U debus" --health-interval 5s --health-timeout 3s --health-retries 10
+      mailpit:
+        image: axllent/mailpit:latest
+        ports: ['1025:1025', '8025:8025']
     env:
       PUBSUB_EMULATOR_HOST: localhost:8085
       PUBSUB_PROJECT_ID: debus-local

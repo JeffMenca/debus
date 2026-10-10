@@ -8,11 +8,42 @@ import {
 } from './registry';
 
 describe('event registry', () => {
-  it('declares the 19 business event types plus the diagnostic probe', () => {
+  it('declares the 20 business event types plus the diagnostic probe', () => {
     const business = EVENT_TYPES.filter((type) => !EVENT_REGISTRY[type].diagnostic);
 
-    expect(business).toHaveLength(19);
-    expect(EVENT_REGISTRY.SondeoEmitido.diagnostic).toBe(true);
+    expect(business).toHaveLength(20);
+    expect(EVENT_REGISTRY.ProbeSent.diagnostic).toBe(true);
+  });
+
+  it('declares exactly the 21 agreed event names, in registry order', () => {
+    expect(EVENT_TYPES).toEqual([
+      'BranchCreated',
+      'BranchUpdated',
+      'SettingsUpdated',
+      'UserRegistered',
+      'AccountLinkSent',
+      'RepairExpenseAdded',
+      'BusAdded',
+      'BusUpdated',
+      'BusDeactivated',
+      'DriverAdded',
+      'DriverUpdated',
+      'RouteCreated',
+      'RouteDeleted',
+      'TripScheduled',
+      'TripDeleted',
+      'TripDeparted',
+      'TripCompleted',
+      'TicketSold',
+      'RefundRequested',
+      'RentalPaid',
+      'ProbeSent',
+    ]);
+  });
+
+  it('sends account links from administracion to notificaciones', () => {
+    expect(publisherOf('AccountLinkSent')).toBe('administracion');
+    expect(consumersOf('AccountLinkSent')).toEqual(['notificaciones']);
   });
 
   it('never lets a service consume its own events', () => {
@@ -23,20 +54,20 @@ describe('event registry', () => {
   });
 
   it('delivers the probe to every backend service', () => {
-    expect([...consumersOf('SondeoEmitido')].sort()).toEqual([...BACKEND_SERVICES].sort());
-    expect(publisherOf('SondeoEmitido')).toBe('gateway');
+    expect([...consumersOf('ProbeSent')].sort()).toEqual([...BACKEND_SERVICES].sort());
+    expect(publisherOf('ProbeSent')).toBe('gateway');
   });
 
   it('lists what each consumer listens to', () => {
     expect(eventsConsumedBy('clientes')).toEqual(
       expect.arrayContaining([
-        'ConfiguracionActualizada',
-        'UsuarioRegistrado',
-        'BoletoVendido',
-        'ReembolsoSolicitado',
-        'SondeoEmitido',
+        'SettingsUpdated',
+        'UserRegistered',
+        'TicketSold',
+        'RefundRequested',
+        'ProbeSent',
       ]),
     );
-    expect(eventsConsumedBy('clientes')).not.toContain('AlquilerPagado');
+    expect(eventsConsumedBy('clientes')).not.toContain('RentalPaid');
   });
 });

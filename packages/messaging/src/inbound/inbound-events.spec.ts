@@ -1,6 +1,8 @@
 import { createEnvelope } from '@debus/contracts';
 import { NotFoundException } from '@nestjs/common';
 import { InMemoryInboxStore } from '../inbox/in-memory-inbox-store';
+import type { InboxStore } from '../inbox/inbox-store';
+import type { SqlClient } from '../inbox/sql-inbox-store';
 import type { EventDispatcher } from './event-dispatcher';
 import { InboundEvents } from './inbound-events';
 
@@ -19,22 +21,38 @@ function setup(handled = 1) {
 describe('InboundEvents', () => {
   it('dispatches a new event once even if Pub/Sub delivers it twice', async () => {
     const { events, dispatch } = setup();
-    const envelope = createEnvelope('SondeoEmitido', {}, 'c');
+    const envelope = createEnvelope('ProbeSent', {}, 'c');
 
     await events.receive(push(envelope));
     await events.receive(push(envelope));
 
     expect(dispatch).toHaveBeenCalledTimes(1);
     await expect(events.processed(envelope.eventId)).resolves.toMatchObject({
-      type: 'SondeoEmitido',
+      type: 'ProbeSent',
     });
+  });
+
+  it('dispatches inside the inbox work with the transaction it provides', async () => {
+    const tx = {} as SqlClient;
+    const inbox: InboxStore = {
+      runOnce: (_event, work) => work(tx).then(() => 'processed'),
+      findProcessed: jest.fn(),
+    };
+    const dispatch = jest.fn().mockResolvedValue(1);
+    const envelope = createEnvelope('ProbeSent', {}, 'c');
+
+    await new InboundEvents(inbox, { dispatch } as unknown as EventDispatcher).receive(
+      push(envelope),
+    );
+
+    expect(dispatch).toHaveBeenCalledWith(envelope, tx);
   });
 
   it('still acknowledges events without handlers', async () => {
     const { events } = setup(0);
 
     await expect(
-      events.receive(push(createEnvelope('BoletoVendido', {}, 'c'))),
+      events.receive(push(createEnvelope('TicketSold', {}, 'c'))),
     ).resolves.toBeUndefined();
   });
 

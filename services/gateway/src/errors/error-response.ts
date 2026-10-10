@@ -2,7 +2,10 @@ import { STATUS_CODES } from 'node:http';
 import { CORRELATION_HEADER, type ErrorResponse } from '@debus/contracts';
 
 export const MESSAGES = {
+  badRequest: 'No pudimos entender la solicitud.',
   notFound: 'No encontramos lo que buscas.',
+  sessionEnded: 'Tu sesión terminó. Inicia sesión de nuevo.',
+  forbidden: 'No tienes permiso para ver esto.',
   upstream: 'El servicio no respondió. Intenta de nuevo en unos segundos.',
   generic: 'Algo salió mal. Intenta de nuevo en unos segundos.',
 } as const;

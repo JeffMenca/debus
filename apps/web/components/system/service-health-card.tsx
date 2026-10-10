@@ -4,8 +4,8 @@ import { UNIT_LABELS, healthView } from '@/lib/system-view';
 
 export function ServiceHealthCard({ units }: { units: UnitHealth[] }) {
   return (
-    <section aria-labelledby="servicios" className="rounded-xl bg-sky-100 p-6">
-      <h2 id="servicios" className="font-display text-xl font-semibold text-sky-700">
+    <section aria-labelledby="services" className="rounded-xl bg-sky-100 p-6">
+      <h2 id="services" className="font-display text-xl font-semibold text-sky-700">
         Servicios
       </h2>
       <ul className="mt-4 flex flex-col gap-2">

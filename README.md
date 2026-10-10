@@ -39,7 +39,7 @@ pnpm test:e2e             # Playwright del web a 1440 y 390 px
 pnpm new-service <nombre> --port <puerto> [--no-db]
 ```
 
-Cada servicio expone `GET /health`, Swagger en `/docs`, `POST /events/pubsub` (entrega push de Pub/Sub) y `GET /events/processed/:eventId`. El gateway enruta `/api/<servicio>/*` al servicio correspondiente y oculta las rutas internas.
+Cada servicio expone `GET /health`, Swagger en `/docs`, `POST /events/pubsub` (entrega push de Pub/Sub) y `GET /events/processed/:eventId`. El gateway enruta `/api/<servicio>/*` al servicio correspondiente y oculta las rutas internas; sus rutas de diagnóstico públicas son `GET /api/system/status`, `POST /api/system/probes` y `GET /api/system/probes/:probeId`.
 
 Imágenes: `docker build -f infra/docker/service.Dockerfile --build-arg SERVICE=<servicio> .` (con `--target migrator` para la imagen de migraciones) y `docker build -f infra/docker/web.Dockerfile .`. El web recibe la URL del gateway al arrancar (`API_URL`), así la misma imagen sirve en local y en producción.
 
@@ -54,7 +54,7 @@ La primera vez, después de correr `infra/gcp/bootstrap.sh` y cargar sus variabl
 
 ## Convenciones
 
-Commits convencionales (validados en `commit-msg`), PR pequeños y `main` protegida con una aprobación. Identificadores en inglés; textos de la interfaz y documentación en español.
+Commits convencionales (validados en `commit-msg`), PR pequeños y `main` protegida con una aprobación. Todo el código en inglés (identificadores, eventos como `TicketSold` o `TripScheduled`, rutas de la API, Swagger y logs); en español solo los textos de la interfaz, los correos, las URL del navegador y la documentación.
 
 ## Glosario
 

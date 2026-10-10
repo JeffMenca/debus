@@ -36,7 +36,7 @@ const plan: PubSubPlan = {
     {
       name: 'ventas-from-viajes',
       topic: 'viajes-events',
-      filter: 'attributes.type = "ViajeProgramado"',
+      filter: 'attributes.type = "TripScheduled"',
       pushEndpoint: 'https://ventas/events/pubsub',
       oidc: { serviceAccountEmail: 'sa@p', audience: 'https://ventas' },
       deadLetterTopic: 'ventas-dlq',
@@ -58,7 +58,7 @@ describe('applyPubSubPlan', () => {
       'ventas-dlq-sub',
     ]);
     expect(createSubscription).toHaveBeenCalledWith('ventas-from-viajes', {
-      filter: 'attributes.type = "ViajeProgramado"',
+      filter: 'attributes.type = "TripScheduled"',
       ackDeadlineSeconds: 60,
       pushConfig: {
         pushEndpoint: 'https://ventas/events/pubsub',
@@ -73,7 +73,7 @@ describe('applyPubSubPlan', () => {
     const { pubsub, created, setMetadata, remove } = fakePubSub({
       'viajes-events': {},
       'ventas-dlq': {},
-      'ventas-from-viajes': { filter: 'attributes.type = "ViajeProgramado"' },
+      'ventas-from-viajes': { filter: 'attributes.type = "TripScheduled"' },
       'ventas-dlq-sub': {},
     });
 

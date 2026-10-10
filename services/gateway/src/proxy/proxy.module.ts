@@ -6,7 +6,7 @@ export class ProxyModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer
       .apply(ProxyMiddleware)
-      .exclude({ path: 'api/sistema{/*path}', method: RequestMethod.ALL })
+      .exclude({ path: 'api/system{/*path}', method: RequestMethod.ALL })
       .forRoutes({ path: 'api{/*path}', method: RequestMethod.ALL });
   }
 }

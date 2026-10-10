@@ -13,7 +13,7 @@ describe('ProbeService', () => {
 
     expect(publish).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'SondeoEmitido',
+        type: 'ProbeSent',
         eventId: created.probeId,
         correlationId: 'c-1',
       }),

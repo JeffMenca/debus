@@ -7,9 +7,56 @@ import {
   serviceUrl,
 } from './topology';
 
+export interface AppSecrets {
+  smtpUser: string;
+  smtpPassword: string;
+  jwtPrivateKey: string;
+  jwtPublicKey: string;
+  bootstrapAdminEmail: string;
+}
+
+const APP_SECRET_VARIABLES: Readonly<Record<keyof AppSecrets, string>> = {
+  smtpUser: 'SMTP_USER',
+  smtpPassword: 'SMTP_PASSWORD',
+  jwtPrivateKey: 'JWT_PRIVATE_KEY',
+  jwtPublicKey: 'JWT_PUBLIC_KEY',
+  bootstrapAdminEmail: 'BOOTSTRAP_ADMIN_EMAIL',
+};
+
+// What each unit refuses to start without.
+const REQUIRED_APP_SECRETS: Readonly<Partial<Record<DeployUnit, readonly (keyof AppSecrets)[]>>> = {
+  notificaciones: ['smtpUser', 'smtpPassword'],
+  administracion: ['jwtPrivateKey', 'bootstrapAdminEmail'],
+  gateway: ['jwtPublicKey'],
+};
+
+export function readAppSecrets(env: Record<string, string | undefined>): AppSecrets {
+  const read = (key: keyof AppSecrets): string => env[APP_SECRET_VARIABLES[key]] ?? '';
+  return {
+    smtpUser: read('smtpUser'),
+    smtpPassword: read('smtpPassword'),
+    jwtPrivateKey: read('jwtPrivateKey'),
+    jwtPublicKey: read('jwtPublicKey'),
+    bootstrapAdminEmail: read('bootstrapAdminEmail'),
+  };
+}
+
+// Returns variable names only, so callers can report them without touching the values.
+export function missingAppValues(unit: DeployUnit, appSecrets: AppSecrets): string[] {
+  return (REQUIRED_APP_SECRETS[unit] ?? [])
+    .filter((key) => appSecrets[key].trim() === '')
+    .map((key) => APP_SECRET_VARIABLES[key]);
+}
+
 export interface CloudRunSettings extends CloudRunLocation {
   projectId: string;
   mediaBucket: string;
+  appSecrets: AppSecrets;
+}
+
+// Cloud Run env vars are single line; services turn \n back into new lines.
+export function escapeNewlines(value: string): string {
+  return value.trim().replace(/\r?\n/g, '\\n');
 }
 
 export function serviceUrlVariable(service: BackendService): string {
@@ -26,6 +73,7 @@ export function cloudRunEnv(
   settings: CloudRunSettings,
 ): Record<string, string> {
   const url = (target: DeployUnit): string => serviceUrl(target, env, settings);
+  const { appSecrets } = settings;
   const base = { SERVICE_NAME: unit, DEBUS_ENV: env };
   if (unit === 'web') return { ...base, API_URL: url('gateway'), APP_ENV: env };
 
@@ -39,6 +87,7 @@ export function cloudRunEnv(
       ...pubsub,
       SERVICE_AUTH: 'google',
       CORS_ORIGINS: url('web'),
+      JWT_PUBLIC_KEY: escapeNewlines(appSecrets.jwtPublicKey),
       ...serviceUrls,
     };
   }
@@ -50,5 +99,14 @@ export function cloudRunEnv(
     PUBSUB_PUSH_SA: pushServiceAccount(settings.projectId),
     DB_POOL_MAX: '2',
     ...(unit === 'flota' && { MEDIA_BUCKET: settings.mediaBucket }),
+    ...(unit === 'administracion' && {
+      WEB_URL: url('web'),
+      BOOTSTRAP_ADMIN_EMAIL: appSecrets.bootstrapAdminEmail,
+      JWT_PRIVATE_KEY: escapeNewlines(appSecrets.jwtPrivateKey),
+    }),
+    ...(unit === 'notificaciones' && {
+      SMTP_USER: appSecrets.smtpUser,
+      SMTP_PASSWORD: appSecrets.smtpPassword,
+    }),
   };
 }

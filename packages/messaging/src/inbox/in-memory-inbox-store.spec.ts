@@ -1,6 +1,6 @@
 import { InMemoryInboxStore } from './in-memory-inbox-store';
 
-const event = { eventId: 'e', type: 'SondeoEmitido' };
+const event = { eventId: 'e', type: 'ProbeSent' };
 
 describe('InMemoryInboxStore', () => {
   it('processes each event id once and remembers it', async () => {
@@ -19,5 +19,13 @@ describe('InMemoryInboxStore', () => {
 
     await expect(store.runOnce(event, () => Promise.reject(new Error('x')))).rejects.toThrow('x');
     expect(await store.findProcessed('e')).toBeNull();
+  });
+
+  it('hands the work an undefined transaction, since there is no database', async () => {
+    const work = jest.fn().mockResolvedValue(undefined);
+
+    await new InMemoryInboxStore().runOnce(event, work);
+
+    expect(work).toHaveBeenCalledWith(undefined);
   });
 });

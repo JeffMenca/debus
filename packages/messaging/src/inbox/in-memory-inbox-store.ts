@@ -1,9 +1,15 @@
-import type { InboxEvent, InboxOutcome, InboxStore, ProcessedEvent } from './inbox-store';
+import type {
+  InboxEvent,
+  InboxOutcome,
+  InboxStore,
+  InboxWork,
+  ProcessedEvent,
+} from './inbox-store';
 
 export class InMemoryInboxStore implements InboxStore {
   private readonly processed = new Map<string, ProcessedEvent>();
 
-  async runOnce(event: InboxEvent, work: () => Promise<void>): Promise<InboxOutcome> {
+  async runOnce(event: InboxEvent, work: InboxWork): Promise<InboxOutcome> {
     if (this.processed.has(event.eventId)) return 'duplicate';
     this.processed.set(event.eventId, {
       eventId: event.eventId,
@@ -11,7 +17,7 @@ export class InMemoryInboxStore implements InboxStore {
       processedAt: new Date(),
     });
     try {
-      await work();
+      await work(undefined);
       return 'processed';
     } catch (error) {
       this.processed.delete(event.eventId);

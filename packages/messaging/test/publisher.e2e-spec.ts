@@ -21,11 +21,7 @@ describe('EventPublisher against the Pub/Sub emulator', () => {
   });
 
   it('delivers the envelope with its attributes', async () => {
-    const envelope = createEnvelope(
-      'SondeoEmitido',
-      { requestedAt: new Date().toISOString() },
-      'c-1',
-    );
+    const envelope = createEnvelope('ProbeSent', { requestedAt: new Date().toISOString() }, 'c-1');
     const subscription = pubsub.subscription(subscriptionName);
     const received = new Promise<Message>((resolve) => {
       subscription.once('message', (message: Message) => {
@@ -39,6 +35,6 @@ describe('EventPublisher against the Pub/Sub emulator', () => {
     const message = await received;
     await subscription.close();
     expect(eventEnvelopeSchema.parse(JSON.parse(message.data.toString()))).toEqual(envelope);
-    expect(message.attributes).toMatchObject({ type: 'SondeoEmitido', eventId: envelope.eventId });
+    expect(message.attributes).toMatchObject({ type: 'ProbeSent', eventId: envelope.eventId });
   });
 });

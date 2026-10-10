@@ -1,4 +1,9 @@
-import { SqlInboxStore, type SqlTransactional } from './sql-inbox-store';
+import {
+  INBOX_TRANSACTION_MAX_WAIT_MS,
+  INBOX_TRANSACTION_TIMEOUT_MS,
+  SqlInboxStore,
+  type SqlTransactional,
+} from './sql-inbox-store';
 
 function fakeDb(insertedRows: number) {
   const tx = {
@@ -13,7 +18,7 @@ function fakeDb(insertedRows: number) {
   return { db: raw as unknown as SqlTransactional, tx, raw };
 }
 
-const event = { eventId: 'e-1', type: 'SondeoEmitido' };
+const event = { eventId: 'e-1', type: 'ProbeSent' };
 
 describe('SqlInboxStore', () => {
   it('runs the work once when the event is new', async () => {
@@ -24,9 +29,34 @@ describe('SqlInboxStore', () => {
     expect(tx.$executeRawUnsafe).toHaveBeenCalledWith(
       expect.stringContaining('ON CONFLICT (event_id) DO NOTHING'),
       'e-1',
-      'SondeoEmitido',
+      'ProbeSent',
     );
     expect(work).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the transaction client to the work so handlers write in the same transaction', async () => {
+    const { db, tx } = fakeDb(1);
+    const work = jest.fn().mockResolvedValue(undefined);
+
+    await new SqlInboxStore(db).runOnce(event, work);
+
+    expect(work).toHaveBeenCalledWith(tx);
+  });
+
+  it('gives the transaction enough time for slow handlers', async () => {
+    const { db, raw } = fakeDb(1);
+
+    await new SqlInboxStore(db).runOnce(event, () => Promise.resolve());
+
+    expect(INBOX_TRANSACTION_TIMEOUT_MS).toBe(30_000);
+    expect(raw.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      timeout: INBOX_TRANSACTION_TIMEOUT_MS,
+      maxWait: INBOX_TRANSACTION_MAX_WAIT_MS,
+    });
+  });
+
+  it('waits for a free connection instead of failing a burst above the pool size', () => {
+    expect(INBOX_TRANSACTION_MAX_WAIT_MS).toBe(10_000);
   });
 
   it('skips the work for a duplicate delivery', async () => {
@@ -47,7 +77,7 @@ describe('SqlInboxStore', () => {
 
   it('finds processed events', async () => {
     const { db, raw } = fakeDb(1);
-    const row = { eventId: 'e-1', type: 'SondeoEmitido', processedAt: new Date() };
+    const row = { eventId: 'e-1', type: 'ProbeSent', processedAt: new Date() };
     raw.$queryRawUnsafe.mockResolvedValueOnce([row]).mockResolvedValueOnce([]);
     const store = new SqlInboxStore(db);
 

@@ -15,8 +15,8 @@ export class InboundEvents {
 
   async receive(body: unknown): Promise<void> {
     const envelope = decodePushMessage(body);
-    const outcome = await this.inbox.runOnce(envelope, async () => {
-      const handled = await this.dispatcher.dispatch(envelope);
+    const outcome = await this.inbox.runOnce(envelope, async (tx) => {
+      const handled = await this.dispatcher.dispatch(envelope, tx);
       if (handled === 0) this.logger.warn(`No handler for ${envelope.type}`);
     });
     this.logger.log(`${envelope.type} ${envelope.eventId} ${outcome}`);

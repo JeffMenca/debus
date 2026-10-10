@@ -41,6 +41,18 @@ describe('SystemStatusView', () => {
     expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
+  it('labels its sections with English element ids', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(status));
+    const { container } = renderView();
+
+    await screen.findByText('Entrada principal');
+
+    expect(
+      container.querySelector('section[aria-labelledby="services"] h2#services'),
+    ).not.toBeNull();
+    expect(container.querySelector('section[aria-labelledby="probe"] h2#probe')).not.toBeNull();
+  });
+
   it('shows a friendly error with a way to retry', async () => {
     jest
       .spyOn(global, 'fetch')
@@ -57,7 +69,7 @@ describe('SystemStatusView', () => {
     const probeId = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
     jest.spyOn(global, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
-      if (url.endsWith('/api/sistema/estado')) return Promise.resolve(Response.json(status));
+      if (url.endsWith('/api/system/status')) return Promise.resolve(Response.json(status));
       if (init?.method === 'POST') {
         return Promise.resolve(Response.json({ probeId }, { status: 202 }));
       }
