@@ -1,14 +1,28 @@
 import { TravelScene } from '@/components/brand/travel-scene';
 import { BenefitCards } from '@/components/home/benefit-cards';
+import { Faq } from '@/components/home/faq';
+import { FloatingShapes } from '@/components/home/floating-shapes';
+import { GuatemalaMap } from '@/components/home/guatemala-map';
 import { HomeActions } from '@/components/home/home-actions';
+import { RentalBand } from '@/components/home/rental-band';
+import { ScrollDownButton } from '@/components/home/scroll-down-button';
+import { SiteFooter } from '@/components/home/site-footer';
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-dvh flex-col gap-4 bg-background">
-      <div className="flex p-4.5 pb-0">
-        <TravelScene actions={<HomeActions />} className="px-4 sm:px-11" />
-      </div>
-      <BenefitCards />
-    </main>
+    <>
+      <main className="relative isolate flex flex-col gap-10 bg-background pb-10 md:gap-16 md:pb-16">
+        <FloatingShapes />
+        <div className="relative flex p-4.5 pb-0">
+          <TravelScene actions={<HomeActions />} className="px-4 sm:px-11" />
+          <ScrollDownButton />
+        </div>
+        <BenefitCards />
+        <GuatemalaMap />
+        <Faq />
+        <RentalBand />
+      </main>
+      <SiteFooter />
+    </>
   );
 }

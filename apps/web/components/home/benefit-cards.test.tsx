@@ -30,4 +30,11 @@ describe('BenefitCards', () => {
 
     expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(3);
   });
+
+  it('is the target of the scroll-down button, leaving room above it', () => {
+    const { container } = render(<BenefitCards />);
+
+    expect(container.firstElementChild).toHaveAttribute('id', 'beneficios');
+    expect(container.firstElementChild).toHaveClass('scroll-mt-6');
+  });
 });

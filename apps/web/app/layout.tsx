@@ -19,7 +19,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="es" className={`${bricolage.variable} ${figtree.variable} ${jetbrains.variable}`}>
+    <html
+      lang="es"
+      data-scroll-behavior="smooth"
+      className={`${bricolage.variable} ${figtree.variable} ${jetbrains.variable}`}
+    >
       <body>
         <Script src="/env.js" strategy="beforeInteractive" />
         <Providers>{children}</Providers>

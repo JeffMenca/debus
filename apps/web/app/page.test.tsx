@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { clearSession, getSessionStatus, setSession } from '@/lib/auth/session-store';
@@ -31,12 +31,18 @@ const session = (role: 'SYSTEM_ADMIN' | 'BRANCH_ADMIN' | 'CLIENT', fullName = 'A
   },
 });
 
+const header = () => screen.getByRole('navigation', { name: /^(Acceso|Tu cuenta)$/ });
+const footer = () => screen.getByRole('contentinfo');
+
 describe('HomePage', () => {
-  it('shows no links while the session is being checked', () => {
+  it('shows no account links while the session is being checked', () => {
     mockStatus.mockReturnValue('unknown');
     render(<HomePage />);
 
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    // Only the scroll-down button, which is for everybody, is there.
+    expect(screen.getAllByRole('link').map((link) => link.getAttribute('aria-label'))).toEqual([
+      'Ver más contenido',
+    ]);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
@@ -54,20 +60,26 @@ describe('HomePage', () => {
     act(() => clearSession());
     render(<HomePage />);
 
-    const logIn = screen.getByRole('link', { name: 'Iniciar sesión' });
-    const signUp = screen.getByRole('link', { name: 'Crear cuenta' });
+    const logIn = within(header()).getByRole('link', { name: 'Iniciar sesión' });
+    const signUp = within(header()).getByRole('link', { name: 'Crear cuenta' });
     expect(logIn).toHaveAttribute('href', '/login');
     expect(logIn).not.toHaveClass('bg-primary');
     expect(signUp).toHaveAttribute('href', '/registro');
     expect(signUp).toHaveClass('bg-primary');
     expect(screen.queryByRole('link', { name: 'Ir a mi panel' })).not.toBeInTheDocument();
+    // The sign-up in the header is the only filled button of the page.
+    expect(document.querySelectorAll('a.bg-primary, button.bg-primary')).toHaveLength(1);
   });
 
   it('sends staff to their own panel', () => {
     act(() => setSession(session('BRANCH_ADMIN')));
     render(<HomePage />);
 
-    expect(screen.getByRole('link', { name: 'Ir a mi panel' })).toHaveAttribute(
+    expect(within(header()).getByRole('link', { name: 'Ir a mi panel' })).toHaveAttribute(
+      'href',
+      '/sucursal',
+    );
+    expect(within(footer()).getByRole('link', { name: 'Ir a mi panel' })).toHaveAttribute(
       'href',
       '/sucursal',
     );
@@ -100,7 +112,11 @@ describe('HomePage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
 
     expect(fetchMock).toHaveBeenCalledWith('/api/session/logout', expect.anything());
-    expect(await screen.findByRole('link', { name: 'Iniciar sesión' })).toBeInTheDocument();
+    expect(
+      await within(await screen.findByRole('navigation', { name: 'Acceso' })).findByRole('link', {
+        name: 'Iniciar sesión',
+      }),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Hola, Ana')).not.toBeInTheDocument();
   });
 
@@ -112,6 +128,73 @@ describe('HomePage', () => {
 
     await userEvent.keyboard('{Enter}');
 
-    expect(await screen.findByRole('link', { name: 'Iniciar sesión' })).toHaveFocus();
+    const nav = await screen.findByRole('navigation', { name: 'Acceso' });
+    expect(within(nav).getByRole('link', { name: 'Iniciar sesión' })).toHaveFocus();
+  });
+
+  it('tells the story from top to bottom, with one h1 and the footer last', () => {
+    act(() => clearSession());
+    const { container } = render(<HomePage />);
+
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+    ).toEqual([
+      'Compra tus boletos',
+      'Elige tu asiento',
+      'Alquila un bus para tu grupo',
+      'Conectamos todo el país',
+      'Preguntas frecuentes',
+      '¿Viajas en grupo?',
+      'Tu cuenta',
+    ]);
+    expect(screen.getByRole('main')).toContainElement(screen.getByRole('img', { name: /^Mapa/ }));
+    // The footer is a sibling of the main region, otherwise it is not the page footer.
+    expect(screen.getByRole('main')).not.toContainElement(footer());
+    expect(container.lastElementChild).toBe(footer());
+  });
+
+  it('puts the scroll-down button on the hero, for every kind of visitor, pointing at the benefits', () => {
+    act(() => clearSession());
+    const { unmount } = render(<HomePage />);
+    expect(screen.getByRole('link', { name: 'Ver más contenido' })).toHaveAttribute(
+      'href',
+      '#beneficios',
+    );
+    expect(document.getElementById('beneficios')).toBeInTheDocument();
+    unmount();
+
+    act(() => setSession(session('CLIENT')));
+    render(<HomePage />);
+    expect(screen.getByRole('link', { name: 'Ver más contenido' })).toBeInTheDocument();
+  });
+
+  it('keeps the questions before the rental band and the decorative circles out of the tree', () => {
+    act(() => clearSession());
+    const { container } = render(<HomePage />);
+
+    const faq = screen.getByRole('heading', { name: 'Preguntas frecuentes' });
+    const rental = screen.getByRole('heading', { name: '¿Viajas en grupo?' });
+    expect(faq.compareDocumentPosition(rental) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(container.querySelectorAll('main > [aria-hidden="true"].-z-10')).toHaveLength(1);
+  });
+
+  it('offers a visitor the rental quote through the sign-up, and nobody else', async () => {
+    act(() => clearSession());
+    render(<HomePage />);
+    const quote = 'Crea tu cuenta para pedir tu cotización';
+
+    expect(screen.getByRole('link', { name: quote })).toHaveAttribute('href', '/registro');
+    act(() => setSession(session('CLIENT')));
+    expect(screen.queryByRole('link', { name: quote })).not.toBeInTheDocument();
+  });
+
+  it('shows the year in the footer', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2031-03-04T12:00:00Z'));
+    act(() => clearSession());
+    render(<HomePage />);
+    jest.useRealTimers();
+
+    expect(within(footer()).getByText('© 2031 debus. Hecho en Guatemala.')).toBeInTheDocument();
   });
 });

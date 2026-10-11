@@ -31,7 +31,7 @@ const BENEFITS: readonly Benefit[] = [
 
 export function BenefitCards() {
   return (
-    <div className="grid gap-4 px-4.5 pb-4.5 sm:grid-cols-3">
+    <div id="beneficios" className="grid scroll-mt-6 gap-4 px-4.5 sm:grid-cols-3">
       {BENEFITS.map(({ title, text, icon: Icon, tone }) => (
         <article key={title} className={`flex flex-col gap-3 rounded-[24px] p-6 ${tone}`}>
           <Icon aria-hidden="true" strokeWidth={1.75} className="size-6" />
