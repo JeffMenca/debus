@@ -13,6 +13,7 @@ module.exports = {
     '!src/generated/**',
   ],
   coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'json-summary'],
   coverageThreshold: { global: { statements: 85, branches: 85, functions: 85, lines: 85 } },
   passWithNoTests: true,
 };
