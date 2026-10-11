@@ -65,10 +65,12 @@ model User {
   activatedAt      DateTime?      @map("activated_at") @db.Timestamptz(3)
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  branch           Branch?        @relation(fields: [branchId], references: [id])
   links            AccountLink[]
   refreshTokens    RefreshToken[]
 
   @@index([role, status])
+  @@index([branchId])
   @@map("users")
 }
 
@@ -100,4 +102,36 @@ model RefreshToken {
   @@index([familyId])
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model Branch {
+  id           String   @id @default(uuid()) @db.Uuid
+  code         String   @unique
+  name         String   @unique
+  department   String
+  municipality String
+  address      String
+  phone        String
+  latitude     Decimal  @db.Decimal(9, 6)
+  longitude    Decimal  @db.Decimal(9, 6)
+  active       Boolean  @default(true)
+  version      Int      @default(1)
+  createdById  String?  @map("created_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  users        User[]
+
+  @@map("branches")
+}
+
+model SettingsVersion {
+  id                String   @id @default(uuid()) @db.Uuid
+  depreciationPerKm Decimal  @map("depreciation_per_km") @db.Decimal(10, 2)
+  rentalRatePerKm   Decimal  @map("rental_rate_per_km") @db.Decimal(10, 2)
+  effectiveFrom     DateTime @map("effective_from") @db.Date
+  createdById       String   @map("created_by_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([effectiveFrom, createdAt])
+  @@map("settings_versions")
 }

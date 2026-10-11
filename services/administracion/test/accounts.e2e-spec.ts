@@ -4,6 +4,7 @@ import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { activeAccount } from './support/accounts';
 import { createTestApp, tokenOf, uniqueEmail } from './support/app';
+import { cleanTestData } from './support/cleanup';
 import { type EventCapture, captureEvents } from './support/events';
 
 describe('accounts', () => {
@@ -42,6 +43,7 @@ describe('accounts', () => {
 
   afterAll(async () => {
     try {
+      await cleanTestData(app.get(PrismaService));
       await app?.close();
     } finally {
       await events?.close();

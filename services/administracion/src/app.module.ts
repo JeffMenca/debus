@@ -3,8 +3,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { AccountsModule } from './accounts/accounts.module';
+import { BranchesModule } from './branches/branches.module';
 import { HealthModule } from './health/health.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { SettingsModule } from './settings/settings.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
@@ -15,7 +17,9 @@ import { PrismaService } from './prisma/prisma.service';
     LoggerModule.forRoot({ pinoHttp: httpLoggerOptions() }),
     HealthModule,
     AccountsModule,
+    BranchesModule,
     SessionsModule,
+    SettingsModule,
     UsersModule,
     PrismaModule,
     MessagingModule.forRoot({

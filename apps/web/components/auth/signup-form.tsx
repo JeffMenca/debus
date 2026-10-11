@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { messageOf } from '@/lib/api/api-error';
 import { type FieldName, FIELD_MESSAGES } from '@/lib/auth/form-messages';
@@ -14,7 +15,6 @@ import { signUp } from '@/lib/auth/auth-api';
 import { AuthCard } from './auth-card';
 import { AuthTabs } from './auth-tabs';
 import { CheckEmail } from './check-email';
-import { Field, invalidProps } from './field';
 import { FormAlert } from './form-alert';
 
 type FormInput = z.input<typeof signupRequestSchema>;

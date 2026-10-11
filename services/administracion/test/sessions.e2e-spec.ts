@@ -12,6 +12,7 @@ import { generateOpaqueToken } from '../src/accounts/crypto';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { activeAccount } from './support/accounts';
 import { createTestApp, tokenOf } from './support/app';
+import { cleanTestData } from './support/cleanup';
 import { type EventCapture, captureEvents } from './support/events';
 
 describe('sessions', () => {
@@ -29,6 +30,7 @@ describe('sessions', () => {
 
   afterAll(async () => {
     try {
+      await cleanTestData(app.get(PrismaService));
       await app?.close();
     } finally {
       await events?.close();

@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
 import { SessionBootstrap } from '@/components/auth/session-bootstrap';
+import { Toaster } from '@/components/ui/sonner';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(
@@ -13,6 +14,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={client}>
       <SessionBootstrap />
       {children}
+      <Toaster position="top-center" />
     </QueryClientProvider>
   );
 }

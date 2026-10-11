@@ -2,6 +2,7 @@ import { MessagingModule, SqlInboxStore, httpLoggerOptions } from '@debus/messag
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { BranchesModule } from './branches/branches.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
@@ -11,6 +12,7 @@ import { PrismaService } from './prisma/prisma.service';
     ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule.forRoot({ pinoHttp: httpLoggerOptions() }),
     HealthModule,
+    BranchesModule,
     PrismaModule,
     MessagingModule.forRoot({
       service: 'flota',

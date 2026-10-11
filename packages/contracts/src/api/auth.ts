@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 export const USER_ROLES = ['SYSTEM_ADMIN', 'BRANCH_ADMIN', 'CASHIER', 'DRIVER', 'CLIENT'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
+export const USER_STATUSES = ['PENDING', 'ACTIVE', 'INACTIVE'] as const;
+export type UserStatus = (typeof USER_STATUSES)[number];
+
 export const BRANCH_ROLES = ['BRANCH_ADMIN', 'CASHIER', 'DRIVER'] as const satisfies UserRole[];
 export const isBranchRole = (role: UserRole): boolean =>
   (BRANCH_ROLES as readonly UserRole[]).includes(role);
@@ -43,7 +46,7 @@ export const phoneSchema = z
   .pipe(z.string().regex(/^\d{8}$/));
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email());
 export const passwordSchema = z.string().min(8).max(128);
-const fullNameSchema = z.string().trim().min(2).max(120);
+export const fullNameSchema = z.string().trim().min(2).max(120);
 const addressSchema = z.string().trim().max(200);
 
 const optional = <T extends z.ZodType>(schema: T) =>
@@ -107,7 +110,7 @@ export const sessionUserSchema = z.object({
 });
 export type SessionUser = z.infer<typeof sessionUserSchema>;
 export const managedUserSchema = sessionUserSchema.extend({
-  status: z.enum(['PENDING', 'ACTIVE', 'INACTIVE']),
+  status: z.enum(USER_STATUSES),
 });
 export type ManagedUser = z.infer<typeof managedUserSchema>;
 

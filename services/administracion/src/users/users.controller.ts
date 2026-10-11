@@ -2,12 +2,26 @@ import {
   CORRELATION_HEADER,
   type CreateUserRequest,
   type ManagedUser,
+  type UpdateUserRequest,
+  type UserListQuery,
   createUserRequestSchema,
+  updateUserRequestSchema,
+  userListQuerySchema,
 } from '@debus/contracts';
-import { Body, Controller, Headers, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { apiErrors, apiSuccess } from '../common/api-errors';
-import { ZodBody, apiBody } from '../common/zod-body.pipe';
+import { ZodBody, apiBody, apiQuery } from '../common/zod-body.pipe';
 import { CurrentIdentity, type Identity, Roles } from '../identity/identity';
 import { UsersService } from './users.service';
 
@@ -16,6 +30,29 @@ import { UsersService } from './users.service';
 @Controller('users')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
+
+  @Get()
+  @apiSuccess(200)
+  @Roles('SYSTEM_ADMIN', 'BRANCH_ADMIN')
+  @apiErrors(400)
+  @apiQuery(userListQuerySchema)
+  list(
+    @CurrentIdentity() actor: Identity,
+    @Query(new ZodBody(userListQuerySchema)) query: UserListQuery,
+  ): Promise<ManagedUser[]> {
+    return this.users.list(actor, query);
+  }
+
+  @Get(':id')
+  @apiSuccess(200)
+  @Roles('SYSTEM_ADMIN', 'BRANCH_ADMIN')
+  @apiErrors(400, 404)
+  get(
+    @CurrentIdentity() actor: Identity,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<ManagedUser> {
+    return this.users.get(actor, id);
+  }
 
   @Post()
   @apiSuccess(201)
@@ -28,6 +65,30 @@ export class UsersController {
     @Headers(CORRELATION_HEADER) correlationId?: string,
   ): Promise<ManagedUser> {
     return this.users.create(actor, body, correlationId);
+  }
+
+  @Patch(':id')
+  @apiSuccess(200)
+  @Roles('SYSTEM_ADMIN')
+  @apiErrors(400, 404, 409)
+  @apiBody(updateUserRequestSchema)
+  update(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body(new ZodBody(updateUserRequestSchema)) body: UpdateUserRequest,
+  ): Promise<ManagedUser> {
+    return this.users.update(id, body);
+  }
+
+  @Post(':id/invitation')
+  @apiSuccess(202)
+  @Roles('SYSTEM_ADMIN', 'BRANCH_ADMIN')
+  @apiErrors(400, 404, 409, 429)
+  resendInvitation(
+    @CurrentIdentity() actor: Identity,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Headers(CORRELATION_HEADER) correlationId?: string,
+  ): Promise<{ message: string }> {
+    return this.users.resendInvitation(actor, id, correlationId);
   }
 
   @Post(':id/deactivate')

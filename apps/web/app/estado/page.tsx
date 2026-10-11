@@ -1,8 +1,5 @@
-import type { Metadata } from 'next';
-import { SystemStatusView } from '@/components/system/system-status-view';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = { title: 'Estado del sistema · debus' };
-
-export default function StatusPage() {
-  return <SystemStatusView />;
+export default function StatusRedirect() {
+  redirect('/admin/estado');
 }

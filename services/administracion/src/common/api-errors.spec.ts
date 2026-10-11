@@ -20,6 +20,24 @@ describe('apiErrors', () => {
   });
 });
 
+describe('apiErrors 429', () => {
+  it('documents the hourly email limit', () => {
+    class Controller {
+      @apiErrors(429)
+      handler() {}
+    }
+
+    const responses = Reflect.getMetadata(
+      DECORATORS.API_RESPONSE,
+      Controller.prototype.handler,
+    ) as Record<string, { description: string }>;
+
+    expect(responses['429']?.description).toBe(
+      'Too many emails sent to this account in the last hour.',
+    );
+  });
+});
+
 describe('apiSuccess', () => {
   it('documents the success status next to the errors', () => {
     class Controller {

@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { TextLink } from '@/components/ui/text-link';
 import { messageOf } from '@/lib/api/api-error';
@@ -16,7 +17,6 @@ import { FIELD_MESSAGES } from '@/lib/auth/form-messages';
 import { signIn } from '@/lib/auth/session-client';
 import { AuthCard } from './auth-card';
 import { AuthTabs } from './auth-tabs';
-import { Field, invalidProps } from './field';
 import { FormAlert } from './form-alert';
 import { PasswordInput } from './password-input';
 

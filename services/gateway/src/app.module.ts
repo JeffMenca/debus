@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { AuthModule } from './auth/auth.module';
+import { DocsModule } from './docs/docs.module';
 import { HealthModule } from './health/health.module';
 import { ProxyModule } from './proxy/proxy.module';
 import { SystemModule } from './system/system.module';
@@ -16,6 +17,7 @@ import { UpstreamModule } from './upstream/upstream.module';
     UpstreamModule,
     AuthModule,
     HealthModule,
+    DocsModule,
     SystemModule,
     ProxyModule,
   ],

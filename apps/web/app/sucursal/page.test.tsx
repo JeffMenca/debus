@@ -3,10 +3,6 @@ import { act } from 'react';
 import { clearSession, setSession } from '@/lib/auth/session-store';
 import BranchPage from './page';
 
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: jest.fn() }),
-  usePathname: () => '/sucursal',
-}));
 afterEach(() => act(() => clearSession()));
 
 it.each(['BRANCH_ADMIN', 'CASHIER', 'DRIVER'] as const)('welcomes the %s', (role) => {

@@ -1,5 +1,6 @@
 import type { AccountLinkPurpose } from '@debus/contracts';
 import { Inject, Injectable } from '@nestjs/common';
+import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountEvents } from './account-events';
 import { HOUR_MS, LINK_TTL_MS, MAX_LINKS_PER_HOUR, canSendNotice } from './account-rules';
@@ -45,29 +46,39 @@ export class AccountLinksService {
     });
     if (recent >= MAX_LINKS_PER_HOUR) return false;
 
-    const { token, hash } = generateOpaqueToken();
-    const expiresAt = new Date(now.getTime() + LINK_TTL_MS[purpose]);
-    await this.prisma.$transaction(async (tx) => {
-      await tx.accountLink.updateMany({
-        where: { userId: user.id, purpose, usedAt: null, expiresAt: { gt: now } },
-        data: { expiresAt: now },
-      });
-      await tx.accountLink.create({
-        data: { userId: user.id, purpose, tokenHash: hash, expiresAt },
-      });
-      await this.events.linkSent(
-        tx,
-        {
-          ...recipient(user),
-          reason,
-          link: linkUrl(this.settings.webUrl, purpose, token),
-          expiresAt: expiresAt.toISOString(),
-        },
-        correlationId,
-      );
-    });
+    await this.prisma.$transaction((tx) =>
+      this.writeLink(tx, user, purpose, reason, correlationId, now),
+    );
     await this.events.flush();
     return true;
+  }
+
+  // Writes the link and queues its email in the caller's transaction; the caller flushes afterwards.
+  async writeLink(
+    tx: Prisma.TransactionClient,
+    user: LinkRecipient,
+    purpose: AccountLinkPurpose,
+    reason: 'INVITATION' | 'SIGNUP' | 'PASSWORD_RESET',
+    correlationId?: string,
+    now = new Date(),
+  ): Promise<void> {
+    const { token, hash } = generateOpaqueToken();
+    const expiresAt = new Date(now.getTime() + LINK_TTL_MS[purpose]);
+    await tx.accountLink.updateMany({
+      where: { userId: user.id, purpose, usedAt: null, expiresAt: { gt: now } },
+      data: { expiresAt: now },
+    });
+    await tx.accountLink.create({ data: { userId: user.id, purpose, tokenHash: hash, expiresAt } });
+    await this.events.linkSent(
+      tx,
+      {
+        ...recipient(user),
+        reason,
+        link: linkUrl(this.settings.webUrl, purpose, token),
+        expiresAt: expiresAt.toISOString(),
+      },
+      correlationId,
+    );
   }
 
   async noticeAlreadyRegistered(

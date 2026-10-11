@@ -1,6 +1,7 @@
 import type { AccountLinkSentPayload, UserRegisteredPayload } from '@debus/contracts';
 import { Outbox, type SqlClient } from '@debus/messaging';
 import { Injectable } from '@nestjs/common';
+import { REQUEST_FLUSH } from '../common/request-flush';
 
 @Injectable()
 export class AccountEvents {
@@ -24,7 +25,6 @@ export class AccountEvents {
 
   // Publishes right away; whatever fails stays in the outbox for the scheduled flush.
   async flush(): Promise<void> {
-    // Request path: short budget so a slow Pub/Sub never holds the user's request.
-    await this.outbox.flush({ limit: 10, budgetMs: 2000 });
+    await this.outbox.flush(REQUEST_FLUSH);
   }
 }

@@ -28,3 +28,15 @@ model OutboxEvent {
 
   @@map("outbox")
 }
+
+// Local copy fed by BranchCreated/BranchUpdated from administracion.
+model BranchCopy {
+  id        String   @id @db.Uuid
+  code      String
+  name      String
+  active    Boolean
+  version   Int
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("branches")
+}

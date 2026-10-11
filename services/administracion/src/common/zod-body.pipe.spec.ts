@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
-import { emailRequestSchema } from '@debus/contracts';
+import { emailRequestSchema, userListQuerySchema } from '@debus/contracts';
 import { DECORATORS } from '@nestjs/swagger';
-import { ZodBody, apiBody } from './zod-body.pipe';
+import { ZodBody, apiBody, apiQuery } from './zod-body.pipe';
 
 describe('ZodBody', () => {
   it('returns the parsed value', () => {
@@ -31,5 +31,31 @@ describe('apiBody', () => {
 
     expect(parameters[0]?.in).toBe('body');
     expect(Object.keys(parameters[0]?.schema.properties ?? {})).toEqual(['email']);
+  });
+});
+
+describe('apiQuery', () => {
+  it('documents every field of the schema as an optional query parameter', () => {
+    class Controller {
+      @apiQuery(userListQuerySchema)
+      handler() {}
+    }
+
+    const parameters = Reflect.getMetadata(
+      DECORATORS.API_PARAMETERS,
+      Controller.prototype.handler,
+    ) as { in: string; name: string; required: boolean }[];
+
+    expect(
+      parameters.map((parameter) => [parameter.in, parameter.name, parameter.required]),
+    ).toEqual(
+      expect.arrayContaining([
+        ['query', 'role', false],
+        ['query', 'status', false],
+        ['query', 'branchId', false],
+        ['query', 'q', false],
+      ]),
+    );
+    expect(parameters).toHaveLength(4);
   });
 });

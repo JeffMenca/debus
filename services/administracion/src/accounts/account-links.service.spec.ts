@@ -101,3 +101,25 @@ describe('AccountLinksService.find', () => {
     });
   });
 });
+
+describe('AccountLinksService.writeLink', () => {
+  it('writes a link inside a transaction it does not own', async () => {
+    const { tx, events, service } = setup();
+
+    await service.writeLink(tx as never, user, 'ACTIVATION', 'INVITATION', 'c', now);
+
+    expect(tx.accountLink.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: user.id, purpose: 'ACTIVATION' }),
+    });
+    expect(events.linkSent).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        email: user.email,
+        reason: 'INVITATION',
+        link: expect.stringContaining('/crear-contrasena?token='),
+      }),
+      'c',
+    );
+    expect(events.flush).not.toHaveBeenCalled();
+  });
+});

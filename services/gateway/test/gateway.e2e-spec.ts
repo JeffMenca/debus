@@ -10,6 +10,7 @@ import { pointServicesAt, received, startStub } from './support/stub';
 import { bearer, useTestKeys } from './support/tokens';
 
 const session = () => bearer({ role: 'CLIENT' });
+const admin = () => bearer({ role: 'SYSTEM_ADMIN' });
 
 describe('gateway', () => {
   let app: INestApplication;
@@ -92,7 +93,10 @@ describe('gateway', () => {
   });
 
   it('reports the status of every unit', async () => {
-    const response = await request(app.getHttpServer()).get('/api/system/status').expect(200);
+    const response = await request(app.getHttpServer())
+      .get('/api/system/status')
+      .set('authorization', admin())
+      .expect(200);
     const status = systemStatusSchema.parse(response.body);
 
     expect(status.units).toHaveLength(8);
@@ -101,9 +105,13 @@ describe('gateway', () => {
   });
 
   it('emits a probe and reports who received it', async () => {
-    const created = await request(app.getHttpServer()).post('/api/system/probes').expect(202);
+    const created = await request(app.getHttpServer())
+      .post('/api/system/probes')
+      .set('authorization', admin())
+      .expect(202);
     const response = await request(app.getHttpServer())
       .get(`/api/system/probes/${created.body.probeId}`)
+      .set('authorization', admin())
       .expect(200);
     const status = probeStatusSchema.parse(response.body);
 
@@ -113,7 +121,10 @@ describe('gateway', () => {
   });
 
   it('rejects malformed probe ids with the common error', async () => {
-    const response = await request(app.getHttpServer()).get('/api/system/probes/nope').expect(400);
+    const response = await request(app.getHttpServer())
+      .get('/api/system/probes/nope')
+      .set('authorization', admin())
+      .expect(400);
 
     expect(response.body).toMatchObject({ statusCode: 400, error: 'Bad Request' });
   });
