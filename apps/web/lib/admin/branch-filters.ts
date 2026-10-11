@@ -3,7 +3,11 @@ import { normalizeText } from './normalize';
 
 export type BranchTab = 'active' | 'inactive' | 'all';
 
-export function filterBranches(branches: Branch[], tab: BranchTab, search: string): Branch[] {
+export function filterBranches<T extends Branch>(
+  branches: T[],
+  tab: BranchTab,
+  search: string,
+): T[] {
   const text = normalizeText(search);
   return branches.filter(
     (branch) =>
@@ -15,7 +19,7 @@ export function filterBranches(branches: Branch[], tab: BranchTab, search: strin
   );
 }
 
-export function countBranchesByTab(branches: Branch[]): Record<BranchTab, number> {
+export function countBranchesByTab(branches: Pick<Branch, 'active'>[]): Record<BranchTab, number> {
   const active = branches.filter((branch) => branch.active).length;
   return { active, inactive: branches.length - active, all: branches.length };
 }

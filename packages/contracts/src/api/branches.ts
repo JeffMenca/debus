@@ -86,10 +86,16 @@ export const branchAdminSchema = z.object({
 });
 export type BranchAdmin = z.infer<typeof branchAdminSchema>;
 
+// What every session may read: the branch itself, never the people who run it.
 export const branchSchema = branchFieldsSchema.extend({
   id: z.uuid(),
   active: z.boolean(),
   version: z.number().int().positive(),
-  admins: z.array(branchAdminSchema),
 });
 export type Branch = z.infer<typeof branchSchema>;
+
+// Only a system admin receives the administrators of a branch.
+export const branchWithAdminsSchema = branchSchema.extend({
+  admins: z.array(branchAdminSchema),
+});
+export type BranchWithAdmins = z.infer<typeof branchWithAdminsSchema>;

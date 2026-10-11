@@ -1,6 +1,6 @@
 'use client';
 
-import type { Branch } from '@debus/contracts';
+import type { BranchWithAdmins } from '@debus/contracts';
 import { Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -16,7 +16,7 @@ import { useBranches, useSetBranchActive } from '@/hooks/use-branches';
 import { type BranchTab, countBranchesByTab, filterBranches } from '@/lib/admin/branch-filters';
 import { useBranchColumns } from './branch-columns';
 
-const EMPTY: Branch[] = [];
+const EMPTY: BranchWithAdmins[] = [];
 
 export function BranchesScreen() {
   const router = useRouter();
@@ -24,7 +24,9 @@ export function BranchesScreen() {
   const setActive = useSetBranchActive();
   const [tab, setTab] = useState<BranchTab>('active');
   const [search, setSearch] = useState('');
-  const [toggling, setToggling] = useState<{ branch: Branch; active: boolean } | null>(null);
+  const [toggling, setToggling] = useState<{ branch: BranchWithAdmins; active: boolean } | null>(
+    null,
+  );
 
   const all = branches.data ?? EMPTY;
   const visible = useMemo(() => filterBranches(all, tab, search), [all, tab, search]);
@@ -32,10 +34,13 @@ export function BranchesScreen() {
 
   const columns = useBranchColumns({
     onEdit: useCallback(
-      (branch: Branch) => router.push(`/admin/sucursales/${branch.id}`),
+      (branch: BranchWithAdmins) => router.push(`/admin/sucursales/${branch.id}`),
       [router],
     ),
-    onToggle: useCallback((branch: Branch, active: boolean) => setToggling({ branch, active }), []),
+    onToggle: useCallback(
+      (branch: BranchWithAdmins, active: boolean) => setToggling({ branch, active }),
+      [],
+    ),
   });
 
   return (

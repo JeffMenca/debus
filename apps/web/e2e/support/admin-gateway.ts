@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   type Branch,
+  type BranchWithAdmins,
   type ManagedUser,
   type SettingsVersion,
   createBranchRequestSchema,
@@ -15,7 +16,7 @@ import type { Page, Route } from '@playwright/test';
 import { fulfillJson } from './session';
 
 export interface AdminSeed {
-  branches?: Omit<Branch, 'admins'>[];
+  branches?: Branch[];
   users?: ManagedUser[];
   versions?: SettingsVersion[];
 }
@@ -27,6 +28,7 @@ export interface RecordedRequest {
 }
 
 const INVALID = 'Revisa los datos marcados e intenta de nuevo.';
+const NEEDS_ADMIN = 'Para reactivar la sucursal, primero reactiva o invita a su administrador.';
 const LAST_ADMIN = 'La sucursal debe conservar al menos un administrador.';
 
 // Plays the administracion API with state: what a screen creates shows up in the next listing,
@@ -41,7 +43,7 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
     users
       .filter((user) => user.role === 'BRANCH_ADMIN' && user.branchId === branchId)
       .map(({ id, fullName, email, status }) => ({ id, fullName, email, status }));
-  const withAdmins = (branch: Omit<Branch, 'admins'>): Branch => ({
+  const withAdmins = (branch: Branch): BranchWithAdmins => ({
     ...branch,
     admins: adminsOf(branch.id),
   });
@@ -118,6 +120,8 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
       }
       if (method === 'POST' && (action === 'deactivate' || action === 'reactivate')) {
         const active = action === 'reactivate';
+        const hasAdmin = adminsOf(branch.id).some((admin) => admin.status !== 'INACTIVE');
+        if (active && !branch.active && !hasAdmin) return error(route, 409, NEEDS_ADMIN);
         if (branch.active !== active)
           Object.assign(branch, { active, version: branch.version + 1 });
         return fulfillJson(route, 204);
@@ -181,7 +185,13 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
             other.branchId === user.branchId &&
             other.status !== 'INACTIVE',
         );
-        if (user.role === 'BRANCH_ADMIN' && user.status !== 'INACTIVE' && peers.length === 0) {
+        const branchIsActive = branches.find((branch) => branch.id === user.branchId)?.active;
+        if (
+          user.role === 'BRANCH_ADMIN' &&
+          user.status !== 'INACTIVE' &&
+          branchIsActive &&
+          peers.length === 0
+        ) {
           return error(route, 409, LAST_ADMIN);
         }
         user.status = 'INACTIVE';
@@ -238,7 +248,7 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
 
 // Sample data for the screens that need a branch or a person to start from.
 export const SAMPLE_BRANCH_ID = '9b2c7a10-1111-4c4c-8888-123456789abc';
-export const sampleBranch = (overrides: Partial<Omit<Branch, 'admins'>> = {}) => ({
+export const sampleBranch = (overrides: Partial<Branch> = {}) => ({
   id: SAMPLE_BRANCH_ID,
   code: 'XEL',
   name: 'Quetzaltenango',

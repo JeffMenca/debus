@@ -286,6 +286,20 @@ describe('create in a branch', () => {
     ).rejects.toThrow(new BadRequestException('Elige una sucursal activa.'));
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
+
+  it('invites a branch admin to an inactive branch, so it can get an admin back', async () => {
+    const { prisma, service } = setup();
+    prisma.branch.findUnique.mockResolvedValue({ id: branch, active: false });
+
+    await service.create(admin, {
+      fullName: 'Luis',
+      email: 'luis@correo.com',
+      role: 'BRANCH_ADMIN',
+      branchId: branch,
+    });
+
+    expect(prisma.user.create).toHaveBeenCalled();
+  });
 });
 
 describe('deactivate the admin of a branch', () => {
@@ -351,6 +365,37 @@ describe('reactivate in a branch', () => {
       new ConflictException('Elige una sucursal activa.'),
     );
     expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('reactivates a branch admin even when the branch is inactive, to get it out of the lock', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findUnique.mockResolvedValueOnce({
+      id,
+      role: 'BRANCH_ADMIN',
+      status: 'INACTIVE',
+      branchId: branch,
+      passwordHash: 'h',
+    });
+    prisma.branch.findUnique.mockResolvedValue({ id: branch, active: false });
+
+    await service.reactivate(id);
+
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id }, data: { status: 'ACTIVE' } });
+  });
+
+  it('still refuses a branch admin whose branch does not exist', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findUnique.mockResolvedValueOnce({
+      id,
+      role: 'BRANCH_ADMIN',
+      status: 'INACTIVE',
+      branchId: branch,
+    });
+    prisma.branch.findUnique.mockResolvedValue(null);
+
+    await expect(service.reactivate(id)).rejects.toThrow(
+      new ConflictException('Elige una sucursal activa.'),
+    );
   });
 
   it('reactivates staff of an active branch', async () => {
@@ -464,6 +509,19 @@ describe('update', () => {
     await expect(service.update(id, { branchId: newBranch })).rejects.toThrow(
       new BadRequestException('Elige una sucursal activa.'),
     );
+  });
+
+  it('moves a branch admin into an inactive branch, where one is needed before reactivating', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue({ ...cashier, role: 'BRANCH_ADMIN' });
+    tx.user.findUniqueOrThrow.mockResolvedValue({ status: 'ACTIVE', branchId: branch });
+    tx.user.count.mockResolvedValue(1);
+    tx.branch.findUnique.mockResolvedValue({ id: newBranch, active: false });
+    tx.user.update.mockResolvedValue({ ...cashier, role: 'BRANCH_ADMIN', branchId: newBranch });
+
+    await service.update(id, { branchId: newBranch });
+
+    expect(tx.user.update).toHaveBeenCalled();
   });
 
   it('does not move the last admin of an active branch', async () => {

@@ -37,6 +37,22 @@ describe('gateway documentation', () => {
     expect(response.body.info.description).toContain('reportes');
   });
 
+  it.each([
+    ['get', '/api/system/status', ['200', '401', '403']],
+    ['post', '/api/system/probes', ['202', '401', '403']],
+    ['get', '/api/system/probes/{probeId}', ['200', '400', '401', '403']],
+  ] as const)(
+    'documents %s %s as a system admin route with a bearer token',
+    async (method, path, codes) => {
+      const response = await request(app.getHttpServer()).get('/docs-json').expect(200);
+      const operation = response.body.paths[path][method];
+
+      expect(operation.security).toEqual([{ bearer: [] }]);
+      expect(operation.description).toContain('SYSTEM_ADMIN');
+      expect(Object.keys(operation.responses).sort()).toEqual([...codes]);
+    },
+  );
+
   it('serves the Swagger UI pointing at the combined document', async () => {
     const page = await request(app.getHttpServer()).get('/docs/').expect(200);
     const init = await request(app.getHttpServer()).get('/docs/swagger-ui-init.js').expect(200);

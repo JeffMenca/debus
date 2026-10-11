@@ -1,4 +1,5 @@
 import { type BrowserContext, expect, type Page, test } from '@playwright/test';
+import { mockAdminGateway } from './support/admin-gateway';
 import {
   CORS_HEADERS as cors,
   expectNoHorizontalScroll,
@@ -17,6 +18,14 @@ const mockGateway = (page: Page, path: string, reply: { status?: number; json?: 
 
 test.describe('access with a mocked gateway', () => {
   test.skip(realApi, 'runs only without a real gateway');
+
+  // A gateway running on this machine must never answer these tests: whatever a page asks that the
+  // test did not simulate gets a plain failure, never a 401 that would sign the session out.
+  test.beforeEach(({ page }) =>
+    page.route('**/api/administracion/**', (route) =>
+      fulfillJson(route, 503, { statusCode: 503, message: 'Not simulated in this test.' }),
+    ),
+  );
 
   test('signs in and reaches the dashboard of its role', async ({ page, baseURL }) => {
     await page.route('**/api/session/refresh', (route) => route.fulfill({ status: 401, json: {} }));
@@ -46,6 +55,7 @@ test.describe('access with a mocked gateway', () => {
   });
 
   test('returns to the page requested before signing in', async ({ page, baseURL }) => {
+    await mockAdminGateway(page);
     await page.route('**/api/session/refresh', (route) => route.fulfill({ status: 401, json: {} }));
     await page.route('**/api/session/login', (route) =>
       route.fulfill({ json: session('SYSTEM_ADMIN') }),

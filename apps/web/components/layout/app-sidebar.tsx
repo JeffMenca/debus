@@ -66,7 +66,9 @@ export function AppSidebar({ context }: AppSidebarProps) {
             </span>
             <span className="flex min-w-0 flex-col">
               <span className="text-xs text-sidebar-foreground">{context.label}</span>
-              <span className="truncate text-sm font-semibold text-white">{context.value}</span>
+              <span className="truncate text-sm font-semibold text-sidebar-accent-foreground">
+                {context.value}
+              </span>
             </span>
           </div>
         )}
@@ -105,7 +107,9 @@ export function AppSidebar({ context }: AppSidebarProps) {
             {initialsOf(user.fullName)}
           </span>
           <span className="flex min-w-0 flex-1 flex-col group-data-[collapsible=icon]:hidden">
-            <span className="truncate text-sm font-semibold text-white">{user.fullName}</span>
+            <span className="truncate text-sm font-semibold text-sidebar-accent-foreground">
+              {user.fullName}
+            </span>
             <span className="truncate text-xs text-sidebar-foreground">
               {ROLE_LABELS[user.role]}
             </span>

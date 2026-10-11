@@ -18,7 +18,7 @@ const ROUTES: [method: 'get' | 'post' | 'patch', path: string, codes: string[]][
   ['post', '/branches', ['201', '400', '401', '403', '409']],
   ['patch', '/branches/{id}', ['200', '400', '401', '403', '404', '409']],
   ['post', '/branches/{id}/deactivate', ['204', '400', '401', '403', '404']],
-  ['post', '/branches/{id}/reactivate', ['204', '400', '401', '403', '404']],
+  ['post', '/branches/{id}/reactivate', ['204', '400', '401', '403', '404', '409']],
   ['get', '/users', ['200', '400', '401', '403']],
   ['get', '/users/{id}', ['200', '400', '401', '403', '404']],
   ['get', '/settings', ['200', '401', '403']],
@@ -27,7 +27,7 @@ const ROUTES: [method: 'get' | 'post' | 'patch', path: string, codes: string[]][
   ['patch', '/users/{id}', ['200', '400', '401', '403', '404', '409']],
   ['post', '/users/{id}/invitation', ['202', '400', '401', '403', '404', '409', '429']],
   ['post', '/users/{id}/deactivate', ['204', '400', '401', '403', '404', '409']],
-  ['post', '/users/{id}/reactivate', ['204', '400', '401', '403', '404']],
+  ['post', '/users/{id}/reactivate', ['204', '400', '401', '403', '404', '409']],
 ];
 
 describe('API documentation', () => {

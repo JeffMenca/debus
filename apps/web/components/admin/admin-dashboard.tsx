@@ -52,7 +52,11 @@ export function AdminDashboard() {
   const settings = useSettings();
   const firstName = session?.user.fullName.split(' ')[0] ?? '';
 
+  // The counts are about the staff; clients sign up by themselves and are not invited.
   const staff = users.data?.filter((user) => user.role !== 'CLIENT') ?? [];
+  const activeStaff = staff.filter((user) => user.status === 'ACTIVE').length;
+  const pendingStaff = staff.filter((user) => user.status === 'PENDING').length;
+  const activeBranches = branches.data?.filter((branch) => branch.active).length ?? 0;
   const current = settings.data?.current ?? null;
 
   return (
@@ -77,19 +81,14 @@ export function AdminDashboard() {
           <KpiCard
             tone="indigo"
             icon={Building2}
-            label="Sucursales activas"
-            value={branches.data.filter((branch) => branch.active).length}
+            label={activeBranches === 1 ? 'Sucursal activa' : 'Sucursales activas'}
+            value={activeBranches}
           />
         ) : (
           <KpiSkeleton />
         )}
         {users.data ? (
-          <KpiCard
-            tone="mint"
-            icon={Users}
-            label="Usuarios activos"
-            value={staff.filter((user) => user.status === 'ACTIVE').length}
-          />
+          <KpiCard tone="mint" icon={Users} label="Personal activo" value={activeStaff} />
         ) : (
           <KpiSkeleton />
         )}
@@ -97,8 +96,8 @@ export function AdminDashboard() {
           <KpiCard
             tone="mango"
             icon={MailOpen}
-            label="Invitaciones pendientes"
-            value={staff.filter((user) => user.status === 'PENDING').length}
+            label={pendingStaff === 1 ? 'Invitación pendiente' : 'Invitaciones pendientes'}
+            value={pendingStaff}
           />
         ) : (
           <KpiSkeleton />

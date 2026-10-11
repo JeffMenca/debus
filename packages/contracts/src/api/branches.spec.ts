@@ -1,6 +1,8 @@
 import {
   GUATEMALA_DEPARTMENTS,
   branchCodeSchema,
+  branchSchema,
+  branchWithAdminsSchema,
   createBranchRequestSchema,
   isInsideGuatemala,
   updateBranchRequestSchema,
@@ -58,5 +60,33 @@ describe('branch fields', () => {
   it('accepts partial updates but not empty ones', () => {
     expect(updateBranchRequestSchema.parse({ phone: '7761 0000' })).toEqual({ phone: '77610000' });
     expect(updateBranchRequestSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('branch views', () => {
+  const view = {
+    id: '9b2c7a10-1111-4c4c-8888-123456789abc',
+    ...fields,
+    code: 'XEL',
+    phone: '77612233',
+    active: true,
+    version: 1,
+  };
+  const admins = [
+    {
+      id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+      fullName: 'Luis',
+      email: 'luis@correo.com',
+      status: 'ACTIVE',
+    },
+  ];
+
+  it('keeps the administrators out of the view every session may read', () => {
+    expect(branchSchema.parse({ ...view, admins })).not.toHaveProperty('admins');
+  });
+
+  it('adds the administrators for system admins and requires them there', () => {
+    expect(branchWithAdminsSchema.parse({ ...view, admins }).admins).toHaveLength(1);
+    expect(branchWithAdminsSchema.safeParse(view).success).toBe(false);
   });
 });

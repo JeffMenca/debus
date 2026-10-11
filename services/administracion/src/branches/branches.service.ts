@@ -1,4 +1,9 @@
-import type { Branch, CreateBranchRequest, UpdateBranchRequest } from '@debus/contracts';
+import type {
+  Branch,
+  BranchWithAdmins,
+  CreateBranchRequest,
+  UpdateBranchRequest,
+} from '@debus/contracts';
 import {
   ConflictException,
   ForbiddenException,
@@ -6,12 +11,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AccountLinksService } from '../accounts/account-links.service';
+import { lockBranchAdmins } from '../accounts/admin-locks';
 import { MESSAGES } from '../accounts/messages';
 import { AdminEvents } from '../common/admin-events';
 import { isUniqueViolation } from '../common/prisma-errors';
+import type { Prisma } from '../generated/prisma/client';
 import type { Identity } from '../identity/identity';
 import { PrismaService } from '../prisma/prisma.service';
-import { WITH_ADMINS, toBranch, toBranchPayload } from './branch-mappers';
+import { WITH_ADMINS, toBranch, toBranchPayload, toBranchWithAdmins } from './branch-mappers';
 import { canViewBranch } from './branch-rules';
 
 @Injectable()
@@ -22,28 +29,33 @@ export class BranchesService {
     private readonly events: AdminEvents,
   ) {}
 
+  // Admins are staff personal data: only a system admin receives them, in lists and in details.
   async list(actor: Identity, includeInactive: boolean): Promise<Branch[]> {
     const showInactive = includeInactive && actor.role === 'SYSTEM_ADMIN';
-    const rows = await this.prisma.branch.findMany({
-      where: showInactive ? {} : { active: true },
-      include: WITH_ADMINS,
-      orderBy: { name: 'asc' },
-    });
-    return rows.map(toBranch);
+    const where = showInactive ? {} : { active: true };
+    const orderBy = { name: 'asc' } as const;
+    if (actor.role !== 'SYSTEM_ADMIN') {
+      const rows = await this.prisma.branch.findMany({ where, orderBy });
+      return rows.map(toBranch);
+    }
+    const rows = await this.prisma.branch.findMany({ where, include: WITH_ADMINS, orderBy });
+    return rows.map(toBranchWithAdmins);
   }
 
   async get(actor: Identity, id: string): Promise<Branch> {
     if (!canViewBranch(actor, id)) throw new ForbiddenException(MESSAGES.forbidden);
+    if (actor.role !== 'SYSTEM_ADMIN') {
+      return toBranch(this.found(await this.prisma.branch.findUnique({ where: { id } })));
+    }
     const row = await this.prisma.branch.findUnique({ where: { id }, include: WITH_ADMINS });
-    if (!row) throw new NotFoundException(MESSAGES.branchNotFound);
-    return toBranch(row);
+    return toBranchWithAdmins(this.found(row));
   }
 
   async create(
     actor: Identity,
     input: CreateBranchRequest,
     correlationId?: string,
-  ): Promise<Branch> {
+  ): Promise<BranchWithAdmins> {
     const { admin, ...fields } = input;
     await this.assertBranchAvailable(fields.code, fields.name);
     if (await this.prisma.user.findUnique({ where: { email: admin.email } })) {
@@ -52,15 +64,21 @@ export class BranchesService {
     const row = await this.translateUniqueViolation(() =>
       this.prisma.$transaction(async (tx) => {
         const branch = await tx.branch.create({ data: { ...fields, createdById: actor.userId } });
-        const user = await tx.user.create({
-          data: {
-            email: admin.email,
-            fullName: admin.fullName,
-            role: 'BRANCH_ADMIN',
-            branchId: branch.id,
-            createdById: actor.userId,
-          },
-        });
+        const user = await tx.user
+          .create({
+            data: {
+              email: admin.email,
+              fullName: admin.fullName,
+              role: 'BRANCH_ADMIN',
+              branchId: branch.id,
+              createdById: actor.userId,
+            },
+          })
+          .catch((error: unknown) => {
+            // Another request took the email between the check above and this insert.
+            if (isUniqueViolation(error)) throw new ConflictException(MESSAGES.emailTaken);
+            throw error;
+          });
         await this.links.writeLink(tx, user, 'ACTIVATION', 'INVITATION', correlationId);
         await this.events.branchChanged(
           tx,
@@ -72,10 +90,14 @@ export class BranchesService {
       }),
     );
     await this.events.flush();
-    return toBranch(row);
+    return toBranchWithAdmins(row);
   }
 
-  async update(id: string, input: UpdateBranchRequest, correlationId?: string): Promise<Branch> {
+  async update(
+    id: string,
+    input: UpdateBranchRequest,
+    correlationId?: string,
+  ): Promise<BranchWithAdmins> {
     await this.assertBranchAvailable(input.code, input.name, id);
     const row = await this.translateUniqueViolation(() =>
       this.prisma.$transaction(async (tx) => {
@@ -97,14 +119,14 @@ export class BranchesService {
       }),
     );
     await this.events.flush();
-    return toBranch(row);
+    return toBranchWithAdmins(row);
   }
 
   async setActive(id: string, active: boolean, correlationId?: string): Promise<void> {
     const changed = await this.prisma.$transaction(async (tx) => {
-      const current = await tx.branch.findUnique({ where: { id } });
-      if (!current) throw new NotFoundException(MESSAGES.branchNotFound);
+      const current = this.found(await tx.branch.findUnique({ where: { id } }));
       if (current.active === active) return false;
+      if (active) await this.assertHasAdmin(tx, id);
       const updated = await tx.branch.update({
         where: { id },
         data: { active, version: { increment: 1 } },
@@ -113,6 +135,20 @@ export class BranchesService {
       return true;
     });
     if (changed) await this.events.flush();
+  }
+
+  // Locks the admins first, so deactivating the last one at the same time cannot slip through.
+  private async assertHasAdmin(tx: Prisma.TransactionClient, branchId: string): Promise<void> {
+    await lockBranchAdmins(tx, branchId);
+    const admins = await tx.user.count({
+      where: { role: 'BRANCH_ADMIN', branchId, status: { not: 'INACTIVE' } },
+    });
+    if (admins === 0) throw new ConflictException(MESSAGES.branchNeedsAdmin);
+  }
+
+  private found<T>(row: T | null): T {
+    if (!row) throw new NotFoundException(MESSAGES.branchNotFound);
+    return row;
   }
 
   // The unique indexes catch what assertBranchAvailable could not: two admins saving at once.

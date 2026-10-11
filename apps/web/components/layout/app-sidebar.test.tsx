@@ -66,7 +66,7 @@ describe('AppSidebar', () => {
     renderSidebar();
 
     expect(screen.getByText('MR')).toBeInTheDocument();
-    expect(screen.getByText('Marta Ruiz')).toBeInTheDocument();
+    expect(screen.getByText('Marta Ruiz')).toHaveClass('text-sidebar-accent-foreground');
     expect(screen.getByText('Admin. del sistema')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
   });
@@ -92,7 +92,7 @@ describe('AppSidebar', () => {
 
     renderSidebar({ label: 'Sucursal', value: 'Quetzaltenango' });
     expect(screen.getByText('Sucursal')).toBeInTheDocument();
-    expect(screen.getByText('Quetzaltenango')).toBeInTheDocument();
+    expect(screen.getByText('Quetzaltenango')).toHaveClass('text-sidebar-accent-foreground');
   });
 
   it('renders nothing without a session', () => {

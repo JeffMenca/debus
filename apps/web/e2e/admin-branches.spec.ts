@@ -76,6 +76,27 @@ test.describe('admin branches', () => {
     );
   });
 
+  test('explains why a branch without an admin cannot be reactivated', async ({
+    page,
+    baseURL,
+  }) => {
+    await mockAdminGateway(page, seed);
+    await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+    await page.goto('/admin/sucursales');
+
+    await page.getByRole('tab', { name: /Inactivas/ }).click();
+    await expect(page.getByRole('row', { name: /Escuintla/ })).toContainText('Sin administrador');
+    await page.getByRole('button', { name: 'Acciones de Escuintla' }).click();
+    await page.getByRole('menuitem', { name: 'Reactivar' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Reactivar' }).click();
+
+    await expect(page.getByRole('alertdialog')).toContainText(
+      'Para reactivar la sucursal, primero reactiva o invita a su administrador.',
+    );
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar' }).click();
+    await expect(page.getByRole('row', { name: /Escuintla/ })).toContainText('Inactiva');
+  });
+
   test('is reached from the sidebar', async ({ page, baseURL }) => {
     await mockAdminGateway(page, seed);
     await signInAs(page, baseURL!, 'SYSTEM_ADMIN');

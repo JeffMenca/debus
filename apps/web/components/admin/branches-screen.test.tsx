@@ -47,7 +47,7 @@ const branches = [
   }),
 ];
 
-function setup({ error = false }: { error?: boolean } = {}) {
+function setup({ error = false, data = branches }: { error?: boolean; data?: unknown[] } = {}) {
   const refetch = jest.fn();
   const setActive = jest.fn().mockResolvedValue(undefined);
   jest
@@ -55,7 +55,7 @@ function setup({ error = false }: { error?: boolean } = {}) {
     .mockReturnValue(
       (error
         ? { data: undefined, isPending: false, isError: true, error: new ApiError(0, 'x'), refetch }
-        : { data: branches, isPending: false, isError: false, refetch }) as never,
+        : { data, isPending: false, isError: false, refetch }) as never,
     );
   jest.mocked(useSetBranchActive).mockReturnValue({ mutateAsync: setActive } as never);
   render(<BranchesScreen />);
@@ -115,6 +115,26 @@ describe('BranchesScreen', () => {
     expect(row).toHaveTextContent('Inactiva');
     expect(row).toHaveTextContent('Sin administrador');
     expect(screen.queryByRole('row', { name: /Flores/ })).not.toBeInTheDocument();
+  });
+
+  it('does not count deactivated admins: only the current ones show, or none at all', () => {
+    const gone = { id: 'a9', fullName: 'Rosa Baja', email: 'r@c.com', status: 'INACTIVE' };
+    setup({
+      data: [
+        branch({ id: 'b1', name: 'Cobán', code: 'COB', admins: [gone] }),
+        branch({
+          id: 'b2',
+          name: 'Flores',
+          code: 'FLO',
+          admins: [gone, { id: 'a2', fullName: 'Carla Xol', email: 'c@c.com', status: 'ACTIVE' }],
+        }),
+      ],
+    });
+
+    expect(screen.getByRole('row', { name: /Cobán/ })).toHaveTextContent('Sin administrador');
+    expect(screen.getByRole('row', { name: /Cobán/ })).not.toHaveTextContent('Rosa Baja');
+    expect(screen.getByRole('row', { name: /Flores/ })).toHaveTextContent('Carla Xol');
+    expect(screen.getByRole('row', { name: /Flores/ })).not.toHaveTextContent('Rosa Baja');
   });
 
   it('searches by code, place and without accents', async () => {

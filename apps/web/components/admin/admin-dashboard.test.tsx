@@ -72,9 +72,22 @@ describe('AdminDashboard', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Hola, Marta' })).toBeInTheDocument();
     expect(screen.getByText('Sucursales activas').previousSibling).toHaveTextContent('2');
-    expect(screen.getByText('Usuarios activos').previousSibling).toHaveTextContent('3');
-    expect(screen.getByText('Invitaciones pendientes').previousSibling).toHaveTextContent('1');
+    expect(screen.getByText('Personal activo').previousSibling).toHaveTextContent('3');
+    expect(screen.getByText('Invitación pendiente').previousSibling).toHaveTextContent('1');
     expect(screen.getByText('Depreciación por km').previousSibling).toHaveTextContent(/Q\s?1\.25/);
+  });
+
+  it('keeps the labels in agreement with the counts', () => {
+    mockData();
+    jest.mocked(useBranches).mockReturnValue({ data: [branch('a', true)] } as never);
+    jest.mocked(useUsers).mockReturnValue({
+      data: [user('1', 'CASHIER', 'PENDING'), user('2', 'DRIVER', 'PENDING')],
+    } as never);
+    render(<AdminDashboard />);
+
+    expect(screen.getByText('Sucursal activa').previousSibling).toHaveTextContent('1');
+    expect(screen.getByText('Invitaciones pendientes').previousSibling).toHaveTextContent('2');
+    expect(screen.queryByText('Sucursales activas')).not.toBeInTheDocument();
   });
 
   it('has no primary button when everything is set up', () => {

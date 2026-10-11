@@ -97,10 +97,10 @@ export function UsersScreen() {
           value={tab}
           onChange={setTab}
           options={[
-            { value: 'all', label: 'Todas', count: counts.all },
-            { value: 'ACTIVE', label: 'Activas', count: counts.ACTIVE },
+            { value: 'all', label: 'Todos', count: counts.all },
+            { value: 'ACTIVE', label: 'Activos', count: counts.ACTIVE },
             { value: 'PENDING', label: 'Invitación enviada', count: counts.PENDING },
-            { value: 'INACTIVE', label: 'Inactivas', count: counts.INACTIVE },
+            { value: 'INACTIVE', label: 'Inactivos', count: counts.INACTIVE },
           ]}
         />
         <div className="w-48">

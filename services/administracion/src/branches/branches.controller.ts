@@ -91,7 +91,7 @@ export class BranchesController {
   @Post(':id/reactivate')
   @apiSuccess(204)
   @Roles('SYSTEM_ADMIN')
-  @apiErrors(400, 404)
+  @apiErrors(400, 404, 409)
   reactivate(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Headers(CORRELATION_HEADER) correlationId?: string,

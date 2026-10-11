@@ -98,6 +98,14 @@ describe('UsersScreen', () => {
     expect(screen.getByRole('dialog', { name: 'Invitar usuario' })).toBeInTheDocument();
   });
 
+  it('names the tabs like the statuses of the rows', () => {
+    setup();
+
+    for (const name of [/Todos/, /Activos/, /Invitación enviada/, /Inactivos/]) {
+      expect(screen.getByRole('tab', { name })).toBeInTheDocument();
+    }
+  });
+
   it('filters by status tab and by search', async () => {
     setup();
 
@@ -105,7 +113,7 @@ describe('UsersScreen', () => {
     expect(screen.queryByRole('row', { name: /Ana Sic/ })).not.toBeInTheDocument();
     expect(rowOf(/José Pérez/)).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('tab', { name: /Todas/ }));
+    await userEvent.click(screen.getByRole('tab', { name: /Todos/ }));
     await userEvent.type(screen.getByRole('textbox', { name: 'Buscar usuario' }), 'jose');
     expect(screen.queryByRole('row', { name: /Ana Sic/ })).not.toBeInTheDocument();
     expect(screen.getByText('Mostrando 1 de 3 usuarios')).toBeInTheDocument();

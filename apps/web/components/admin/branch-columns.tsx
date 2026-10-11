@@ -1,6 +1,6 @@
 'use client';
 
-import type { Branch } from '@debus/contracts';
+import type { BranchWithAdmins } from '@debus/contracts';
 import { Building2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { StatusDot, type StatusTone } from '@/components/brand/status-dot';
@@ -17,11 +17,11 @@ export const BRANCH_STATUS_VIEW: Record<
 };
 
 interface BranchColumnActions {
-  onEdit: (branch: Branch) => void;
-  onToggle: (branch: Branch, active: boolean) => void;
+  onEdit: (branch: BranchWithAdmins) => void;
+  onToggle: (branch: BranchWithAdmins, active: boolean) => void;
 }
 
-const helper = columnHelperFor<Branch>();
+const helper = columnHelperFor<BranchWithAdmins>();
 
 // Columns must be stable between renders, so they are rebuilt only when their inputs change.
 export function useBranchColumns({ onEdit, onToggle }: BranchColumnActions) {
@@ -61,17 +61,19 @@ export function useBranchColumns({ onEdit, onToggle }: BranchColumnActions) {
         helper.display({
           id: 'admins',
           header: 'Administradores',
-          cell: ({ row }) =>
-            row.original.admins.length === 0 ? (
-              <span className="text-rose-700">Sin administrador</span>
-            ) : (
-              row.original.admins
-                .map(
-                  (admin) =>
-                    `${admin.fullName}${admin.status === 'PENDING' ? ' (invitación enviada)' : ''}`,
-                )
-                .join(', ')
-            ),
+          cell: ({ row }) => {
+            // A deactivated admin does not run the branch any more.
+            const current = row.original.admins.filter((admin) => admin.status !== 'INACTIVE');
+            if (current.length === 0) {
+              return <span className="text-rose-700">Sin administrador</span>;
+            }
+            return current
+              .map(
+                (admin) =>
+                  `${admin.fullName}${admin.status === 'PENDING' ? ' (invitación enviada)' : ''}`,
+              )
+              .join(', ');
+          },
         }),
         helper.accessor('active', {
           header: 'Estado',

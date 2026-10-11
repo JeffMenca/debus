@@ -43,7 +43,7 @@ test.describe('admin dashboard', () => {
     });
     await page.goto('/admin');
 
-    await expect(page.getByText('Sucursales activas')).toBeVisible();
+    await expect(page.getByText('Sucursal activa', { exact: true })).toBeVisible();
     await expect(page.getByText(/Q\s?1\.25/)).toBeVisible();
     await expect(page.getByText('Falta la configuración')).toBeHidden();
     await expectNoHorizontalScroll(page);

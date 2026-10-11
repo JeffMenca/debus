@@ -18,6 +18,7 @@ export const MESSAGES = {
   branchNotFound: 'No encontramos esa sucursal.',
   branchUnavailable: 'Elige una sucursal activa.',
   branchNotAllowed: 'Este rol no pertenece a una sucursal.',
+  branchNeedsAdmin: 'Para reactivar la sucursal, primero reactiva o invita a su administrador.',
   lastBranchAdmin: 'La sucursal debe conservar al menos un administrador.',
   accountAlreadyActive: 'Esta cuenta ya creó su contraseña.',
   accountInactive: 'Esta cuenta está desactivada. Reactívala primero.',

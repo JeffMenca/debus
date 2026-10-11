@@ -1,9 +1,17 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/api-error';
 import { useCreateBranch, useUpdateBranch } from '../../hooks/use-branches';
 import { BranchForm } from './branch-form';
+
+// The whole check runs next to every other task, so this long form gets room to finish on a busy
+// machine; the typing itself skips the pauses between events.
+jest.setTimeout(30_000);
+let user: UserEvent;
+beforeEach(() => {
+  user = userEvent.setup({ delay: null });
+});
 
 jest.mock('../../hooks/use-branches');
 jest.mock('sonner', () => ({ toast: { success: jest.fn() } }));
@@ -53,21 +61,21 @@ function setup(mode: 'create' | 'edit', mutateAsync = jest.fn().mockResolvedValu
   return { mutateAsync };
 }
 
-// Pasting is one event instead of one per key, which keeps this long form fast on a busy machine.
+// Pasting is one event instead of one per key.
 async function fill(field: HTMLElement, text: string) {
-  await userEvent.click(field);
-  await userEvent.paste(text);
+  await user.click(field);
+  await user.paste(text);
 }
 
 async function fillCreate() {
   await fill(screen.getByLabelText('Nombre', { exact: true }), 'Cobán');
   await fill(screen.getByLabelText('Código'), 'cob');
-  await userEvent.click(screen.getByRole('combobox', { name: 'Departamento' }));
-  await userEvent.click(await screen.findByRole('option', { name: 'Alta Verapaz' }));
+  await user.click(screen.getByRole('combobox', { name: 'Departamento' }));
+  await user.click(await screen.findByRole('option', { name: 'Alta Verapaz' }));
   await fill(screen.getByLabelText('Municipio'), 'Cobán');
   await fill(screen.getByLabelText('Dirección'), '1a calle 3-10 zona 1');
   await fill(screen.getByLabelText('Teléfono'), '7951-1234');
-  await userEvent.click(screen.getByRole('button', { name: 'Tocar Xela' }));
+  await user.click(screen.getByRole('button', { name: 'Tocar Xela' }));
   await fill(screen.getByLabelText('Nombre completo'), 'Carla Xol');
   await fill(screen.getByLabelText('Correo'), 'carla.xol@correo.com');
 }
@@ -81,7 +89,7 @@ describe('BranchForm (create)', () => {
   it('explains every missing field in Spanish and sends nothing', async () => {
     const { mutateAsync } = setup('create');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Crear sucursal' }));
+    await user.click(screen.getByRole('button', { name: 'Crear sucursal' }));
 
     for (const message of [
       'Escribe el nombre de la sucursal.',
@@ -103,7 +111,7 @@ describe('BranchForm (create)', () => {
     const { mutateAsync } = setup('create');
     await fillCreate();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Crear sucursal' }));
+    await user.click(screen.getByRole('button', { name: 'Crear sucursal' }));
 
     expect(mutateAsync).toHaveBeenCalledWith({
       code: 'COB',
@@ -134,7 +142,7 @@ describe('BranchForm (create)', () => {
   it('fills the coordinates when the map is touched', async () => {
     setup('create');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Tocar Xela' }));
+    await user.click(screen.getByRole('button', { name: 'Tocar Xela' }));
 
     expect(screen.getByLabelText('Latitud')).toHaveValue('14.8347');
     expect(screen.getByLabelText('Longitud')).toHaveValue('-91.5181');
@@ -147,7 +155,7 @@ describe('BranchForm (create)', () => {
     );
     await fillCreate();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Crear sucursal' }));
+    await user.click(screen.getByRole('button', { name: 'Crear sucursal' }));
 
     expect(await screen.findByText('Ya existe una sucursal con ese código.')).toBeInTheDocument();
     expect(screen.getByLabelText('Código')).toHaveFocus();
@@ -161,7 +169,7 @@ describe('BranchForm (create)', () => {
     setup('create', jest.fn().mockRejectedValue(new ApiError(409, message)));
     await fillCreate();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Crear sucursal' }));
+    await user.click(screen.getByRole('button', { name: 'Crear sucursal' }));
 
     await screen.findByText(message);
     expect(screen.getByLabelText(label, { exact: true })).toHaveFocus();
@@ -171,7 +179,7 @@ describe('BranchForm (create)', () => {
     setup('create', jest.fn().mockRejectedValue(new ApiError(0, 'No pudimos conectarnos.')));
     await fillCreate();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Crear sucursal' }));
+    await user.click(screen.getByRole('button', { name: 'Crear sucursal' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos conectarnos.');
   });
@@ -202,10 +210,10 @@ describe('BranchForm (edit)', () => {
   it('sends only the fields that changed', async () => {
     const { mutateAsync } = setup('edit');
     const phone = screen.getByLabelText('Teléfono');
-    await userEvent.clear(phone);
+    await user.clear(phone);
     await fill(phone, '7761 0000');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     expect(mutateAsync).toHaveBeenCalledWith({ phone: '77610000' });
     expect(toast.success).toHaveBeenCalledWith('Guardamos los cambios.');
@@ -214,7 +222,7 @@ describe('BranchForm (edit)', () => {
   it('sends nothing when nothing changed', async () => {
     const { mutateAsync } = setup('edit');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     expect(mutateAsync).not.toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalledWith('Guardamos los cambios.');

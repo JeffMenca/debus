@@ -1,15 +1,18 @@
 import {
   type Branch,
+  type BranchWithAdmins,
   type CreateBranchRequest,
   type UpdateBranchRequest,
   branchSchema,
+  branchWithAdminsSchema,
 } from '@debus/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiRequest, noContent } from '@/lib/api/client';
 
 export const BRANCHES_PATH = '/api/administracion/branches';
-const branchList = z.array(branchSchema);
+// The admin area is for system admins, who are the only ones who receive each branch's admins.
+const branchList = z.array(branchWithAdminsSchema);
 
 export function useBranches({ includeInactive }: { includeInactive: boolean }) {
   return useQuery({
@@ -39,8 +42,11 @@ function useInvalidateBranches() {
 export function useCreateBranch() {
   const invalidate = useInvalidateBranches();
   return useMutation({
-    mutationFn: (body: CreateBranchRequest): Promise<Branch> =>
-      apiRequest(BRANCHES_PATH, branchSchema, { method: 'POST', body: JSON.stringify(body) }),
+    mutationFn: (body: CreateBranchRequest): Promise<BranchWithAdmins> =>
+      apiRequest(BRANCHES_PATH, branchWithAdminsSchema, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => invalidate(),
   });
 }
@@ -48,8 +54,8 @@ export function useCreateBranch() {
 export function useUpdateBranch(id: string) {
   const invalidate = useInvalidateBranches();
   return useMutation({
-    mutationFn: (body: UpdateBranchRequest): Promise<Branch> =>
-      apiRequest(`${BRANCHES_PATH}/${id}`, branchSchema, {
+    mutationFn: (body: UpdateBranchRequest): Promise<BranchWithAdmins> =>
+      apiRequest(`${BRANCHES_PATH}/${id}`, branchWithAdminsSchema, {
         method: 'PATCH',
         body: JSON.stringify(body),
       }),

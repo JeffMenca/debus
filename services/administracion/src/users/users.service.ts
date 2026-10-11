@@ -3,6 +3,7 @@ import {
   type ManagedUser,
   type UpdateUserRequest,
   type UserListQuery,
+  type UserRole,
   isBranchRole,
 } from '@debus/contracts';
 import {
@@ -16,7 +17,9 @@ import {
 } from '@nestjs/common';
 import { AccountLinksService } from '../accounts/account-links.service';
 import { canCreateRole, canDeactivate, leavesBranchWithoutAdmin } from '../accounts/account-rules';
+import { lockActiveSystemAdmins, lockBranchAdmins } from '../accounts/admin-locks';
 import { MESSAGES } from '../accounts/messages';
+import { canLinkToBranch } from '../branches/branch-rules';
 import { isUniqueViolation } from '../common/prisma-errors';
 import type { Prisma, User } from '../generated/prisma/client';
 import type { Identity } from '../identity/identity';
@@ -49,7 +52,7 @@ export class UsersService {
     if (!canCreateRole(actor, input)) {
       throw new ForbiddenException(MESSAGES.forbidden);
     }
-    if (input.branchId) await this.assertActiveBranch(this.prisma, input.branchId);
+    if (input.branchId) await this.assertLinkableBranch(this.prisma, input.role, input.branchId);
     if (await this.prisma.user.findUnique({ where: { email: input.email } })) {
       throw new ConflictException(MESSAGES.emailTaken);
     }
@@ -106,7 +109,7 @@ export class UsersService {
   async reactivate(id: string): Promise<void> {
     const user = await this.findUser(this.prisma, id);
     if (user.status !== 'INACTIVE') return;
-    if (isBranchRole(user.role)) await this.assertBranchUsable(user.branchId);
+    if (isBranchRole(user.role)) await this.assertBranchUsable(user.role, user.branchId);
     await this.prisma.user.update({
       where: { id },
       data: { status: user.passwordHash ? 'ACTIVE' : 'PENDING' },
@@ -130,7 +133,7 @@ export class UsersService {
       const found = await this.findUser(tx, id);
       if (input.branchId !== undefined && input.branchId !== found.branchId) {
         if (!isBranchRole(found.role)) throw new BadRequestException(MESSAGES.branchNotAllowed);
-        await this.assertActiveBranch(tx, input.branchId);
+        await this.assertLinkableBranch(tx, found.role, input.branchId);
         // The lock gives the fresh branch: another admin may have moved this one meanwhile.
         const user = await this.lockPeers(tx, found);
         if (input.branchId !== user.branchId) await this.assertKeepsBranchAdmin(tx, user);
@@ -173,9 +176,9 @@ export class UsersService {
   // meanwhile; the rest of the roles need no lock. Returns the row as it is under the lock.
   private async lockPeers(tx: Prisma.TransactionClient, user: User): Promise<User> {
     if (user.role === 'SYSTEM_ADMIN') {
-      await this.lockActiveSystemAdmins(tx);
+      await lockActiveSystemAdmins(tx);
     } else if (user.role === 'BRANCH_ADMIN' && user.branchId) {
-      await this.lockBranchAdmins(tx, user.branchId);
+      await lockBranchAdmins(tx, user.branchId);
     } else {
       return user;
     }
@@ -202,28 +205,20 @@ export class UsersService {
     }
   }
 
-  private async assertActiveBranch(
+  private async assertLinkableBranch(
     client: Pick<Prisma.TransactionClient, 'branch'>,
+    role: UserRole,
     branchId: string,
   ): Promise<void> {
     const branch = await client.branch.findUnique({ where: { id: branchId } });
-    if (!branch?.active) throw new BadRequestException(MESSAGES.branchUnavailable);
+    if (!canLinkToBranch(role, branch)) throw new BadRequestException(MESSAGES.branchUnavailable);
   }
 
   // The branch of an existing account is not data the caller sent, so a bad one is a conflict.
-  private async assertBranchUsable(branchId: string | null): Promise<void> {
+  private async assertBranchUsable(role: UserRole, branchId: string | null): Promise<void> {
     const branch = branchId
       ? await this.prisma.branch.findUnique({ where: { id: branchId } })
       : null;
-    if (!branch?.active) throw new ConflictException(MESSAGES.branchUnavailable);
-  }
-
-  // Always in the same order, so two transactions can never wait on each other in a loop.
-  private async lockActiveSystemAdmins(tx: Prisma.TransactionClient): Promise<void> {
-    await tx.$queryRaw`SELECT id FROM users WHERE role = 'SYSTEM_ADMIN' AND status = 'ACTIVE' ORDER BY id FOR UPDATE`;
-  }
-
-  private async lockBranchAdmins(tx: Prisma.TransactionClient, branchId: string): Promise<void> {
-    await tx.$queryRaw`SELECT id FROM users WHERE role = 'BRANCH_ADMIN' AND branch_id = ${branchId}::uuid AND status <> 'INACTIVE' ORDER BY id FOR UPDATE`;
+    if (!canLinkToBranch(role, branch)) throw new ConflictException(MESSAGES.branchUnavailable);
   }
 }

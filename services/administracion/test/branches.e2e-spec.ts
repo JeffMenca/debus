@@ -3,6 +3,7 @@ import {
   type BranchChangedPayload,
   branchChangedPayloadSchema,
   branchSchema,
+  branchWithAdminsSchema,
 } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -45,7 +46,7 @@ describe('branches', () => {
       .send(body)
       .expect(201);
 
-    expect(branchSchema.parse(created.body)).toMatchObject({
+    expect(branchWithAdminsSchema.parse(created.body)).toMatchObject({
       code: body.code,
       active: true,
       version: 1,
@@ -85,6 +86,28 @@ describe('branches', () => {
 
     expect(response.body.message).toBe('Ya existe una cuenta con ese correo.');
     expect(await prisma.branch.count({ where: { name: body.name } })).toBe(0);
+  });
+
+  it('answers the loser of two branches created with the same admin email with the email message, round after round', async () => {
+    const admin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
+    const headers = identityHeaders(admin.id, 'SYSTEM_ADMIN');
+    const server = app.getHttpServer();
+
+    for (let round = 0; round < 6; round += 1) {
+      const email = uniqueEmail('shared-admin');
+      const responses = await Promise.all(
+        [0, 1].map(() =>
+          request(server)
+            .post('/branches')
+            .set(headers)
+            .send({ ...branchFields(), admin: { fullName: 'Repetido', email } }),
+        ),
+      );
+
+      expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+      const loser = responses.find((response) => response.status === 409)!;
+      expect(loser.body.message).toBe('Ya existe una cuenta con ese correo.');
+    }
   });
 
   it('refuses a repeated code, a repeated name and invalid bodies', async () => {
@@ -156,6 +179,52 @@ describe('branches', () => {
     await request(server).get('/branches').expect(401);
   });
 
+  it('keeps the personal data of branch admins away from every role but the system admin', async () => {
+    const server = app.getHttpServer();
+    const sysAdmin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
+    const branch = await createTestBranch(prisma);
+    const staff = await activeAccount(app, events, { role: 'BRANCH_ADMIN', branchId: branch.id });
+    const userId = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+    const staffEmail = (await prisma.user.findUniqueOrThrow({ where: { id: staff.id } })).email;
+    const bodyOf = (response: request.Response) => JSON.stringify(response.body);
+
+    const asAdmin = await request(server)
+      .get('/branches')
+      .set(identityHeaders(sysAdmin.id, 'SYSTEM_ADMIN'))
+      .expect(200);
+    const detailAsAdmin = await request(server)
+      .get(`/branches/${branch.id}`)
+      .set(identityHeaders(sysAdmin.id, 'SYSTEM_ADMIN'))
+      .expect(200);
+    const asClient = await request(server)
+      .get('/branches')
+      .set(identityHeaders(userId, 'CLIENT'))
+      .expect(200);
+    const asCashier = await request(server)
+      .get('/branches')
+      .set(identityHeaders(userId, 'CASHIER', branch.id))
+      .expect(200);
+    const detailAsCashier = await request(server)
+      .get(`/branches/${branch.id}`)
+      .set(identityHeaders(userId, 'CASHIER', branch.id))
+      .expect(200);
+    const detailAsBranchAdmin = await request(server)
+      .get(`/branches/${branch.id}`)
+      .set(identityHeaders(staff.id, 'BRANCH_ADMIN', branch.id))
+      .expect(200);
+
+    const listed = (response: request.Response) =>
+      response.body.find((b: { id: string }) => b.id === branch.id);
+    expect(listed(asAdmin).admins).toEqual([expect.objectContaining({ email: staffEmail })]);
+    expect(detailAsAdmin.body.admins).toEqual([expect.objectContaining({ email: staffEmail })]);
+    for (const response of [asClient, asCashier, detailAsCashier, detailAsBranchAdmin]) {
+      expect(bodyOf(response)).not.toContain(staffEmail);
+      expect(bodyOf(response)).not.toContain('admins');
+    }
+    expect(listed(asClient)).toMatchObject({ id: branch.id, name: branch.name, code: branch.code });
+    expect(branchSchema.parse(listed(asCashier)).id).toBe(branch.id);
+  });
+
   it('shows a branch to its own staff and to system admins only', async () => {
     const server = app.getHttpServer();
     const branch = await createTestBranch(prisma);
@@ -188,6 +257,7 @@ describe('branches', () => {
     const admin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
     const headers = identityHeaders(admin.id, 'SYSTEM_ADMIN');
     const branch = await createTestBranch(prisma);
+    await activeAccount(app, events, { role: 'BRANCH_ADMIN', branchId: branch.id });
     const server = app.getHttpServer();
 
     const updated = await request(server)
@@ -260,5 +330,96 @@ describe('branches', () => {
       .expect(403);
     await request(server).post(`/branches/${branch.id}/deactivate`).set(branchAdmin).expect(403);
     await request(server).post(`/branches/${branch.id}/reactivate`).set(branchAdmin).expect(403);
+  });
+
+  describe('reactivation', () => {
+    const NEEDS_ADMIN = 'Para reactivar la sucursal, primero reactiva o invita a su administrador.';
+
+    async function inactiveBranchWithDeactivatedAdmin() {
+      const sysAdmin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
+      const headers = identityHeaders(sysAdmin.id, 'SYSTEM_ADMIN');
+      const branch = await createTestBranch(prisma);
+      const only = await activeAccount(app, events, { role: 'BRANCH_ADMIN', branchId: branch.id });
+      const server = app.getHttpServer();
+      await request(server).post(`/users/${only.id}/deactivate`).set(headers).expect(409);
+      await request(server).post(`/branches/${branch.id}/deactivate`).set(headers).expect(204);
+      await request(server).post(`/users/${only.id}/deactivate`).set(headers).expect(204);
+      return { server, headers, branch, only };
+    }
+
+    it('never brings back a branch without a pending or active admin', async () => {
+      const { server, headers, branch } = await inactiveBranchWithDeactivatedAdmin();
+
+      const refused = await request(server)
+        .post(`/branches/${branch.id}/reactivate`)
+        .set(headers)
+        .expect(409);
+
+      expect(refused.body.message).toBe(NEEDS_ADMIN);
+      expect(await prisma.branch.findUniqueOrThrow({ where: { id: branch.id } })).toMatchObject({
+        active: false,
+        version: 2,
+      });
+    });
+
+    it('lets the admin come back while the branch is inactive, and then the branch', async () => {
+      const { server, headers, branch, only } = await inactiveBranchWithDeactivatedAdmin();
+
+      await request(server).post(`/users/${only.id}/reactivate`).set(headers).expect(204);
+      await request(server).post(`/branches/${branch.id}/reactivate`).set(headers).expect(204);
+
+      const shown = await request(server).get(`/branches/${branch.id}`).set(headers).expect(200);
+      expect(shown.body).toMatchObject({
+        active: true,
+        admins: [{ id: only.id, status: 'ACTIVE' }],
+      });
+    });
+
+    it('lets a new admin be invited to an inactive branch to get out of the dead end', async () => {
+      const { server, headers, branch, only } = await inactiveBranchWithDeactivatedAdmin();
+
+      await request(server)
+        .post('/users')
+        .set(headers)
+        .send({
+          fullName: 'Nueva Admin',
+          email: uniqueEmail('new-admin'),
+          role: 'BRANCH_ADMIN',
+          branchId: branch.id,
+        })
+        .expect(201);
+      await request(server).post(`/branches/${branch.id}/reactivate`).set(headers).expect(204);
+
+      expect(
+        await prisma.user.count({
+          where: { branchId: branch.id, role: 'BRANCH_ADMIN', status: { not: 'INACTIVE' } },
+        }),
+      ).toBe(1);
+      expect(only.id).toBeDefined();
+    });
+
+    it('answers 204 for exactly one of reactivating the branch and deactivating its only admin, round after round', async () => {
+      const sysAdmin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
+      const headers = identityHeaders(sysAdmin.id, 'SYSTEM_ADMIN');
+      const branch = await createTestBranch(prisma, { active: false });
+      const only = await activeAccount(app, events, { role: 'BRANCH_ADMIN', branchId: branch.id });
+      const server = app.getHttpServer();
+
+      for (let round = 0; round < 12; round += 1) {
+        await prisma.user.update({ where: { id: only.id }, data: { status: 'ACTIVE' } });
+        await prisma.branch.update({ where: { id: branch.id }, data: { active: false } });
+        const [reactivation, deactivation] = await Promise.all([
+          request(server).post(`/branches/${branch.id}/reactivate`).set(headers),
+          request(server).post(`/users/${only.id}/deactivate`).set(headers),
+        ]);
+
+        expect([reactivation.status, deactivation.status].sort()).toEqual([204, 409]);
+        const [stored, admin] = await Promise.all([
+          prisma.branch.findUniqueOrThrow({ where: { id: branch.id } }),
+          prisma.user.findUniqueOrThrow({ where: { id: only.id } }),
+        ]);
+        expect(stored.active && admin.status === 'INACTIVE').toBe(false);
+      }
+    });
   });
 });

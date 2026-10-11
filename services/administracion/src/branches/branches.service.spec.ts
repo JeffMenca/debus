@@ -45,7 +45,8 @@ const setup = () => {
       findUnique: jest.fn().mockResolvedValue(branchRow),
       update: jest.fn().mockResolvedValue({ ...branchRow, version: 2, users: [] }),
     },
-    user: { create: jest.fn().mockResolvedValue(adminRow) },
+    user: { create: jest.fn().mockResolvedValue(adminRow), count: jest.fn().mockResolvedValue(1) },
+    $queryRaw: jest.fn().mockResolvedValue([]),
   };
   const prisma = {
     branch: {
@@ -138,6 +139,20 @@ describe('BranchesService.create', () => {
     expect(events.flush).not.toHaveBeenCalled();
   });
 
+  it('tells a lost race on the admin email apart from a lost race on the branch', async () => {
+    const { tx, service } = setup();
+    tx.user.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('duplicate', {
+        code: 'P2002',
+        clientVersion: 'test',
+      }),
+    );
+
+    await expect(service.create(admin, input)).rejects.toThrow(
+      new ConflictException('Ya existe una cuenta con ese correo.'),
+    );
+  });
+
   it('lets unexpected errors through', async () => {
     const { prisma, service } = setup();
     prisma.$transaction.mockRejectedValue(new Error('database down'));
@@ -147,7 +162,9 @@ describe('BranchesService.create', () => {
 });
 
 describe('BranchesService.list', () => {
-  it('shows only active branches, ordered by name, with their admins', async () => {
+  const cashier = { userId: admin.userId, role: 'CASHIER' as const, branchId: branchRow.id };
+
+  it('shows a system admin only active branches, ordered by name, with their admins', async () => {
     const { prisma, service } = setup();
 
     const branches = await service.list(admin, false);
@@ -157,12 +174,25 @@ describe('BranchesService.list', () => {
       include: WITH_ADMINS,
       orderBy: { name: 'asc' },
     });
-    expect(branches).toHaveLength(1);
+    expect(branches).toEqual([expect.objectContaining({ id: branchRow.id, admins: [] })]);
+  });
+
+  it('never loads nor returns the admins for any other role', async () => {
+    const { prisma, service } = setup();
+    prisma.branch.findMany.mockResolvedValue([{ ...branchRow, users: [adminRow] }]);
+
+    for (const actor of [cashier, { ...cashier, role: 'CLIENT' as const, branchId: null }]) {
+      const branches = await service.list(actor, false);
+      expect(branches[0]).toMatchObject({ id: branchRow.id });
+      expect(branches[0]).not.toHaveProperty('admins');
+    }
+    for (const [args] of prisma.branch.findMany.mock.calls) {
+      expect(args).toEqual({ where: { active: true }, orderBy: { name: 'asc' } });
+    }
   });
 
   it('shows inactive ones only to a system admin who asks for them', async () => {
     const { prisma, service } = setup();
-    const cashier = { userId: admin.userId, role: 'CASHIER' as const, branchId: branchRow.id };
 
     await service.list(admin, true);
     await service.list(cashier, true);
@@ -179,6 +209,17 @@ describe('BranchesService.get', () => {
     expect(await service.get(admin, branchRow.id)).toMatchObject({ id: branchRow.id, admins: [] });
   });
 
+  it('returns staff of the branch the branch without its admins', async () => {
+    const { prisma, service } = setup();
+    const staff = { userId: admin.userId, role: 'CASHIER' as const, branchId: branchRow.id };
+
+    const branch = await service.get(staff, branchRow.id);
+
+    expect(branch).toMatchObject({ id: branchRow.id });
+    expect(branch).not.toHaveProperty('admins');
+    expect(prisma.branch.findUnique).toHaveBeenCalledWith({ where: { id: branchRow.id } });
+  });
+
   it('forbids staff of another branch and clients', async () => {
     const { service } = setup();
     const other = { userId: admin.userId, role: 'CASHIER' as const, branchId: adminRow.id };
@@ -190,11 +231,14 @@ describe('BranchesService.get', () => {
 
   it('answers not found for an unknown branch', async () => {
     const { prisma, service } = setup();
+    const staff = { userId: admin.userId, role: 'CASHIER' as const, branchId: branchRow.id };
     prisma.branch.findUnique.mockResolvedValue(null);
 
-    await expect(service.get(admin, branchRow.id)).rejects.toThrow(
-      new NotFoundException('No encontramos esa sucursal.'),
-    );
+    for (const actor of [admin, staff]) {
+      await expect(service.get(actor, branchRow.id)).rejects.toThrow(
+        new NotFoundException('No encontramos esa sucursal.'),
+      );
+    }
   });
 });
 
@@ -284,6 +328,46 @@ describe('BranchesService.setActive', () => {
       'c',
     );
     expect(events.flush).toHaveBeenCalledTimes(1);
+  });
+
+  it('reactivates only after locking and finding a pending or active admin', async () => {
+    const { tx, events, service } = setup();
+    tx.branch.findUnique.mockResolvedValue({ ...branchRow, active: false });
+
+    await service.setActive(branchRow.id, true, 'c');
+
+    expect(tx.user.count).toHaveBeenCalledWith({
+      where: { role: 'BRANCH_ADMIN', branchId: branchRow.id, status: { not: 'INACTIVE' } },
+    });
+    const [lockedAt] = tx.$queryRaw.mock.invocationCallOrder;
+    expect(lockedAt).toBeLessThan(tx.user.count.mock.invocationCallOrder[0]!);
+    expect(tx.branch.update).toHaveBeenCalledWith({
+      where: { id: branchRow.id },
+      data: { active: true, version: { increment: 1 } },
+    });
+    expect(events.flush).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses to reactivate a branch without a pending or active admin and announces nothing', async () => {
+    const { tx, events, service } = setup();
+    tx.branch.findUnique.mockResolvedValue({ ...branchRow, active: false });
+    tx.user.count.mockResolvedValue(0);
+
+    await expect(service.setActive(branchRow.id, true)).rejects.toThrow(
+      new ConflictException(
+        'Para reactivar la sucursal, primero reactiva o invita a su administrador.',
+      ),
+    );
+    expect(tx.branch.update).not.toHaveBeenCalled();
+    expect(events.flush).not.toHaveBeenCalled();
+  });
+
+  it('does not count admins to deactivate a branch', async () => {
+    const { tx, service } = setup();
+
+    await service.setActive(branchRow.id, false);
+
+    expect(tx.user.count).not.toHaveBeenCalled();
   });
 
   it('does nothing when the branch already has that state', async () => {
