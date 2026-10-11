@@ -359,7 +359,7 @@ describe('users', () => {
       },
     });
     const idsOf = (response: request.Response) =>
-      response.body.map((user: { id: string }) => user.id);
+      response.body.items.map((user: { id: string }) => user.id);
 
     const all = await request(server)
       .get(`/users?role=CASHIER&q=${marker}`)
@@ -385,6 +385,116 @@ describe('users', () => {
       .set(as(callerId, 'CASHIER', ownBranch.id))
       .expect(403);
     await request(server).get('/users?role=BOSS').set(as(admin.id, 'SYSTEM_ADMIN')).expect(400);
+  });
+
+  it('pages the list in a stable order with the tab counts of the whole filter', async () => {
+    const prisma = app.get(PrismaService);
+    const server = app.getHttpServer();
+    const admin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
+    const marker = `page-${Date.now()}`;
+    const names = ['Ana', 'Beto', 'Ceci', 'Dora', 'Elsa'];
+    for (const [index, name] of names.entries()) {
+      await prisma.user.create({
+        data: {
+          email: testEmail(`${marker}-${index}`),
+          fullName: name,
+          role: 'DRIVER',
+          status: index === 0 ? 'ACTIVE' : 'PENDING',
+        },
+      });
+    }
+    const pageOf = (query: string) =>
+      request(server)
+        .get(`/users?q=${marker}&${query}`)
+        .set(as(admin.id, 'SYSTEM_ADMIN'))
+        .expect(200);
+    const namesOf = (response: request.Response) =>
+      response.body.items.map((user: { fullName: string }) => user.fullName);
+
+    const first = await pageOf('pageSize=2&page=1');
+    const third = await pageOf('pageSize=2&page=3');
+    const pending = await pageOf('pageSize=2&status=PENDING');
+
+    expect(first.body).toMatchObject({ total: 5, page: 1, pageSize: 2 });
+    expect(namesOf(first)).toEqual(['Ana', 'Beto']);
+    expect(namesOf(third)).toEqual(['Elsa']);
+    expect(pending.body.total).toBe(4);
+    expect(pending.body.summary.statusCounts).toEqual({ ACTIVE: 1, PENDING: 4, INACTIVE: 0 });
+    await request(server).get('/users?pageSize=101').set(as(admin.id, 'SYSTEM_ADMIN')).expect(400);
+    await request(server).get('/users?page=0').set(as(admin.id, 'SYSTEM_ADMIN')).expect(400);
+  });
+
+  it('finds people without minding accents and names their branch', async () => {
+    const prisma = app.get(PrismaService);
+    const server = app.getHttpServer();
+    const admin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
+    const named = await createTestBranch(prisma);
+    const marker = `acc${Date.now()}`;
+    await prisma.user.create({
+      data: {
+        email: testEmail(marker),
+        fullName: `José Pérez ${marker}`,
+        role: 'CASHIER',
+        branchId: named.id,
+      },
+    });
+
+    const found = await request(server)
+      .get(`/users?q=${encodeURIComponent(`jose perez ${marker}`)}`)
+      .set(as(admin.id, 'SYSTEM_ADMIN'))
+      .expect(200);
+    const accented = await request(server)
+      .get(`/users?q=${encodeURIComponent(`JOSÉ PÉREZ ${marker}`)}`)
+      .set(as(admin.id, 'SYSTEM_ADMIN'))
+      .expect(200);
+
+    expect(found.body.items).toHaveLength(1);
+    expect(found.body.items[0].branchName).toBe(named.name);
+    expect(accented.body.total).toBe(1);
+  });
+
+  it('treats % and _ in the search as literal characters', async () => {
+    const prisma = app.get(PrismaService);
+    const server = app.getHttpServer();
+    const admin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
+    const marker = `lit${Date.now()}`;
+    await prisma.user.create({
+      data: { email: testEmail(marker), fullName: `Literal 100% ${marker}`, role: 'CASHIER' },
+    });
+    const search = (q: string) =>
+      request(server)
+        .get(`/users?q=${encodeURIComponent(q)}`)
+        .set(as(admin.id, 'SYSTEM_ADMIN'));
+
+    expect((await search(`100% ${marker}`).expect(200)).body.total).toBe(1);
+    expect((await search(`100_ ${marker}`).expect(200)).body.total).toBe(0);
+    expect((await search(`%${marker}`).expect(200)).body.total).toBe(0);
+    expect((await search('%').expect(200)).body.total).toBeLessThan(
+      (await request(server).get('/users').set(as(admin.id, 'SYSTEM_ADMIN'))).body.total,
+    );
+  });
+
+  it('splits staff from clients with the group filter', async () => {
+    const prisma = app.get(PrismaService);
+    const server = app.getHttpServer();
+    const admin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
+    const marker = `grp-${Date.now()}`;
+    await prisma.user.create({
+      data: { email: testEmail(`${marker}-staff`), fullName: 'Equipo', role: 'DRIVER' },
+    });
+    await prisma.user.create({
+      data: { email: testEmail(`${marker}-client`), fullName: 'Cliente', role: 'CLIENT' },
+    });
+    const totalOf = async (group: string) =>
+      (
+        await request(server)
+          .get(`/users?q=${marker}&group=${group}`)
+          .set(as(admin.id, 'SYSTEM_ADMIN'))
+          .expect(200)
+      ).body.total;
+
+    expect(await totalOf('staff')).toBe(1);
+    expect(await totalOf('clients')).toBe(1);
   });
 
   it('edits the name and moves staff, but never the last admin of a branch', async () => {

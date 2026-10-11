@@ -1,10 +1,16 @@
 'use client';
 
-import type { Branch, ManagedUser, UserRole } from '@debus/contracts';
+import {
+  type ManagedUser,
+  SEARCH_MAX_LENGTH,
+  type UserListItem,
+  type UserRole,
+  type UserStatus,
+} from '@debus/contracts';
 import { Info, Search, UserPlus } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
-import { DataTable } from '@/components/data/data-table';
+import { DataTable, tablePagination } from '@/components/data/data-table';
 import { StatusTabs } from '@/components/data/status-tabs';
 import { ActiveToggleDialog } from '@/components/forms/active-toggle-dialog';
 import { PageHeader } from '@/components/layout/page-header';
@@ -17,46 +23,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useBranches } from '@/hooks/use-branches';
-import { useResendInvitation, useSetUserActive, useUsers } from '@/hooks/use-users';
-import { countUsersByTab, filterUsers, type UserTab } from '@/lib/admin/user-filters';
+import { useBranchOptions } from '@/hooks/use-branches';
+import { usePageInRange } from '@/hooks/use-page-in-range';
+import { useUrlQuery } from '@/hooks/use-url-query';
+import { useUrlSearch } from '@/hooks/use-url-search';
+import { useResendInvitation, useSetUserActive, useUsersPage } from '@/hooks/use-users';
+import { readUserListParams, writeUserListParams } from '@/lib/admin/user-list-params';
 import { messageOf } from '@/lib/api/client';
 import { ROLE_LABELS, STAFF_ROLES } from '@/lib/roles';
 import { EditUserDialog } from './edit-user-dialog';
 import { InviteUserDialog } from './invite-user-dialog';
 import { useUserColumns } from './user-columns';
 
-const EMPTY_USERS: ManagedUser[] = [];
-const EMPTY_BRANCHES: Branch[] = [];
+type UserTab = 'all' | UserStatus;
+
+const EMPTY_BRANCHES: { id: string; name: string; active: boolean }[] = [];
 
 export function UsersScreen() {
-  const users = useUsers();
-  const branches = useBranches({ includeInactive: true });
+  const [query, update] = useUrlQuery(readUserListParams, writeUserListParams);
+  const users = useUsersPage(query);
+  const branches = useBranchOptions({ status: 'all' });
   const resend = useResendInvitation();
   const setActive = useSetUserActive();
 
-  const [tab, setTab] = useState<UserTab>('all');
-  const [role, setRole] = useState<UserRole | 'all'>('all');
-  const [branchId, setBranchId] = useState<string>('all');
-  const [search, setSearch] = useState('');
   const [inviting, setInviting] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
-  const [toggling, setToggling] = useState<{ user: ManagedUser; active: boolean } | null>(null);
+  const [toggling, setToggling] = useState<{ user: UserListItem; active: boolean } | null>(null);
 
-  const all = users.data ?? EMPTY_USERS;
+  const [search, setSearch] = useUrlSearch(query.q, update);
+  usePageInRange(users.data, update);
+
+  const counts = users.data?.summary.statusCounts;
   const allBranches = branches.data ?? EMPTY_BRANCHES;
-  const branchNames = useMemo(
-    () => new Map(allBranches.map((branch) => [branch.id, branch.name])),
-    [allBranches],
-  );
-  const visible = useMemo(
-    () => filterUsers(all, { tab, role, branchId, search }),
-    [all, tab, role, branchId, search],
-  );
-  const counts = countUsersByTab(all);
 
   const onResend = useCallback(
-    async (user: ManagedUser) => {
+    async (user: UserListItem) => {
       try {
         await resend.mutateAsync(user.id);
         toast.success(`Enviamos de nuevo la invitación a ${user.email}.`);
@@ -67,11 +68,10 @@ export function UsersScreen() {
     [resend],
   );
   const columns = useUserColumns({
-    branchNames,
     onEdit: setEditing,
     onResend,
     onToggle: useCallback(
-      (user: ManagedUser, active: boolean) => setToggling({ user, active }),
+      (user: UserListItem, active: boolean) => setToggling({ user, active }),
       [],
     ),
   });
@@ -90,19 +90,28 @@ export function UsersScreen() {
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <StatusTabs
+        <StatusTabs<UserTab>
           label="Estado de las cuentas"
-          value={tab}
-          onChange={setTab}
+          value={query.status ?? 'all'}
+          onChange={(tab) => update({ status: tab === 'all' ? undefined : tab })}
           options={[
-            { value: 'all', label: 'Todos', count: counts.all },
-            { value: 'ACTIVE', label: 'Activos', count: counts.ACTIVE },
-            { value: 'PENDING', label: 'Invitación enviada', count: counts.PENDING },
-            { value: 'INACTIVE', label: 'Inactivos', count: counts.INACTIVE },
+            {
+              value: 'all',
+              label: 'Todos',
+              count: counts && counts.ACTIVE + counts.PENDING + counts.INACTIVE,
+            },
+            { value: 'ACTIVE', label: 'Activos', count: counts?.ACTIVE },
+            { value: 'PENDING', label: 'Invitación enviada', count: counts?.PENDING },
+            { value: 'INACTIVE', label: 'Inactivos', count: counts?.INACTIVE },
           ]}
         />
         <div className="w-48">
-          <Select value={role} onValueChange={(value) => setRole(value as UserRole | 'all')}>
+          <Select
+            value={query.role ?? 'all'}
+            onValueChange={(value) =>
+              update({ role: value === 'all' ? undefined : (value as UserRole) })
+            }
+          >
             <SelectTrigger aria-label="Rol" className="bg-card">
               <SelectValue />
             </SelectTrigger>
@@ -117,13 +126,16 @@ export function UsersScreen() {
           </Select>
         </div>
         <div className="w-56">
-          <Select value={branchId} onValueChange={setBranchId}>
+          <Select
+            value={query.branchId ?? 'all'}
+            onValueChange={(value) => update({ branchId: value === 'all' ? undefined : value })}
+          >
             <SelectTrigger aria-label="Sucursal" className="bg-card">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas las sucursales</SelectItem>
-              {(branches.data ?? []).map((branch) => (
+              {allBranches.map((branch) => (
                 <SelectItem key={branch.id} value={branch.id}>
                   {branch.name}
                 </SelectItem>
@@ -135,6 +147,7 @@ export function UsersScreen() {
           <Input
             icon={Search}
             aria-label="Buscar usuario"
+            maxLength={SEARCH_MAX_LENGTH}
             placeholder="Buscar nombre o correo"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -146,13 +159,14 @@ export function UsersScreen() {
       <DataTable
         caption="Usuarios"
         columns={columns}
-        data={visible}
+        data={users.data?.items ?? []}
         getRowId={(user) => user.id}
         isLoading={users.isPending}
+        isRefreshing={users.isPlaceholderData}
         error={users.isError ? 'No pudimos cargar los usuarios.' : null}
         onRetry={() => void users.refetch()}
         emptyMessage="No hay usuarios con esos filtros."
-        summary={`Mostrando ${visible.length} de ${all.length} usuarios`}
+        pagination={tablePagination(query, users.data?.total, update)}
         footerNote={
           <span className="inline-flex items-center gap-1.5">
             <Info aria-hidden strokeWidth={1.75} className="size-4" />

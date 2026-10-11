@@ -1,6 +1,6 @@
 import { todayInGuatemala } from '@debus/contracts';
 import { expect, test } from '@playwright/test';
-import { mockAdminGateway } from './support/admin-gateway';
+import { manyVersions, mockAdminGateway } from './support/admin-gateway';
 import { expectNoHorizontalScroll, openMenuOnPhone, signInAs } from './support/session';
 
 test.describe('admin settings', () => {
@@ -57,5 +57,31 @@ test.describe('admin settings', () => {
 
     await expect(page).toHaveURL(/\/admin\/configuracion$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Configuración' })).toBeVisible();
+  });
+
+  test.describe('pagination', () => {
+    test('pages the history and still shows the current amounts from page 2', async ({
+      page,
+      baseURL,
+    }) => {
+      await mockAdminGateway(page, { versions: manyVersions(25) });
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+      await page.goto('/admin/configuracion');
+
+      const history = page.getByRole('table', { name: 'Historial de configuración' });
+      await expect(history.locator('tbody tr')).toHaveCount(20);
+      await expect(page.getByText('Página 1 de 2')).toBeVisible();
+      await expect(page.getByText(/Q\s?1\.24/).first()).toBeVisible();
+
+      await page.getByRole('button', { name: 'Página siguiente' }).click();
+      await expect(page).toHaveURL(/pagina=2/);
+      await expect(history.locator('tbody tr')).toHaveCount(5);
+      await expect(history.getByText('Vigente', { exact: true })).toHaveCount(0);
+      await expect(page.getByText(/Q\s?1\.24/).first()).toBeVisible();
+      await page.reload();
+
+      await expect(page.getByText('Página 2 de 2')).toBeVisible();
+      await expectNoHorizontalScroll(page);
+    });
   });
 });

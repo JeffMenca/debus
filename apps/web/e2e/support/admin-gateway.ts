@@ -5,13 +5,19 @@ import {
   type ManagedUser,
   type SettingsVersion,
   type UserRole,
+  branchListQuerySchema,
   createBranchRequestSchema,
   createSettingsRequestSchema,
   createUserRequestSchema,
   effectiveVersion,
+  foldSearchText,
+  pageArgs,
+  settingsListQuerySchema,
+  toPage,
   todayInGuatemala,
   updateBranchRequestSchema,
   updateUserRequestSchema,
+  userListQuerySchema,
 } from '@debus/contracts';
 import type { Page, Route } from '@playwright/test';
 import { fulfillJson } from './session';
@@ -25,6 +31,7 @@ export interface AdminSeed {
 export interface RecordedRequest {
   method: string;
   path: string;
+  query: string;
   body: unknown;
 }
 
@@ -54,6 +61,10 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
   };
   const error = (route: Route, status: number, message: string) =>
     fulfillJson(route, status, { statusCode: status, message });
+  const byName =
+    <T extends { id: string }>(name: (item: T) => string) =>
+    (a: T, b: T) =>
+      name(a).localeCompare(name(b)) || a.id.localeCompare(b.id);
 
   await page.route('**/api/administracion/**', async (route) => {
     const request = route.request();
@@ -63,20 +74,31 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
     const path = url.pathname.replace('/api/administracion', '');
     const method = request.method();
     const body: unknown = request.postData() ? request.postDataJSON() : undefined;
-    requests.push({ method, path, body });
+    requests.push({ method, path, query: url.search, body });
     const [, resource, id, action] = path.split('/');
 
     if (resource === 'branches') {
       if (method === 'GET' && !id) {
-        const all = url.searchParams.get('includeInactive') === 'true';
-        return fulfillJson(
-          route,
-          200,
-          [...branches]
-            .filter((branch) => all || branch.active)
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map(withAdmins),
+        // Same contract as the service: the query is validated and the page is cut here.
+        const parsed = branchListQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+        if (!parsed.success) return error(route, 400, INVALID);
+        const { status, q, ...paging } = parsed.data;
+        const matching = branches.filter(
+          (branch) =>
+            !q ||
+            foldSearchText(
+              `${branch.name} ${branch.code} ${branch.municipality} ${branch.department}`,
+            ).includes(q),
         );
+        const shown = matching
+          .filter((branch) => status === 'all' || branch.active === (status === 'active'))
+          .sort(byName((branch) => branch.name));
+        const { skip, take } = pageArgs(paging);
+        const active = matching.filter((branch) => branch.active).length;
+        return fulfillJson(route, 200, {
+          ...toPage(shown.slice(skip, skip + take).map(withAdmins), shown.length, paging),
+          summary: { statusCounts: { active, inactive: matching.length - active } },
+        });
       }
       if (method === 'GET') {
         const branch = branches.find((item) => item.id === id);
@@ -134,7 +156,33 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
     }
 
     if (resource === 'users') {
-      if (method === 'GET' && !id) return fulfillJson(route, 200, users);
+      if (method === 'GET' && !id) {
+        const parsed = userListQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+        if (!parsed.success) return error(route, 400, INVALID);
+        const { status, role, branchId, group, q, ...paging } = parsed.data;
+        // The tab counts ignore the status filter, like the service.
+        const matching = users.filter(
+          (user) =>
+            (!role || user.role === role) &&
+            (!group || (group === 'staff') === (user.role !== 'CLIENT')) &&
+            (!branchId || user.branchId === branchId) &&
+            (!q || foldSearchText(`${user.fullName} ${user.email}`).includes(q)),
+        );
+        const shown = matching
+          .filter((user) => !status || user.status === status)
+          .sort(byName((user) => user.fullName));
+        const { skip, take } = pageArgs(paging);
+        const statusCounts = { PENDING: 0, ACTIVE: 0, INACTIVE: 0 };
+        for (const user of matching) statusCounts[user.status] += 1;
+        const items = shown.slice(skip, skip + take).map((user) => ({
+          ...user,
+          branchName: branches.find((branch) => branch.id === user.branchId)?.name ?? null,
+        }));
+        return fulfillJson(route, 200, {
+          ...toPage(items, shown.length, paging),
+          summary: { statusCounts },
+        });
+      }
       if (method === 'POST' && !id) {
         const parsed = createUserRequestSchema.safeParse(body);
         if (!parsed.success) return error(route, 400, INVALID);
@@ -217,14 +265,19 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
 
     if (resource === 'settings') {
       if (method === 'GET') {
+        const parsed = settingsListQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+        if (!parsed.success) return error(route, 400, INVALID);
         const ordered = [...versions].sort(
           (a, b) =>
             b.effectiveFrom.localeCompare(a.effectiveFrom) ||
             b.createdAt.localeCompare(a.createdAt),
         );
+        const today = todayInGuatemala();
+        const upcoming = ordered.filter((version) => version.effectiveFrom > today).at(-1) ?? null;
+        const { skip, take } = pageArgs(parsed.data);
         return fulfillJson(route, 200, {
-          current: effectiveVersion(ordered, todayInGuatemala()),
-          versions: ordered,
+          ...toPage(ordered.slice(skip, skip + take), ordered.length, parsed.data),
+          summary: { current: effectiveVersion(ordered, today), upcoming },
         });
       }
       if (method === 'POST') {
@@ -275,3 +328,37 @@ export const sampleUser = (overrides: Partial<ManagedUser> = {}): ManagedUser =>
   status: 'ACTIVE',
   ...overrides,
 });
+
+// Enough people, or branches, to need several pages. Names sort in the order they are numbered.
+const numbered = (index: number) => String(index + 1).padStart(3, '0');
+export const manyUsers = (count: number, overrides: Partial<ManagedUser> = {}): ManagedUser[] =>
+  Array.from({ length: count }, (_, index) =>
+    sampleUser({
+      fullName: `Persona ${numbered(index)}`,
+      email: `persona${numbered(index)}@correo.com`,
+      ...overrides,
+    }),
+  );
+// Branch codes are three to five letters: AAA, AAB, AAC...
+const letters = (index: number) =>
+  [index % 26, Math.floor(index / 26) % 26, Math.floor(index / 676)]
+    .map((digit) => String.fromCharCode(65 + digit))
+    .reverse()
+    .join('');
+export const manyBranches = (count: number): Branch[] =>
+  Array.from({ length: count }, (_, index) =>
+    sampleBranch({
+      id: randomUUID(),
+      code: letters(index),
+      name: `Sucursal ${numbered(index)}`,
+    }),
+  );
+export const manyVersions = (count: number): SettingsVersion[] =>
+  Array.from({ length: count }, (_, index) => ({
+    id: randomUUID(),
+    depreciationPerKm: 1 + index / 100,
+    rentalRatePerKm: 12,
+    effectiveFrom: `2020-01-${String(index + 1).padStart(2, '0')}`,
+    createdAt: `2020-01-${String(index + 1).padStart(2, '0')}T10:00:00.000Z`,
+    createdByName: 'Marta Ruiz',
+  }));

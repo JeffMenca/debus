@@ -4,19 +4,34 @@ import {
   type UpdateUserRequest,
   acceptedResponseSchema,
   managedUserSchema,
+  userPageSchema,
 } from '@debus/contracts';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { z } from 'zod';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest, noContent } from '@/lib/api/client';
+import { toQueryString } from '@/lib/api/query-string';
+import type { UserListView } from '@/lib/admin/user-list-params';
 
 export const USERS_PATH = '/api/administracion/users';
-const userList = z.array(managedUserSchema);
 
-// The page filters the list itself, so it asks for everyone the session may see.
-export function useUsers() {
+// The server filters and pages; the previous page stays on screen while the next one arrives.
+export function useUsersPage(query: UserListView) {
   return useQuery({
-    queryKey: ['users'],
-    queryFn: () => apiRequest(USERS_PATH, userList),
+    queryKey: ['users', 'page', query],
+    queryFn: () => apiRequest(`${USERS_PATH}?${toQueryString({ ...query })}`, userPageSchema),
+    placeholderData: keepPreviousData,
+  });
+}
+
+// The staff counts come with a one-row page: the summary covers the whole filter, not the page.
+export function useUserCounts() {
+  return useQuery({
+    queryKey: ['users', 'counts'],
+    queryFn: () =>
+      apiRequest(
+        `${USERS_PATH}?${toQueryString({ group: 'staff', page: 1, pageSize: 1 })}`,
+        userPageSchema,
+      ),
+    select: (page) => page.summary.statusCounts,
   });
 }
 

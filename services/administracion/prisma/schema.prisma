@@ -58,6 +58,7 @@ model User {
   passwordHash     String?        @map("password_hash")
   nit              String?        @unique
   pendingProfile   Json?          @map("pending_profile")
+  searchText       String         @default("") @map("search_text")
   failedLoginCount Int            @default(0) @map("failed_login_count")
   lockedUntil      DateTime?      @map("locked_until") @db.Timestamptz(3)
   lastNoticeAt     DateTime?      @map("last_notice_at") @db.Timestamptz(3)
@@ -114,6 +115,7 @@ model Branch {
   phone        String
   latitude     Decimal  @db.Decimal(9, 6)
   longitude    Decimal  @db.Decimal(9, 6)
+  searchText   String   @default("") @map("search_text")
   active       Boolean  @default(true)
   version      Int      @default(1)
   createdById  String?  @map("created_by_id") @db.Uuid

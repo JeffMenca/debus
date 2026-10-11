@@ -1,4 +1,11 @@
-import { formatDateTime, formatLongDate, formatPhone, formatQuetzales, initialsOf } from './format';
+import {
+  formatCount,
+  formatDateTime,
+  formatLongDate,
+  formatPhone,
+  formatQuetzales,
+  initialsOf,
+} from './format';
 
 it('formats people, money and dates for Guatemala', () => {
   expect(initialsOf('Luis Ramírez Pérez')).toBe('LR');
@@ -19,4 +26,9 @@ it('writes an eight digit phone with its hyphen and leaves anything else alone',
 
 it('shows a moment in Guatemala time, six hours behind UTC', () => {
   expect(formatDateTime('2026-10-10T15:30:00.000Z')).toMatch(/10\/10\/2026.*9:30/);
+});
+
+it('groups the thousands of a count', () => {
+  expect(formatCount(3000)).toBe('3,000');
+  expect(formatCount(45)).toBe('45');
 });

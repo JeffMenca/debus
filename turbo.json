@@ -18,11 +18,13 @@
       "outputs": ["coverage/**"]
     },
     "test:integration": {
+      "cache": false,
       "dependsOn": ["^build", "prisma:generate"],
       "env": ["DATABASE_URL", "PUBSUB_EMULATOR_HOST", "PUBSUB_PROJECT_ID"],
       "outputs": ["coverage-integration/**"]
     },
     "test:e2e": {
+      "cache": false,
       "dependsOn": ["^build"],
       "env": ["E2E_BASE_URL", "E2E_REAL_API"],
       "outputs": ["playwright-report/**", "test-results/**"]

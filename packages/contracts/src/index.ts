@@ -13,3 +13,5 @@ export * from './api/branches';
 export * from './api/users';
 export * from './api/settings';
 export * from './events/admin-payloads';
+export * from './text';
+export * from './api/pagination';

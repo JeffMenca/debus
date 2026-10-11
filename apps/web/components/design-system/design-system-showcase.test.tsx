@@ -29,6 +29,20 @@ describe('DesignSystemShowcase', () => {
     expect(screen.getByRole('table', { name: 'Buses de ejemplo' })).toBeInTheDocument();
   });
 
+  it('pages the example table and goes back to the first page when the size changes', async () => {
+    render(<DesignSystemShowcase />);
+    const table = screen.getByRole('table', { name: 'Buses de ejemplo' });
+    expect(within(table).getAllByRole('row')).toHaveLength(21);
+    expect(screen.getByText('Página 1 de 3')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
+    expect(screen.getByText('Mostrando 21–40 de 45')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('combobox', { name: 'Filas por página' }));
+    await userEvent.click(screen.getByRole('option', { name: '50' }));
+
+    expect(screen.getByText('Página 1 de 1')).toBeInTheDocument();
+  });
+
   it('has a single primary button, labeled as such', () => {
     render(<DesignSystemShowcase />);
 

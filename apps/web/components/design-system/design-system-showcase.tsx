@@ -44,6 +44,11 @@ const BUSES: ExampleBus[] = [
   { id: '3', plate: 'C 902 HMN', model: 'Mercedes O500', state: 'En taller' },
 ];
 
+const MANY_BUSES: ExampleBus[] = Array.from({ length: 45 }, (_, index) => {
+  const bus = BUSES[index % BUSES.length]!;
+  return { ...bus, id: String(index + 1), plate: `C ${100 + index} BQR` };
+});
+
 const TONES: { tone: StatusTone; label: string }[] = [
   { tone: 'mint', label: 'Disponible' },
   { tone: 'sky', label: 'En tránsito' },
@@ -73,6 +78,7 @@ export function DesignSystemShowcase() {
   const [date, setDate] = useState(todayInGuatemala);
   const [tab, setTab] = useState<TabValue>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [busPage, setBusPage] = useState({ page: 1, pageSize: 20 });
 
   return (
     <>
@@ -154,10 +160,18 @@ export function DesignSystemShowcase() {
         <DataTable
           caption="Buses de ejemplo"
           columns={BUS_COLUMNS}
-          data={BUSES}
+          data={MANY_BUSES.slice(
+            (busPage.page - 1) * busPage.pageSize,
+            busPage.page * busPage.pageSize,
+          )}
           getRowId={(bus) => bus.id}
           emptyMessage="Aún no hay buses."
-          summary="Mostrando 3 de 3 buses"
+          pagination={{
+            ...busPage,
+            total: MANY_BUSES.length,
+            onPageChange: (page) => setBusPage((current) => ({ ...current, page })),
+            onPageSizeChange: (pageSize) => setBusPage({ page: 1, pageSize }),
+          }}
         />
       </Section>
 

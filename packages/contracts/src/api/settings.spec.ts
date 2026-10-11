@@ -1,4 +1,10 @@
-import { createSettingsRequestSchema, effectiveVersion, moneySchema } from './settings';
+import {
+  createSettingsRequestSchema,
+  effectiveVersion,
+  moneySchema,
+  settingsListQuerySchema,
+  settingsPageSchema,
+} from './settings';
 
 describe('money', () => {
   it('accepts positive amounts with up to two decimals', () => {
@@ -51,5 +57,20 @@ describe('effectiveVersion', () => {
   it('returns null before the first version', () => {
     expect(effectiveVersion(versions, '2026-09-01')).toBeNull();
     expect(effectiveVersion([], '2026-10-10')).toBeNull();
+  });
+});
+
+describe('settings list', () => {
+  it('pages the history and carries the current and upcoming versions', () => {
+    expect(settingsListQuerySchema.parse({ page: '2' })).toEqual({ page: 2, pageSize: 20 });
+    expect(
+      settingsPageSchema.parse({
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        summary: { current: null, upcoming: null },
+      }).summary,
+    ).toEqual({ current: null, upcoming: null });
   });
 });

@@ -1,4 +1,4 @@
-import { testEmail } from '@debus/config/test-data';
+import { TEST_BRANCH_PREFIX, TEST_RUN, testEmail } from '@debus/config/test-data';
 import {
   type AccountLinkSentPayload,
   type BranchChangedPayload,
@@ -11,7 +11,7 @@ import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { activeAccount } from './support/accounts';
 import { createTestApp, tokenOf } from './support/app';
-import { branchFields, createTestBranch } from './support/branches';
+import { branchFields, createTestBranch, uniqueBranchName } from './support/branches';
 import { cleanTestData } from './support/cleanup';
 import { type EventCapture, captureEvents } from './support/events';
 import { identityHeaders } from './support/identity';
@@ -158,26 +158,80 @@ describe('branches', () => {
     const active = await createTestBranch(prisma);
     const inactive = await createTestBranch(prisma, { active: false });
     const userId = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
-    const idsOf = (response: request.Response) => response.body.map((b: { id: string }) => b.id);
+    const q = `q=${encodeURIComponent(TEST_BRANCH_PREFIX + TEST_RUN)}&pageSize=100`;
+    const idsOf = (response: request.Response) =>
+      response.body.items.map((b: { id: string }) => b.id);
 
     const plain = await request(server)
-      .get('/branches')
+      .get(`/branches?${q}`)
       .set(identityHeaders(userId, 'SYSTEM_ADMIN'))
       .expect(200);
     const all = await request(server)
-      .get('/branches?includeInactive=true')
+      .get(`/branches?status=all&${q}`)
       .set(identityHeaders(userId, 'SYSTEM_ADMIN'))
       .expect(200);
     const asCashier = await request(server)
-      .get('/branches?includeInactive=true')
+      .get(`/branches?status=all&${q}`)
       .set(identityHeaders(userId, 'CASHIER', active.id))
+      .expect(200);
+    const legacyFlag = await request(server)
+      .get(`/branches?includeInactive=true&${q}`)
+      .set(identityHeaders(userId, 'SYSTEM_ADMIN'))
       .expect(200);
 
     expect(idsOf(plain)).toContain(active.id);
     expect(idsOf(plain)).not.toContain(inactive.id);
     expect(idsOf(all)).toEqual(expect.arrayContaining([active.id, inactive.id]));
     expect(idsOf(asCashier)).not.toContain(inactive.id);
+    expect(idsOf(legacyFlag)).not.toContain(inactive.id);
     await request(server).get('/branches').expect(401);
+  });
+
+  it('pages branches in name order with the counts of the tabs', async () => {
+    const server = app.getHttpServer();
+    const marker = `pag${Date.now()}`;
+    const sysAdmin = identityHeaders('7c9e6679-7425-40de-944b-e07fc1f90ae7', 'SYSTEM_ADMIN');
+    const created = [];
+    for (const label of ['c', 'a', 'b']) {
+      created.push(await createTestBranch(prisma, { name: uniqueBranchName(`${marker}${label}`) }));
+    }
+    const pageOf = (query: string, headers = sysAdmin) =>
+      request(server).get(`/branches?q=${marker}&${query}`).set(headers).expect(200);
+    const namesOf = (response: request.Response) =>
+      response.body.items.map((b: { name: string }) => b.name);
+
+    const first = await pageOf('status=all&pageSize=2');
+    const second = await pageOf('status=all&pageSize=2&page=2');
+    await request(server).post(`/branches/${created[0]!.id}/deactivate`).set(sysAdmin).expect(204);
+    const afterDeactivating = await pageOf('status=inactive');
+    const asCashier = await pageOf(
+      'status=all',
+      identityHeaders('7c9e6679-7425-40de-944b-e07fc1f90ae7', 'CASHIER', created[1]!.id),
+    );
+
+    expect(first.body).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+    expect(namesOf(first)).toHaveLength(2);
+    expect(namesOf(first)).toEqual([...namesOf(first)].sort());
+    expect(namesOf(second)).toHaveLength(1);
+    expect(afterDeactivating.body.total).toBe(1);
+    expect(afterDeactivating.body.summary.statusCounts).toEqual({ active: 2, inactive: 1 });
+    expect(asCashier.body.total).toBe(2);
+    expect(asCashier.body.summary.statusCounts.inactive).toBe(0);
+    expect(JSON.stringify(asCashier.body)).not.toContain('admins');
+    await request(server).get('/branches?pageSize=101').set(sysAdmin).expect(400);
+  });
+
+  it('finds a branch by place without minding accents', async () => {
+    const server = app.getHttpServer();
+    const sysAdmin = identityHeaders('7c9e6679-7425-40de-944b-e07fc1f90ae7', 'SYSTEM_ADMIN');
+    const branch = await createTestBranch(prisma, { department: 'Petén', municipality: 'Flores' });
+
+    const found = await request(server)
+      .get(`/branches?q=${encodeURIComponent(`${branch.code} Flores PETÉN`)}`)
+      .set(sysAdmin)
+      .expect(200);
+
+    expect(found.body.items.map((b: { id: string }) => b.id)).toEqual([branch.id]);
   });
 
   it('keeps the personal data of branch admins away from every role but the system admin', async () => {
@@ -190,7 +244,7 @@ describe('branches', () => {
     const bodyOf = (response: request.Response) => JSON.stringify(response.body);
 
     const asAdmin = await request(server)
-      .get('/branches')
+      .get(`/branches?q=${encodeURIComponent(branch.name)}`)
       .set(identityHeaders(sysAdmin.id, 'SYSTEM_ADMIN'))
       .expect(200);
     const detailAsAdmin = await request(server)
@@ -198,11 +252,11 @@ describe('branches', () => {
       .set(identityHeaders(sysAdmin.id, 'SYSTEM_ADMIN'))
       .expect(200);
     const asClient = await request(server)
-      .get('/branches')
+      .get(`/branches?q=${encodeURIComponent(branch.name)}`)
       .set(identityHeaders(userId, 'CLIENT'))
       .expect(200);
     const asCashier = await request(server)
-      .get('/branches')
+      .get(`/branches?q=${encodeURIComponent(branch.name)}`)
       .set(identityHeaders(userId, 'CASHIER', branch.id))
       .expect(200);
     const detailAsCashier = await request(server)
@@ -215,7 +269,7 @@ describe('branches', () => {
       .expect(200);
 
     const listed = (response: request.Response) =>
-      response.body.find((b: { id: string }) => b.id === branch.id);
+      response.body.items.find((b: { id: string }) => b.id === branch.id);
     expect(listed(asAdmin).admins).toEqual([expect.objectContaining({ email: staffEmail })]);
     expect(detailAsAdmin.body.admins).toEqual([expect.objectContaining({ email: staffEmail })]);
     for (const response of [asClient, asCashier, detailAsCashier, detailAsBranchAdmin]) {

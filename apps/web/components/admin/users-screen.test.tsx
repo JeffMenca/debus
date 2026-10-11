@@ -1,20 +1,27 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/api-error';
-import { useBranches } from '../../hooks/use-branches';
+import { useBranchOptions } from '../../hooks/use-branches';
 import {
   useInviteUser,
   useResendInvitation,
   useSetUserActive,
   useUpdateUser,
-  useUsers,
+  useUsersPage,
 } from '../../hooks/use-users';
 import { UsersScreen } from './users-screen';
 
 jest.mock('../../hooks/use-branches');
 jest.mock('../../hooks/use-users');
 jest.mock('sonner', () => ({ toast: { success: jest.fn() } }));
+const replace = jest.fn();
+let search = '';
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace }),
+  usePathname: () => '/admin/usuarios',
+  useSearchParams: () => new URLSearchParams(search),
+}));
 
 const branchId = '9b2c7a10-1111-4c4c-8888-123456789abc';
 const closedBranchId = '3e8a1b30-3333-4e4e-aaaa-123456789abc';
@@ -25,6 +32,7 @@ const users = [
     email: 'ana@correo.com',
     role: 'CASHIER',
     branchId,
+    branchName: 'Quetzaltenango',
     status: 'ACTIVE',
   },
   {
@@ -33,6 +41,7 @@ const users = [
     email: 'jose@correo.com',
     role: 'DRIVER',
     branchId,
+    branchName: 'Quetzaltenango',
     status: 'PENDING',
   },
   {
@@ -41,26 +50,63 @@ const users = [
     email: 'luis@correo.com',
     role: 'SYSTEM_ADMIN',
     branchId: null,
+    branchName: null,
     status: 'INACTIVE',
   },
 ];
+const statusCounts = { ACTIVE: 30, PENDING: 12, INACTIVE: 3 };
+const pageOf = (items: unknown[], extra: Record<string, unknown> = {}) => ({
+  items,
+  total: 45,
+  page: 1,
+  pageSize: 20,
+  summary: { statusCounts },
+  ...extra,
+});
+const manyUsers = (count: number) =>
+  Array.from({ length: count }, (_, index) => ({
+    ...users[0],
+    id: `m${index}`,
+    fullName: `Persona ${index + 1}`,
+    email: `persona${index + 1}@correo.com`,
+  }));
 
-function setup({ error = false }: { error?: boolean } = {}) {
+function setup({
+  error = false,
+  items = users,
+  page = {},
+  address = '',
+  refreshing = false,
+}: {
+  error?: boolean;
+  items?: unknown[];
+  page?: Record<string, unknown>;
+  address?: string;
+  refreshing?: boolean;
+} = {}) {
+  search = address;
   const refetch = jest.fn();
   const resend = jest.fn().mockResolvedValue({ message: 'ok' });
   const setActive = jest.fn().mockResolvedValue(undefined);
-  jest.mocked(useUsers).mockReturnValue(
+  jest.mocked(useUsersPage).mockReturnValue(
     (error
       ? {
           data: undefined,
           isPending: false,
           isError: true,
+          isPlaceholderData: false,
           error: new ApiError(0, 'sin red'),
           refetch,
         }
-      : { data: users, isPending: false, isError: false, refetch }) as never,
+      : {
+          data: pageOf(items, page),
+          isPending: false,
+          isError: false,
+          isPlaceholderData: refreshing,
+          refetch,
+        }) as never,
   );
-  jest.mocked(useBranches).mockReturnValue({
+  jest.mocked(useBranchOptions).mockReturnValue({
     data: [
       { id: branchId, name: 'Quetzaltenango', active: true },
       { id: closedBranchId, name: 'Cobán', active: false },
@@ -74,12 +120,21 @@ function setup({ error = false }: { error?: boolean } = {}) {
   return { refetch, resend, setActive };
 }
 
+const lastAddress = () => {
+  const [url] = replace.mock.calls.at(-1) as [string];
+  const [path, query = ''] = url.split('?');
+  return { path, params: new URLSearchParams(query) };
+};
+
 const rowOf = (name: RegExp) => screen.getByRole('row', { name });
 const openActions = (name: string) =>
   userEvent.click(screen.getByRole('button', { name: `Acciones de ${name}` }));
 
 describe('UsersScreen', () => {
-  beforeEach(() => jest.mocked(toast.success).mockReset());
+  beforeEach(() => {
+    jest.mocked(toast.success).mockReset();
+    replace.mockReset();
+  });
 
   it('lists the people with role, branch and a plain-language status', () => {
     setup();
@@ -90,8 +145,61 @@ describe('UsersScreen', () => {
     expect(rowOf(/Ana Sic/)).toHaveTextContent('Activo');
     expect(rowOf(/José Pérez/)).toHaveTextContent('Invitación enviada');
     expect(rowOf(/Luis Ramírez/)).toHaveTextContent('Inactivo');
-    expect(screen.getByText('Mostrando 3 de 3 usuarios')).toBeInTheDocument();
+    expect(screen.getByText('Mostrando 1–3 de 45')).toBeInTheDocument();
     expect(screen.getByText('Las cuentas no se borran: se desactivan.')).toBeInTheDocument();
+  });
+
+  it('shows the 20 people the server sent and says how many pages there are', () => {
+    setup({ items: manyUsers(20) });
+
+    expect(
+      screen.getByRole('table', { name: 'Usuarios' }).querySelectorAll('tbody tr'),
+    ).toHaveLength(20);
+    expect(screen.getByText('Página 1 de 3')).toBeInTheDocument();
+    expect(screen.getByText('Mostrando 1–20 de 45')).toBeInTheDocument();
+  });
+
+  it('asks for the page, size and filters that the address carries', () => {
+    setup({ address: 'pagina=2&mostrar=50&estado=pendientes&rol=chofer&buscar=Jos%C3%A9' });
+
+    expect(useUsersPage).toHaveBeenCalledWith({
+      page: 2,
+      pageSize: 50,
+      status: 'PENDING',
+      role: 'DRIVER',
+      q: 'José',
+    });
+    expect(screen.getByRole('textbox', { name: 'Buscar usuario' })).toHaveValue('José');
+  });
+
+  it('limits the search to what the API accepts', () => {
+    setup({ address: `buscar=${'x'.repeat(81)}` });
+
+    expect(screen.getByRole('textbox', { name: 'Buscar usuario' })).toHaveAttribute(
+      'maxlength',
+      '80',
+    );
+    expect(screen.getByRole('textbox', { name: 'Buscar usuario' })).toHaveValue('');
+  });
+
+  it('moves to another page by writing it in the address', async () => {
+    setup({ address: 'pagina=2' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
+
+    expect(lastAddress().params.get('pagina')).toBe('3');
+  });
+
+  it('dims the table while the next page arrives', () => {
+    setup({ refreshing: true });
+
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
+  });
+
+  it('sends the person back to the last page when the one they asked for is empty', () => {
+    setup({ items: [], page: { page: 9 }, address: 'pagina=9' });
+
+    expect(lastAddress().params.get('pagina')).toBe('3');
   });
 
   it('has a single primary button to invite', async () => {
@@ -122,25 +230,47 @@ describe('UsersScreen', () => {
     }
   });
 
-  it('filters by status tab and by search', async () => {
+  it('takes the number on each tab from the whole filter, not from the page', () => {
     setup();
 
-    await userEvent.click(screen.getByRole('tab', { name: /Invitación enviada/ }));
-    expect(screen.queryByRole('row', { name: /Ana Sic/ })).not.toBeInTheDocument();
-    expect(rowOf(/José Pérez/)).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('tab', { name: /Todos/ }));
-    await userEvent.type(screen.getByRole('textbox', { name: 'Buscar usuario' }), 'jose');
-    expect(screen.queryByRole('row', { name: /Ana Sic/ })).not.toBeInTheDocument();
-    expect(screen.getByText('Mostrando 1 de 3 usuarios')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Todos/ })).toHaveTextContent('45');
+    expect(screen.getByRole('tab', { name: /Activos/ })).toHaveTextContent('30');
+    expect(screen.getByRole('tab', { name: /Invitación enviada/ })).toHaveTextContent('12');
+    expect(screen.getByRole('tab', { name: /Inactivos/ })).toHaveTextContent('3');
   });
 
-  it('says so when no one matches', async () => {
+  it('filters by status tab and goes back to the first page', async () => {
+    setup({ address: 'pagina=2' });
+
+    await userEvent.click(screen.getByRole('tab', { name: /Invitación enviada/ }));
+
+    const { path, params } = lastAddress();
+    expect(path).toBe('/admin/usuarios');
+    expect(params.get('estado')).toBe('pendientes');
+    expect(params.has('pagina')).toBe(false);
+  });
+
+  it('marks the tab that the address names', () => {
+    setup({ address: 'estado=inactivos' });
+
+    expect(screen.getByRole('tab', { name: /Inactivos/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('searches 300 ms after the last key, not on every key', async () => {
     setup();
 
-    await userEvent.type(screen.getByRole('textbox', { name: 'Buscar usuario' }), 'zzz');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Buscar usuario' }), 'jose');
+    expect(replace).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(lastAddress().params.get('buscar')).toBe('jose'));
+    expect(replace).toHaveBeenCalledTimes(1);
+  });
+
+  it('says so when no one matches', () => {
+    setup({ items: [], page: { total: 0 }, address: 'buscar=zzz' });
 
     expect(screen.getByText('No hay usuarios con esos filtros.')).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Paginación' })).not.toBeInTheDocument();
   });
 
   it('filters by role', async () => {
@@ -148,8 +278,23 @@ describe('UsersScreen', () => {
     await userEvent.click(screen.getByRole('combobox', { name: 'Rol' }));
     await userEvent.click(await screen.findByRole('option', { name: 'Chofer' }));
 
-    expect(screen.queryByRole('row', { name: /Ana Sic/ })).not.toBeInTheDocument();
-    expect(rowOf(/José Pérez/)).toBeInTheDocument();
+    expect(lastAddress().params.get('rol')).toBe('chofer');
+  });
+
+  it('clears the role filter', async () => {
+    setup({ address: 'rol=chofer' });
+    await userEvent.click(screen.getByRole('combobox', { name: 'Rol' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Todos los roles' }));
+
+    expect(lastAddress().params.has('rol')).toBe(false);
+  });
+
+  it('filters by branch, offering every branch', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('combobox', { name: 'Sucursal' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Cobán' }));
+
+    expect(lastAddress().params.get('sucursal')).toBe(closedBranchId);
   });
 
   it('resends the invitation only to pending accounts', async () => {

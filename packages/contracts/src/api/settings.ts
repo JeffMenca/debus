@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isoDateSchema } from '../dates';
+import { pageQuerySchema, pageWithSummarySchema, type PageQuery } from './pagination';
 
 const hasAtMostTwoDecimals = (value: number): boolean =>
   Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
@@ -24,11 +25,19 @@ export const settingsVersionSchema = createSettingsRequestSchema.extend({
 });
 export type SettingsVersion = z.infer<typeof settingsVersionSchema>;
 
-export const settingsOverviewSchema = z.object({
+export const settingsListQuerySchema = pageQuerySchema;
+export type SettingsListQuery = PageQuery;
+
+export const settingsSummarySchema = z.object({
   current: settingsVersionSchema.nullable(),
-  versions: z.array(settingsVersionSchema),
+  upcoming: settingsVersionSchema.nullable(),
 });
-export type SettingsOverview = z.infer<typeof settingsOverviewSchema>;
+export type SettingsSummary = z.infer<typeof settingsSummarySchema>;
+export const settingsPageSchema = pageWithSummarySchema(
+  settingsVersionSchema,
+  settingsSummarySchema,
+);
+export type SettingsPage = z.infer<typeof settingsPageSchema>;
 
 export interface DatedVersion {
   effectiveFrom: string;

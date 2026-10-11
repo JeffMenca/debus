@@ -1,76 +1,49 @@
 #!/usr/bin/env node
-// Removes what tests leave in the local databases: accounts under the test email domain, test
-// branches, their emails, and idempotency and outbox rows older than an hour. psql runs inside the
-// docker compose Postgres, so this can only ever touch the local stack.
-// Usage: node scripts/clean-test-data.mjs
-import { execFileSync } from 'node:child_process';
+// Removes what tests leave in the local databases: accounts under the test email domain, the
+// settings versions they wrote (and orphaned ones, whose author was already removed), their emails,
+// the test branches that no other account belongs to, and the copies of settings versions that no
+// longer exist in administracion. Event bookkeeping is not test data: see prune-local-events.mjs.
+// psql runs inside the docker compose Postgres, so this can only ever touch the local stack.
+// The SQL lives in @debus/config/test-data-sql, where integration tests run it too.
+// Usage: node scripts/clean-test-data.mjs [--run <id>]
+//   --run limits the cleanup to what one test run created (the TEST_RUN of @debus/config/test-data).
 import { createRequire } from 'node:module';
+import { localDatabases } from './lib/local-databases.mjs';
 
-const { TEST_EMAIL_DOMAIN, TEST_BRANCH_PREFIX } = createRequire(import.meta.url)(
-  '../packages/config/test-data.cjs',
+const { cleanupStatements, keptBranchesQuery } = createRequire(import.meta.url)(
+  '../packages/config/test-data-sql.cjs',
 );
-const user = process.env.POSTGRES_USER ?? 'debus';
-const testEmails = `'%@${TEST_EMAIL_DOMAIN}'`;
-const testBranches = `'${TEST_BRANCH_PREFIX}%'`;
-const testUsers = `SELECT id FROM users WHERE email LIKE ${testEmails}`;
 
-// Every database runs every statement whose table exists, so new services are covered as they grow.
-const STATEMENTS = [
-  ['refresh_tokens', `DELETE FROM refresh_tokens WHERE user_id IN (${testUsers})`],
-  ['account_links', `DELETE FROM account_links WHERE user_id IN (${testUsers})`],
-  ['users', `DELETE FROM users WHERE email LIKE ${testEmails}`],
-  ['sent_emails', `DELETE FROM sent_emails WHERE recipient LIKE ${testEmails}`],
-  ['branches', `DELETE FROM branches WHERE name LIKE ${testBranches}`],
-  [
-    'processed_events',
-    `DELETE FROM processed_events WHERE processed_at < now() - interval '1 hour'`,
-  ],
-  ['outbox', `DELETE FROM outbox WHERE published_at < now() - interval '1 hour'`],
-];
-
-const guarded = STATEMENTS.map(
-  ([table, sql]) =>
-    `DO $$ BEGIN IF to_regclass('public.${table}') IS NOT NULL THEN ${sql}; END IF; END $$;`,
-).join('\n');
-
-const PSQL = [
-  'compose',
-  'exec',
-  '-T',
-  'postgres',
-  'psql',
-  '-U',
-  user,
-  '-qAt',
-  '-v',
-  'ON_ERROR_STOP=1',
-];
-const psql = (database, sql) =>
-  execFileSync('docker', [...PSQL, '-d', database, '-c', sql], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-
-let running = '';
-try {
-  running = execFileSync('docker', ['compose', 'ps', '-q', 'postgres'], {
-    encoding: 'utf8',
-  }).trim();
-} catch {
-  // Docker is not available (CI uses throwaway databases).
-}
-if (!running) {
-  console.log('Local Postgres is not running; nothing to clean.');
-  process.exit(0);
+const args = process.argv.slice(2);
+const runFlag = args.indexOf('--run');
+const run = runFlag === -1 ? null : (args[runFlag + 1] ?? '');
+if (run !== null && !/^[0-9a-f]{8}$/.test(run)) {
+  console.error('--run expects the 8 hex characters of a TEST_RUN.');
+  process.exit(1);
 }
 
-const databases = psql(
-  'postgres',
-  "SELECT datname FROM pg_database WHERE NOT datistemplate AND datname <> 'postgres'",
-)
-  .split('\n')
-  .filter(Boolean);
+const SOURCE_OF_SETTINGS = 'administracion';
+const lines = (output) => output.split('\n').filter(Boolean);
+
+function clean({ name, run: sql }, settingsVersionIds) {
+  sql(cleanupStatements({ run, settingsVersionIds }).join('\n'));
+  console.log(`test data removed from ${name}`);
+  if (sql("SELECT to_regclass('public.branches') IS NOT NULL").trim() !== 't') return;
+  for (const branch of lines(sql(keptBranchesQuery(run)))) {
+    console.warn(
+      `kept branch "${branch}" in ${name}: accounts that are not test data belong to it`,
+    );
+  }
+}
+
+const databases = localDatabases() ?? [];
+// The source goes first: the copies elsewhere keep only the versions it still has afterwards.
+const source = databases.find(({ name }) => name === SOURCE_OF_SETTINGS);
+let settingsVersionIds = null;
+if (source) {
+  clean(source, null);
+  settingsVersionIds = lines(source.run('SELECT id FROM settings_versions ORDER BY id'));
+}
 for (const database of databases) {
-  psql(database, guarded);
-  console.log(`test data removed from ${database}`);
+  if (database !== source) clean(database, settingsVersionIds);
 }

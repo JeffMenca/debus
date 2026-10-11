@@ -4,9 +4,9 @@ import { act } from 'react';
 import { clearSession, setSession } from '@/lib/auth/session-store';
 import AdminPage from './page';
 
-jest.mock('../../hooks/use-branches', () => ({ useBranches: () => ({ data: undefined }) }));
-jest.mock('../../hooks/use-users', () => ({ useUsers: () => ({ data: undefined }) }));
-jest.mock('../../hooks/use-settings', () => ({ useSettings: () => ({ data: undefined }) }));
+jest.mock('../../hooks/use-branches', () => ({ useBranchCounts: () => ({ data: undefined }) }));
+jest.mock('../../hooks/use-users', () => ({ useUserCounts: () => ({ data: undefined }) }));
+jest.mock('../../hooks/use-settings', () => ({ useSettingsSummary: () => ({ data: undefined }) }));
 
 afterEach(() => act(() => clearSession()));
 

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { USER_STATUSES, emailSchema, fullNameSchema, phoneSchema } from './auth';
+import { pageQuerySchema, pageWithSummarySchema } from './pagination';
+import { searchTermSchema } from '../text';
 
 export const GUATEMALA_DEPARTMENTS = [
   'Alta Verapaz',
@@ -99,3 +101,29 @@ export const branchWithAdminsSchema = branchSchema.extend({
   admins: z.array(branchAdminSchema),
 });
 export type BranchWithAdmins = z.infer<typeof branchWithAdminsSchema>;
+
+export const BRANCH_LIST_STATUSES = ['active', 'inactive', 'all'] as const;
+export type BranchListStatus = (typeof BRANCH_LIST_STATUSES)[number];
+
+export const branchListQuerySchema = z
+  .object({
+    status: z.enum(BRANCH_LIST_STATUSES).default('active'),
+    q: searchTermSchema.optional(),
+  })
+  .extend(pageQuerySchema.shape);
+export type BranchListQuery = z.infer<typeof branchListQuerySchema>;
+
+export const branchStatusCountsSchema = z.object({
+  active: z.number().int().nonnegative(),
+  inactive: z.number().int().nonnegative(),
+});
+export type BranchStatusCounts = z.infer<typeof branchStatusCountsSchema>;
+
+const branchSummarySchema = z.object({ statusCounts: branchStatusCountsSchema });
+export const branchPageSchema = pageWithSummarySchema(branchSchema, branchSummarySchema);
+export type BranchPage = z.infer<typeof branchPageSchema>;
+export const branchWithAdminsPageSchema = pageWithSummarySchema(
+  branchWithAdminsSchema,
+  branchSummarySchema,
+);
+export type BranchWithAdminsPage = z.infer<typeof branchWithAdminsPageSchema>;

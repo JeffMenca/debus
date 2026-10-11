@@ -1,36 +1,38 @@
 'use client';
 
-import type { BranchWithAdmins } from '@debus/contracts';
+import { type BranchListStatus, type BranchWithAdmins, SEARCH_MAX_LENGTH } from '@debus/contracts';
 import { Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
-import { DataTable } from '@/components/data/data-table';
+import { DataTable, tablePagination } from '@/components/data/data-table';
 import { StatusTabs } from '@/components/data/status-tabs';
 import { ActiveToggleDialog } from '@/components/forms/active-toggle-dialog';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useBranches, useSetBranchActive } from '@/hooks/use-branches';
-import { type BranchTab, countBranchesByTab, filterBranches } from '@/lib/admin/branch-filters';
+import { useBranchesPage, useSetBranchActive } from '@/hooks/use-branches';
+import { usePageInRange } from '@/hooks/use-page-in-range';
+import { useUrlQuery } from '@/hooks/use-url-query';
+import { useUrlSearch } from '@/hooks/use-url-search';
+import { readBranchListParams, writeBranchListParams } from '@/lib/admin/branch-list-params';
 import { useBranchColumns } from './branch-columns';
-
-const EMPTY: BranchWithAdmins[] = [];
 
 export function BranchesScreen() {
   const router = useRouter();
-  const branches = useBranches({ includeInactive: true });
+  const [query, update] = useUrlQuery(readBranchListParams, writeBranchListParams);
+  const branches = useBranchesPage(query);
   const setActive = useSetBranchActive();
-  const [tab, setTab] = useState<BranchTab>('active');
-  const [search, setSearch] = useState('');
   const [toggling, setToggling] = useState<{ branch: BranchWithAdmins; active: boolean } | null>(
     null,
   );
 
-  const all = branches.data ?? EMPTY;
-  const visible = useMemo(() => filterBranches(all, tab, search), [all, tab, search]);
-  const counts = countBranchesByTab(all);
+  const [search, setSearch] = useUrlSearch(query.q, update);
+  usePageInRange(branches.data, update);
+
+  const counts = branches.data?.summary.statusCounts;
+  const narrowed = Boolean(query.q) || query.status !== 'active';
 
   const columns = useBranchColumns({
     onEdit: useCallback(
@@ -61,18 +63,19 @@ export function BranchesScreen() {
       <div className="flex flex-wrap items-center gap-3">
         <StatusTabs
           label="Estado de las sucursales"
-          value={tab}
-          onChange={setTab}
+          value={query.status}
+          onChange={(status: BranchListStatus) => update({ status })}
           options={[
-            { value: 'active', label: 'Activas', count: counts.active },
-            { value: 'inactive', label: 'Inactivas', count: counts.inactive },
-            { value: 'all', label: 'Todas', count: counts.all },
+            { value: 'active', label: 'Activas', count: counts?.active },
+            { value: 'inactive', label: 'Inactivas', count: counts?.inactive },
+            { value: 'all', label: 'Todas', count: counts && counts.active + counts.inactive },
           ]}
         />
         <div className="w-full flex-[0_1_320px]">
           <Input
             icon={Search}
             aria-label="Buscar sucursal"
+            maxLength={SEARCH_MAX_LENGTH}
             placeholder="Buscar nombre, código o lugar"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -84,13 +87,18 @@ export function BranchesScreen() {
       <DataTable
         caption="Sucursales"
         columns={columns}
-        data={visible}
+        data={branches.data?.items ?? []}
         getRowId={(branch) => branch.id}
         isLoading={branches.isPending}
+        isRefreshing={branches.isPlaceholderData}
         error={branches.isError ? 'No pudimos cargar las sucursales.' : null}
         onRetry={() => void branches.refetch()}
-        emptyMessage="Aún no hay sucursales. Crea la primera con «Nueva sucursal»."
-        summary={`Mostrando ${visible.length} de ${all.length} sucursales`}
+        emptyMessage={
+          narrowed
+            ? 'No hay sucursales con esos filtros.'
+            : 'Aún no hay sucursales. Crea la primera con «Nueva sucursal».'
+        }
+        pagination={tablePagination(query, branches.data?.total, update)}
         minWidth={900}
       />
 

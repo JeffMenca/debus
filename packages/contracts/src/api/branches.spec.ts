@@ -1,7 +1,9 @@
 import {
   GUATEMALA_DEPARTMENTS,
   branchCodeSchema,
+  branchListQuerySchema,
   branchSchema,
+  branchStatusCountsSchema,
   branchWithAdminsSchema,
   createBranchRequestSchema,
   isInsideGuatemala,
@@ -88,5 +90,23 @@ describe('branch views', () => {
   it('adds the administrators for system admins and requires them there', () => {
     expect(branchWithAdminsSchema.parse({ ...view, admins }).admins).toHaveLength(1);
     expect(branchWithAdminsSchema.safeParse(view).success).toBe(false);
+  });
+});
+
+describe('branch list', () => {
+  it('shows active branches by default and pages them', () => {
+    expect(branchListQuerySchema.parse({})).toEqual({ status: 'active', page: 1, pageSize: 20 });
+    expect(branchListQuerySchema.parse({ status: 'all', q: 'Petén' })).toMatchObject({
+      status: 'all',
+      q: 'peten',
+    });
+    expect(branchListQuerySchema.safeParse({ status: 'closed' }).success).toBe(false);
+  });
+
+  it('counts active and inactive branches in the summary', () => {
+    expect(branchStatusCountsSchema.parse({ active: 3, inactive: 1 })).toEqual({
+      active: 3,
+      inactive: 1,
+    });
   });
 });

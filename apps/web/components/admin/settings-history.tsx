@@ -3,7 +3,7 @@
 import { type SettingsVersion, todayInGuatemala } from '@debus/contracts';
 import { useMemo } from 'react';
 import { StatusDot, type StatusTone } from '@/components/brand/status-dot';
-import { DataTable, columnHelperFor } from '@/components/data/data-table';
+import { DataTable, type DataTablePagination, columnHelperFor } from '@/components/data/data-table';
 import { type VersionStatus, versionStatus } from '@/lib/admin/settings-status';
 import { formatDateTime, formatLongDate, formatQuetzales } from '@/lib/format';
 
@@ -21,9 +21,22 @@ const amount = (value: number) => (
 interface SettingsHistoryProps {
   versions: SettingsVersion[];
   current: SettingsVersion | null;
+  pagination: DataTablePagination;
+  isLoading: boolean;
+  isRefreshing: boolean;
+  error: string | null;
+  onRetry: () => void;
 }
 
-export function SettingsHistory({ versions, current }: SettingsHistoryProps) {
+export function SettingsHistory({
+  versions,
+  current,
+  pagination,
+  isLoading,
+  isRefreshing,
+  error,
+  onRetry,
+}: SettingsHistoryProps) {
   const columns = useMemo(() => {
     const today = todayInGuatemala();
     return helper.columns([
@@ -64,6 +77,11 @@ export function SettingsHistory({ versions, current }: SettingsHistoryProps) {
       columns={columns}
       data={versions}
       getRowId={(version) => version.id}
+      isLoading={isLoading}
+      isRefreshing={isRefreshing}
+      error={error}
+      onRetry={onRetry}
+      pagination={pagination}
       emptyMessage="Todavía no hay cambios registrados."
       minWidth={860}
     />

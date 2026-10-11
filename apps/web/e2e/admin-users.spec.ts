@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockAdminGateway, sampleBranch, sampleUser } from './support/admin-gateway';
+import { manyUsers, mockAdminGateway, sampleBranch, sampleUser } from './support/admin-gateway';
 import { expectNoHorizontalScroll, openMenuOnPhone, signInAs } from './support/session';
 
 const seed = {
@@ -122,5 +122,140 @@ test.describe('admin users', () => {
 
     await expect(page.getByRole('table', { name: 'Usuarios' })).toBeVisible();
     await expectNoHorizontalScroll(page);
+  });
+
+  test.describe('pagination', () => {
+    test('pages 45 people, keeps the page in the address and returns to page 1 when filtering', async ({
+      page,
+      baseURL,
+    }) => {
+      await mockAdminGateway(page, { branches: [sampleBranch()], users: manyUsers(45) });
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+      await page.goto('/admin/usuarios');
+
+      const table = page.getByRole('table', { name: 'Usuarios' });
+      await expect(table.locator('tbody tr')).toHaveCount(20);
+      await expect(page.getByText('Página 1 de 3')).toBeVisible();
+      await expect(page.getByText('Mostrando 1–20 de 45')).toBeVisible();
+
+      const next = page.getByRole('button', { name: 'Página siguiente' });
+      await next.scrollIntoViewIfNeeded();
+      await next.click();
+      await expect(page).toHaveURL(/pagina=2/);
+      await expect(page.getByText('Mostrando 21–40 de 45')).toBeVisible();
+      await page.reload();
+      await expect(page.getByText('Página 2 de 3')).toBeVisible();
+
+      await page.getByRole('button', { name: 'Última página' }).click();
+      await expect(page.getByText('Página 3 de 3')).toBeVisible();
+      await expect(table.locator('tbody tr')).toHaveCount(5);
+      await expect(page.getByRole('button', { name: 'Página siguiente' })).toBeDisabled();
+
+      await page.getByRole('tab', { name: /Invitación enviada/ }).click();
+      await expect(page).not.toHaveURL(/pagina=/);
+      await expect(page).toHaveURL(/estado=pendientes/);
+      await expectNoHorizontalScroll(page);
+    });
+
+    test('keeps the controls reachable and 44 px tall, with the table scrolling inside its card', async ({
+      page,
+      baseURL,
+    }) => {
+      await mockAdminGateway(page, { branches: [sampleBranch()], users: manyUsers(45) });
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+      await page.goto('/admin/usuarios');
+
+      const bar = page.getByRole('navigation', { name: 'Paginación' });
+      await bar.scrollIntoViewIfNeeded();
+      for (const name of [
+        'Primera página',
+        'Página anterior',
+        'Página siguiente',
+        'Última página',
+      ]) {
+        const box = await bar.getByRole('button', { name }).boundingBox();
+        expect(box?.width).toBeGreaterThanOrEqual(44);
+        expect(box?.height).toBeGreaterThanOrEqual(44);
+        await expect(bar.getByRole('button', { name })).toBeInViewport();
+      }
+      await expectNoHorizontalScroll(page);
+    });
+
+    test('changes how many rows to show from the first page', async ({
+      page,
+      baseURL,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== 'desktop', 'the size selector hides below sm');
+      await mockAdminGateway(page, { branches: [sampleBranch()], users: manyUsers(45) });
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+      await page.goto('/admin/usuarios?pagina=2');
+
+      await page.getByRole('combobox', { name: 'Filas por página' }).click();
+      await page.getByRole('option', { name: '50' }).click();
+
+      await expect(page).toHaveURL(/mostrar=50/);
+      await expect(page).not.toHaveURL(/pagina=/);
+      await expect(page.getByText('Mostrando 1–45 de 45')).toBeVisible();
+      await expect(page.getByText('Página 1 de 1')).toBeVisible();
+    });
+
+    test('finds a person without minding accents', async ({ page, baseURL }) => {
+      await mockAdminGateway(page, {
+        users: [...manyUsers(30), sampleUser({ fullName: 'José Pérez', email: 'jose@correo.com' })],
+      });
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+      await page.goto('/admin/usuarios');
+
+      await page.getByRole('textbox', { name: 'Buscar usuario' }).fill('jose perez');
+
+      await expect(page).toHaveURL(/buscar=jose/);
+      await expect(page.getByRole('table', { name: 'Usuarios' }).locator('tbody tr')).toHaveCount(
+        1,
+      );
+      await expect(page.getByRole('row', { name: /José Pérez/ })).toBeVisible();
+    });
+
+    test('says so, in view, when the search finds nobody', async ({ page, baseURL }) => {
+      await mockAdminGateway(page, { users: manyUsers(5) });
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+
+      await page.goto('/admin/usuarios?buscar=nadie-se-llama-asi');
+
+      const message = page.getByText('No hay usuarios con esos filtros.');
+      await expect(message).toBeInViewport();
+      const { width } = page.viewportSize()!;
+      const box = (await message.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    });
+
+    test('goes back to the last page when the one in the address is past the end', async ({
+      page,
+      baseURL,
+    }) => {
+      await mockAdminGateway(page, { users: manyUsers(45) });
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+      await page.goto('/admin/usuarios?pagina=99');
+
+      await expect(page).toHaveURL(/pagina=3/);
+      await expect(page.getByText('Página 3 de 3')).toBeVisible();
+    });
+
+    test('keeps the tab numbers of the whole list while moving between pages', async ({
+      page,
+      baseURL,
+    }) => {
+      await mockAdminGateway(page, {
+        users: [...manyUsers(30), ...manyUsers(15, { status: 'PENDING' })],
+      });
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+      await page.goto('/admin/usuarios');
+
+      await expect(page.getByRole('tab', { name: /Todos/ })).toContainText('45');
+      await expect(page.getByRole('tab', { name: /Invitación enviada/ })).toContainText('15');
+      await page.getByRole('button', { name: 'Página siguiente' }).click();
+      await expect(page.getByText('Página 2 de 3')).toBeVisible();
+      await expect(page.getByRole('tab', { name: /Activos/ })).toContainText('30');
+    });
   });
 });

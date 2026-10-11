@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { queryWrapper } from '../test-support/query-wrapper';
-import { useCreateSettings, useSettings } from './use-settings';
+import { useCreateSettings, useSettingsPage, useSettingsSummary } from './use-settings';
 
 const version = {
   id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
@@ -12,16 +12,32 @@ const version = {
 };
 const API = 'http://localhost:4000/api/administracion/settings';
 
+const page = {
+  items: [version],
+  total: 25,
+  page: 2,
+  pageSize: 20,
+  summary: { current: version, upcoming: null },
+};
+
 afterEach(() => jest.restoreAllMocks());
 
-it('loads the current settings and their history', async () => {
-  const overview = { current: version, versions: [version] };
-  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(overview));
+it('loads one page of the history', async () => {
+  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(page));
   const { wrapper } = queryWrapper();
-  const { result } = renderHook(() => useSettings(), { wrapper });
+  const { result } = renderHook(() => useSettingsPage({ page: 2, pageSize: 20 }), { wrapper });
 
-  await waitFor(() => expect(result.current.data).toEqual(overview));
-  expect(fetchMock).toHaveBeenCalledWith(API, expect.anything());
+  await waitFor(() => expect(result.current.data).toEqual(page));
+  expect(fetchMock).toHaveBeenCalledWith(`${API}?page=2&pageSize=20`, expect.anything());
+});
+
+it('reads the current and upcoming versions with a single row', async () => {
+  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(page));
+  const { wrapper } = queryWrapper();
+  const { result } = renderHook(() => useSettingsSummary(), { wrapper });
+
+  await waitFor(() => expect(result.current.data).toEqual(page.summary));
+  expect(fetchMock).toHaveBeenCalledWith(`${API}?page=1&pageSize=1`, expect.anything());
 });
 
 it('schedules a version and refreshes the settings', async () => {

@@ -1,8 +1,13 @@
-import type {
-  Branch,
-  BranchWithAdmins,
-  CreateBranchRequest,
-  UpdateBranchRequest,
+import {
+  type Branch,
+  type BranchListQuery,
+  type BranchPage,
+  type BranchWithAdmins,
+  type BranchWithAdminsPage,
+  type CreateBranchRequest,
+  type UpdateBranchRequest,
+  pageArgs,
+  toPage,
 } from '@debus/contracts';
 import {
   ConflictException,
@@ -20,6 +25,10 @@ import type { Identity } from '../identity/identity';
 import { PrismaService } from '../prisma/prisma.service';
 import { WITH_ADMINS, toBranch, toBranchPayload, toBranchWithAdmins } from './branch-mappers';
 import { canViewBranch } from './branch-rules';
+import { branchCountWhere, branchListWhere, toBranchStatusCounts } from './branch-scope';
+
+// The id breaks ties, so a branch never shows up on two pages or on none.
+const BY_NAME: Prisma.BranchOrderByWithRelationInput[] = [{ name: 'asc' }, { id: 'asc' }];
 
 @Injectable()
 export class BranchesService {
@@ -30,16 +39,36 @@ export class BranchesService {
   ) {}
 
   // Admins are staff personal data: only a system admin receives them, in lists and in details.
-  async list(actor: Identity, includeInactive: boolean): Promise<Branch[]> {
-    const showInactive = includeInactive && actor.role === 'SYSTEM_ADMIN';
-    const where = showInactive ? {} : { active: true };
-    const orderBy = { name: 'asc' } as const;
+  async list(actor: Identity, query: BranchListQuery): Promise<BranchPage | BranchWithAdminsPage> {
+    const where = branchListWhere(actor, query);
+    const paging = { where, orderBy: BY_NAME, ...pageArgs(query) };
+    const totals = [
+      this.prisma.branch.count({ where }),
+      this.prisma.branch.groupBy({
+        by: ['active'],
+        where: branchCountWhere(actor, query),
+        orderBy: { active: 'asc' },
+        _count: { _all: true },
+      }),
+    ] as const;
     if (actor.role !== 'SYSTEM_ADMIN') {
-      const rows = await this.prisma.branch.findMany({ where, orderBy });
-      return rows.map(toBranch);
+      const [rows, total, byActive] = await this.prisma.$transaction([
+        this.prisma.branch.findMany(paging),
+        ...totals,
+      ]);
+      return {
+        ...toPage(rows.map(toBranch), total, query),
+        summary: { statusCounts: toBranchStatusCounts(byActive) },
+      };
     }
-    const rows = await this.prisma.branch.findMany({ where, include: WITH_ADMINS, orderBy });
-    return rows.map(toBranchWithAdmins);
+    const [rows, total, byActive] = await this.prisma.$transaction([
+      this.prisma.branch.findMany({ ...paging, include: WITH_ADMINS }),
+      ...totals,
+    ]);
+    return {
+      ...toPage(rows.map(toBranchWithAdmins), total, query),
+      summary: { statusCounts: toBranchStatusCounts(byActive) },
+    };
   }
 
   async get(actor: Identity, id: string): Promise<Branch> {

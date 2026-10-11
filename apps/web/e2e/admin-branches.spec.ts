@@ -1,6 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import {
   SAMPLE_BRANCH_ID,
+  manyBranches,
   mockAdminGateway,
   sampleBranch,
   sampleUser,
@@ -277,5 +279,60 @@ test.describe('admin branches', () => {
     await expect(page.getByText('No encontramos esa sucursal.')).toBeVisible();
     await page.getByRole('link', { name: 'Volver a sucursales' }).click();
     await expect(page).toHaveURL(/\/admin\/sucursales$/);
+  });
+
+  test.describe('pagination', () => {
+    test('pages 25 branches and keeps the tab, search and page in the address', async ({
+      page,
+      baseURL,
+    }) => {
+      await mockAdminGateway(page, {
+        branches: [
+          ...manyBranches(25),
+          sampleBranch({ id: randomUUID(), name: 'Zacapa', code: 'ZAC', active: false }),
+        ],
+      });
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+      await page.goto('/admin/sucursales');
+
+      const table = page.getByRole('table', { name: 'Sucursales' });
+      await expect(table.locator('tbody tr')).toHaveCount(20);
+      await expect(page.getByRole('tab', { name: /Activas/ })).toContainText('25');
+      await expect(page.getByRole('tab', { name: /Inactivas/ })).toContainText('1');
+      await expect(page.getByRole('tab', { name: /Todas/ })).toContainText('26');
+
+      await page.getByRole('tab', { name: /Todas/ }).click();
+      await expect(page).toHaveURL(/estado=todas/);
+      await page.getByRole('button', { name: 'Página siguiente' }).click();
+      await expect(page).toHaveURL(/pagina=2/);
+      await expect(table.locator('tbody tr')).toHaveCount(6);
+      await page.reload();
+
+      await expect(page).toHaveURL(/estado=todas&pagina=2/);
+      await expect(page.getByText('Página 2 de 2')).toBeVisible();
+      await expect(page.getByRole('tab', { name: /Todas/ })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      await expectNoHorizontalScroll(page);
+    });
+
+    test('searches in the server, without accents, from the first page', async ({
+      page,
+      baseURL,
+    }) => {
+      await mockAdminGateway(page, { branches: [...manyBranches(25), ...seed.branches] });
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+      await page.goto('/admin/sucursales?pagina=2');
+
+      await page.getByRole('textbox', { name: 'Buscar sucursal' }).fill('peten');
+
+      await expect(page).toHaveURL(/buscar=peten/);
+      await expect(page).not.toHaveURL(/pagina=/);
+      await expect(page.getByRole('row', { name: /Flores/ })).toBeVisible();
+      await expect(page.getByRole('table', { name: 'Sucursales' }).locator('tbody tr')).toHaveCount(
+        1,
+      );
+    });
   });
 });

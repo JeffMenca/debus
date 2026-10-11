@@ -19,6 +19,7 @@
     "test:integration": "sh -c 'turbo run test:integration \"$@\"; s=$?; node scripts/clean-test-data.mjs; exit $s' --",
     "test:e2e": "sh -c 'turbo run test:e2e \"$@\"; s=$?; node scripts/clean-test-data.mjs; exit $s' --",
     "test:clean": "node scripts/clean-test-data.mjs",
+    "db:prune": "node scripts/prune-local-events.mjs",
     "new-service": "node scripts/new-service.mjs",
     "dev": "turbo run dev",
     "pubsub:provision": "turbo run build --filter=@debus/messaging && node scripts/provision-pubsub.mjs"

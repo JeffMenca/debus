@@ -1,4 +1,5 @@
 import { TEST_BRANCH_PREFIX, TEST_RUN } from '@debus/config/test-data';
+import type { GuatemalaDepartment } from '@debus/contracts';
 import type { PrismaService } from '../../src/prisma/prisma.service';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -20,6 +21,11 @@ export const branchFields = () => ({
   longitude: -91.5181,
 });
 
-export function createTestBranch(prisma: PrismaService, overrides: { active?: boolean } = {}) {
-  return prisma.branch.create({ data: { ...branchFields(), active: overrides.active ?? true } });
+type BranchOverrides = Partial<Omit<ReturnType<typeof branchFields>, 'department'>> & {
+  department?: GuatemalaDepartment;
+  active?: boolean;
+};
+
+export function createTestBranch(prisma: PrismaService, overrides: BranchOverrides = {}) {
+  return prisma.branch.create({ data: { ...branchFields(), active: true, ...overrides } });
 }

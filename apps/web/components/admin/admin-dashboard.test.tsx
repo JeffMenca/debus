@@ -1,17 +1,15 @@
 import { render, screen } from '@testing-library/react';
 import { act } from 'react';
 import { clearSession, setSession } from '@/lib/auth/session-store';
-import { useBranches } from '../../hooks/use-branches';
-import { useSettings } from '../../hooks/use-settings';
-import { useUsers } from '../../hooks/use-users';
+import { useBranchCounts } from '../../hooks/use-branches';
+import { useSettingsSummary } from '../../hooks/use-settings';
+import { useUserCounts } from '../../hooks/use-users';
 import { AdminDashboard } from './admin-dashboard';
 
 jest.mock('../../hooks/use-branches');
 jest.mock('../../hooks/use-users');
 jest.mock('../../hooks/use-settings');
 
-const branch = (id: string, active: boolean) => ({ id, active });
-const user = (id: string, role: string, status: string) => ({ id, role, status });
 const version = {
   id: 'v',
   depreciationPerKm: 1.25,
@@ -22,24 +20,14 @@ const version = {
 };
 
 function mockData({
-  settings = { current: version, versions: [version] },
+  summary = { current: version, upcoming: null },
+  branches = { active: 2, inactive: 1 },
+  staff = { ACTIVE: 3, PENDING: 1, INACTIVE: 4 },
   loading = false,
-}: { settings?: unknown; loading?: boolean } = {}) {
-  jest.mocked(useBranches).mockReturnValue({
-    data: loading ? undefined : [branch('a', true), branch('b', true), branch('c', false)],
-  } as never);
-  jest.mocked(useUsers).mockReturnValue({
-    data: loading
-      ? undefined
-      : [
-          user('1', 'CASHIER', 'ACTIVE'),
-          user('2', 'DRIVER', 'ACTIVE'),
-          user('3', 'BRANCH_ADMIN', 'ACTIVE'),
-          user('4', 'CLIENT', 'ACTIVE'),
-          user('5', 'CASHIER', 'PENDING'),
-        ],
-  } as never);
-  jest.mocked(useSettings).mockReturnValue({ data: loading ? undefined : settings } as never);
+}: { summary?: unknown; branches?: unknown; staff?: unknown; loading?: boolean } = {}) {
+  jest.mocked(useBranchCounts).mockReturnValue({ data: loading ? undefined : branches } as never);
+  jest.mocked(useUserCounts).mockReturnValue({ data: loading ? undefined : staff } as never);
+  jest.mocked(useSettingsSummary).mockReturnValue({ data: loading ? undefined : summary } as never);
 }
 
 beforeEach(() => {
@@ -66,6 +54,15 @@ beforeEach(() => {
 afterEach(() => act(() => clearSession()));
 
 describe('AdminDashboard', () => {
+  it('counts with single-row requests that read the summary, never the people', () => {
+    mockData();
+    render(<AdminDashboard />);
+
+    expect(useBranchCounts).toHaveBeenCalledWith();
+    expect(useUserCounts).toHaveBeenCalledWith();
+    expect(useSettingsSummary).toHaveBeenCalledWith();
+  });
+
   it('greets by first name and shows the four counts', () => {
     mockData();
     render(<AdminDashboard />);
@@ -78,11 +75,10 @@ describe('AdminDashboard', () => {
   });
 
   it('keeps the labels in agreement with the counts', () => {
-    mockData();
-    jest.mocked(useBranches).mockReturnValue({ data: [branch('a', true)] } as never);
-    jest.mocked(useUsers).mockReturnValue({
-      data: [user('1', 'CASHIER', 'PENDING'), user('2', 'DRIVER', 'PENDING')],
-    } as never);
+    mockData({
+      branches: { active: 1, inactive: 0 },
+      staff: { ACTIVE: 0, PENDING: 2, INACTIVE: 0 },
+    });
     render(<AdminDashboard />);
 
     expect(screen.getByText('Sucursal activa').previousSibling).toHaveTextContent('1');
@@ -99,7 +95,7 @@ describe('AdminDashboard', () => {
   });
 
   it('warns when the settings are missing and offers the one primary action', () => {
-    mockData({ settings: { current: null, versions: [] } });
+    mockData({ summary: { current: null, upcoming: null } });
     render(<AdminDashboard />);
 
     expect(screen.getByText('Falta la configuración')).toBeInTheDocument();

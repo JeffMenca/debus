@@ -6,9 +6,9 @@ import { KPI_TONE_SURFACES, KpiCard, type KpiTone } from '@/components/data/kpi-
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useBranches } from '@/hooks/use-branches';
-import { useSettings } from '@/hooks/use-settings';
-import { useUsers } from '@/hooks/use-users';
+import { useBranchCounts } from '@/hooks/use-branches';
+import { useSettingsSummary } from '@/hooks/use-settings';
+import { useUserCounts } from '@/hooks/use-users';
 import { useSession } from '@/lib/auth/session-store';
 import { formatQuetzales } from '@/lib/format';
 
@@ -47,16 +47,16 @@ function KpiSkeleton() {
 
 export function AdminDashboard() {
   const session = useSession();
-  const branches = useBranches({ includeInactive: false });
-  const users = useUsers();
-  const settings = useSettings();
+  // Each count is the summary of a one-row page, so the panel never loads the lists themselves.
+  // The user counts are about the staff; clients sign up by themselves and are not invited.
+  const branches = useBranchCounts();
+  const users = useUserCounts();
+  const settings = useSettingsSummary();
   const firstName = session?.user.fullName.split(' ')[0] ?? '';
 
-  // The counts are about the staff; clients sign up by themselves and are not invited.
-  const staff = users.data?.filter((user) => user.role !== 'CLIENT') ?? [];
-  const activeStaff = staff.filter((user) => user.status === 'ACTIVE').length;
-  const pendingStaff = staff.filter((user) => user.status === 'PENDING').length;
-  const activeBranches = branches.data?.filter((branch) => branch.active).length ?? 0;
+  const activeStaff = users.data?.ACTIVE ?? 0;
+  const pendingStaff = users.data?.PENDING ?? 0;
+  const activeBranches = branches.data?.active ?? 0;
   const current = settings.data?.current ?? null;
 
   return (

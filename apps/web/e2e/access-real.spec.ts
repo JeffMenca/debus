@@ -1,5 +1,6 @@
 import { testEmail } from '@debus/config/test-data';
 import { expect, test } from '@playwright/test';
+import { cleanUpTestRun } from './support/clean-up';
 import { isLocalStack } from './support/local-stack';
 import { isReachable, latestLink, mailpitUrl } from './support/mailpit';
 
@@ -10,6 +11,7 @@ test.describe('real access', () => {
     'creates accounts: runs only on the local stack',
   );
   test.setTimeout(180_000);
+  test.afterAll(cleanUpTestRun);
 
   test('sign-up, email, password, sign-in and recovery', async ({ page, baseURL }, testInfo) => {
     const mailpit = mailpitUrl(baseURL);

@@ -4,6 +4,7 @@ import {
   type ManagedUser,
   type UpdateUserRequest,
   type UserListQuery,
+  type UserPage,
   createUserRequestSchema,
   updateUserRequestSchema,
   userListQuerySchema,
@@ -39,7 +40,7 @@ export class UsersController {
   list(
     @CurrentIdentity() actor: Identity,
     @Query(new ZodBody(userListQuerySchema)) query: UserListQuery,
-  ): Promise<ManagedUser[]> {
+  ): Promise<UserPage> {
     return this.users.list(actor, query);
   }
 

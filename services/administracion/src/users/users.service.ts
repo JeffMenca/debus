@@ -3,8 +3,11 @@ import {
   type ManagedUser,
   type UpdateUserRequest,
   type UserListQuery,
+  type UserPage,
   type UserRole,
   isBranchRole,
+  pageArgs,
+  toPage,
 } from '@debus/contracts';
 import {
   BadRequestException,
@@ -24,7 +27,8 @@ import { isUniqueViolation } from '../common/prisma-errors';
 import type { Prisma, User } from '../generated/prisma/client';
 import type { Identity } from '../identity/identity';
 import { PrismaService } from '../prisma/prisma.service';
-import { userListWhere } from './user-scope';
+import { toStatusCounts } from './user-counts';
+import { userCountWhere, userListWhere } from './user-scope';
 
 export function toManagedUser(user: User): ManagedUser {
   return {
@@ -116,12 +120,28 @@ export class UsersService {
     });
   }
 
-  async list(actor: Identity, query: UserListQuery): Promise<ManagedUser[]> {
-    const users = await this.prisma.user.findMany({
-      where: userListWhere(actor, query),
-      orderBy: { fullName: 'asc' },
-    });
-    return users.map(toManagedUser);
+  async list(actor: Identity, query: UserListQuery): Promise<UserPage> {
+    const where = userListWhere(actor, query);
+    const [rows, total, byStatus] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        where,
+        include: { branch: { select: { name: true } } },
+        orderBy: [{ fullName: 'asc' }, { id: 'asc' }],
+        ...pageArgs(query),
+      }),
+      this.prisma.user.count({ where }),
+      this.prisma.user.groupBy({
+        by: ['status'],
+        where: userCountWhere(actor, query),
+        orderBy: { status: 'asc' },
+        _count: { _all: true },
+      }),
+    ]);
+    const items = rows.map((row) => ({
+      ...toManagedUser(row),
+      branchName: row.branch?.name ?? null,
+    }));
+    return { ...toPage(items, total, query), summary: { statusCounts: toStatusCounts(byStatus) } };
   }
 
   async get(actor: Identity, id: string): Promise<ManagedUser> {

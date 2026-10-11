@@ -1,5 +1,6 @@
-import { TEST_BRANCH_PREFIX, testEmail } from '@debus/config/test-data';
+import { TEST_BRANCH_PREFIX, TEST_RUN, testEmail } from '@debus/config/test-data';
 import { expect, test } from '@playwright/test';
+import { cleanUpTestRun } from './support/clean-up';
 import { isLocalStack } from './support/local-stack';
 import { isReachable, latestLink, mailpitUrl } from './support/mailpit';
 import { signInAsRealAdmin } from './support/real-admin';
@@ -14,6 +15,7 @@ test.describe('real system administration', () => {
     'creates branches: runs only on the local stack',
   );
   test.setTimeout(240_000);
+  test.afterAll(cleanUpTestRun);
 
   test('the system admin creates a branch whose first admin receives the invitation', async ({
     page,
@@ -29,7 +31,9 @@ test.describe('real system administration', () => {
     );
     const branchAdmin = testEmail(`e2e-branch-${testInfo.project.name}`);
     await page.goto('/admin/sucursales/nueva');
-    await page.getByLabel('Nombre', { exact: true }).fill(`${TEST_BRANCH_PREFIX}E2E ${stamp}`);
+    await page
+      .getByLabel('Nombre', { exact: true })
+      .fill(`${TEST_BRANCH_PREFIX}${TEST_RUN} E2E ${stamp}`);
     await page.getByLabel('Código').fill(code);
     await page.getByRole('combobox', { name: 'Departamento' }).click();
     await page.getByRole('option', { name: 'Quetzaltenango' }).click();
@@ -46,5 +50,17 @@ test.describe('real system administration', () => {
     await expect(page.getByRole('row', { name: new RegExp(`E2E ${stamp}`) })).toBeVisible();
     expect(await latestLink(inbox!, branchAdmin, '/crear-contrasena')).toContain('token=');
     console.log(`E2E_BRANCH_CODE=${code}`);
+  });
+
+  test('the user list pages against the real service', async ({ page, baseURL }) => {
+    const inbox = mailpitUrl(baseURL);
+    test.skip(!inbox || !(await isReachable(inbox)), 'needs a reachable Mailpit');
+    await signInAsRealAdmin(page, inbox!, process.env.E2E_ADMIN_EMAIL!);
+
+    await page.goto('/admin/usuarios?mostrar=50');
+
+    await expect(page.getByRole('table', { name: 'Usuarios' })).toBeVisible();
+    await expect(page.getByText(/Página 1 de \d+/)).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Paginación' })).toBeVisible();
   });
 });

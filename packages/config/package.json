@@ -13,6 +13,10 @@
     "./test-data": {
       "types": "./test-data.d.ts",
       "default": "./test-data.cjs"
+    },
+    "./test-data-sql": {
+      "types": "./test-data-sql.d.ts",
+      "default": "./test-data-sql.cjs"
     }
   },
   "dependencies": {

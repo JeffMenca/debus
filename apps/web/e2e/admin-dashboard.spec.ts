@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockAdminGateway, sampleBranch, sampleUser } from './support/admin-gateway';
+import { manyUsers, mockAdminGateway, sampleBranch, sampleUser } from './support/admin-gateway';
 import { expectNoHorizontalScroll, signInAs } from './support/session';
 
 test.describe('admin dashboard', () => {
@@ -46,6 +46,29 @@ test.describe('admin dashboard', () => {
     await expect(page.getByText('Sucursal activa', { exact: true })).toBeVisible();
     await expect(page.getByText(/Q\s?1\.25/)).toBeVisible();
     await expect(page.getByText('Falta la configuración')).toBeHidden();
+    await expectNoHorizontalScroll(page);
+  });
+
+  test('counts 45 people from the summary, asking the server for a single row each time', async ({
+    page,
+    baseURL,
+  }) => {
+    await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+    const gateway = await mockAdminGateway(page, {
+      branches: [sampleBranch()],
+      users: [...manyUsers(30), ...manyUsers(15, { status: 'PENDING' })],
+    });
+    await page.goto('/admin');
+
+    await expect(
+      page.getByText('Personal activo').locator('xpath=preceding-sibling::*[1]'),
+    ).toHaveText('30');
+    await expect(
+      page.getByText('Invitaciones pendientes').locator('xpath=preceding-sibling::*[1]'),
+    ).toHaveText('15');
+    const asked = gateway.requests.filter((request) => request.method === 'GET');
+    expect(asked.length).toBeGreaterThan(0);
+    for (const request of asked) expect(request.query).toContain('pageSize=1');
     await expectNoHorizontalScroll(page);
   });
 });

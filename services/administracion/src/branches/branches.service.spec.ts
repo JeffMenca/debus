@@ -1,6 +1,7 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { WITH_ADMINS } from './branch-mappers';
+import { branchCountWhere, branchListWhere } from './branch-scope';
 import { BranchesService } from './branches.service';
 
 const admin = {
@@ -53,9 +54,11 @@ const setup = () => {
       findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([{ ...branchRow, users: [] }]),
       findUnique: jest.fn().mockResolvedValue({ ...branchRow, users: [] }),
+      count: jest.fn().mockResolvedValue(1),
+      groupBy: jest.fn().mockResolvedValue([{ active: true, _count: { _all: 1 } }]),
     },
     user: { findUnique: jest.fn().mockResolvedValue(null) },
-    $transaction: jest.fn((fn) => fn(tx)),
+    $transaction: jest.fn((work) => (Array.isArray(work) ? Promise.all(work) : work(tx))),
   };
   const links = { writeLink: jest.fn().mockResolvedValue(undefined) };
   const events = {
@@ -163,18 +166,39 @@ describe('BranchesService.create', () => {
 
 describe('BranchesService.list', () => {
   const cashier = { userId: admin.userId, role: 'CASHIER' as const, branchId: branchRow.id };
+  const query = { status: 'active' as const, page: 2, pageSize: 10 };
 
-  it('shows a system admin only active branches, ordered by name, with their admins', async () => {
+  it('pages a system admin the branches in a stable order, with their admins and the counts', async () => {
     const { prisma, service } = setup();
+    prisma.branch.count.mockResolvedValue(11);
+    prisma.branch.groupBy.mockResolvedValue([
+      { active: true, _count: { _all: 11 } },
+      { active: false, _count: { _all: 2 } },
+    ]);
 
-    const branches = await service.list(admin, false);
+    const page = await service.list(admin, query);
 
     expect(prisma.branch.findMany).toHaveBeenCalledWith({
-      where: { active: true },
+      where: branchListWhere(admin, query),
       include: WITH_ADMINS,
-      orderBy: { name: 'asc' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      skip: 10,
+      take: 10,
     });
-    expect(branches).toEqual([expect.objectContaining({ id: branchRow.id, admins: [] })]);
+    expect(prisma.branch.count).toHaveBeenCalledWith({ where: branchListWhere(admin, query) });
+    expect(prisma.branch.groupBy).toHaveBeenCalledWith({
+      by: ['active'],
+      where: branchCountWhere(admin, query),
+      orderBy: { active: 'asc' },
+      _count: { _all: true },
+    });
+    expect(page).toMatchObject({
+      total: 11,
+      page: 2,
+      pageSize: 10,
+      summary: { statusCounts: { active: 11, inactive: 2 } },
+    });
+    expect(page.items).toEqual([expect.objectContaining({ id: branchRow.id, admins: [] })]);
   });
 
   it('never loads nor returns the admins for any other role', async () => {
@@ -182,20 +206,26 @@ describe('BranchesService.list', () => {
     prisma.branch.findMany.mockResolvedValue([{ ...branchRow, users: [adminRow] }]);
 
     for (const actor of [cashier, { ...cashier, role: 'CLIENT' as const, branchId: null }]) {
-      const branches = await service.list(actor, false);
-      expect(branches[0]).toMatchObject({ id: branchRow.id });
-      expect(branches[0]).not.toHaveProperty('admins');
+      const page = await service.list(actor, query);
+      expect(page.items[0]).toMatchObject({ id: branchRow.id });
+      expect(page.items[0]).not.toHaveProperty('admins');
     }
     for (const [args] of prisma.branch.findMany.mock.calls) {
-      expect(args).toEqual({ where: { active: true }, orderBy: { name: 'asc' } });
+      expect(args).toEqual({
+        where: { active: true },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip: 10,
+        take: 10,
+      });
     }
   });
 
   it('shows inactive ones only to a system admin who asks for them', async () => {
     const { prisma, service } = setup();
+    const all = { ...query, status: 'all' as const };
 
-    await service.list(admin, true);
-    await service.list(cashier, true);
+    await service.list(admin, all);
+    await service.list(cashier, all);
 
     expect(prisma.branch.findMany.mock.calls[0][0].where).toEqual({});
     expect(prisma.branch.findMany.mock.calls[1][0].where).toEqual({ active: true });

@@ -24,12 +24,16 @@ const setup = () => {
   const created = row('v-new', '2026-10-10', '2026-10-10T14:00:00.000Z');
   const tx = { settingsVersion: { create: jest.fn().mockResolvedValue(created) } };
   const prisma = {
-    settingsVersion: { findMany: jest.fn().mockResolvedValue([]) },
+    settingsVersion: {
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+      findFirst: jest.fn().mockResolvedValue(null),
+    },
     user: {
       findMany: jest.fn().mockResolvedValue([]),
       findUnique: jest.fn().mockResolvedValue({ fullName: 'Marta Ruiz' }),
     },
-    $transaction: jest.fn((fn) => fn(tx)),
+    $transaction: jest.fn((work) => (Array.isArray(work) ? Promise.all(work) : work(tx))),
   };
   const events = {
     settingsUpdated: jest.fn().mockResolvedValue(undefined),
@@ -92,36 +96,51 @@ describe('SettingsService.create', () => {
   });
 });
 
-describe('SettingsService.overview', () => {
-  it('returns nothing before the first version', async () => {
+describe('SettingsService.list', () => {
+  const author = '9b2c7a10-1111-4c4c-8888-123456789abc';
+  const query = { page: 2, pageSize: 1 };
+
+  it('returns an empty page before the first version', async () => {
     const { service } = setup();
 
-    expect(await service.overview(now)).toEqual({ current: null, versions: [] });
+    expect(await service.list({ page: 1, pageSize: 20 }, now)).toEqual({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+      summary: { current: null, upcoming: null },
+    });
   });
 
-  it('lists newest first with author names from one query and picks the one in force today', async () => {
+  it('pages the history and finds the version in force and the next one apart from the page', async () => {
     const { prisma, service } = setup();
-    const author = '9b2c7a10-1111-4c4c-8888-123456789abc';
-    prisma.settingsVersion.findMany.mockResolvedValue([
-      row('future', '2026-11-01', '2026-10-10T09:30:00.000Z', author),
-      row('today', '2026-10-10', '2026-10-10T09:00:00.000Z'),
-      row('old', '2026-10-01', '2026-09-30T10:00:00.000Z', author),
-    ]);
+    const today = row('today', '2026-10-10', '2026-10-10T09:00:00.000Z');
+    const future = row('future', '2026-11-01', '2026-10-10T09:30:00.000Z', author);
+    prisma.settingsVersion.findMany.mockResolvedValue([today]);
+    prisma.settingsVersion.count.mockResolvedValue(3);
+    prisma.settingsVersion.findFirst.mockResolvedValueOnce(today).mockResolvedValueOnce(future);
     prisma.user.findMany.mockResolvedValue([{ id: author, fullName: 'Marta Ruiz' }]);
 
-    const overview = await service.overview(now);
+    const page = await service.list(query, now);
 
     expect(prisma.settingsVersion.findMany).toHaveBeenCalledWith({
+      orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
+      skip: 1,
+      take: 1,
+    });
+    expect(prisma.settingsVersion.findFirst).toHaveBeenNthCalledWith(1, {
+      where: { effectiveFrom: { lte: fromDateOnly('2026-10-10') } },
       orderBy: [{ effectiveFrom: 'desc' }, { createdAt: 'desc' }],
     });
-    expect(prisma.user.findMany).toHaveBeenCalledTimes(1);
-    expect(prisma.user.findMany).toHaveBeenCalledWith({
-      where: { id: { in: [author, admin.userId].sort((a, b) => (a < b ? 1 : -1)) } },
-      select: { id: true, fullName: true },
+    expect(prisma.settingsVersion.findFirst).toHaveBeenNthCalledWith(2, {
+      where: { effectiveFrom: { gt: fromDateOnly('2026-10-10') } },
+      orderBy: [{ effectiveFrom: 'asc' }, { createdAt: 'desc' }],
     });
-    expect(overview.versions.map((version) => version.id)).toEqual(['future', 'today', 'old']);
-    expect(overview.versions[0]?.createdByName).toBe('Marta Ruiz');
-    expect(overview.versions[1]?.createdByName).toBeNull();
-    expect(overview.current?.id).toBe('today');
+    expect(prisma.user.findMany).toHaveBeenCalledTimes(1);
+    expect(page).toMatchObject({ total: 3, page: 2, pageSize: 1 });
+    expect(page.items.map((version) => version.id)).toEqual(['today']);
+    expect(page.items[0]?.createdByName).toBeNull();
+    expect(page.summary.current?.id).toBe('today');
+    expect(page.summary.upcoming).toMatchObject({ id: 'future', createdByName: 'Marta Ruiz' });
   });
 });

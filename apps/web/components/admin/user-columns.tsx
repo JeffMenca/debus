@@ -1,6 +1,6 @@
 'use client';
 
-import type { ManagedUser, UserStatus } from '@debus/contracts';
+import type { UserListItem, UserStatus } from '@debus/contracts';
 import { useMemo } from 'react';
 import { StatusDot, type StatusTone } from '@/components/brand/status-dot';
 import { RowActions } from '@/components/data/row-actions';
@@ -15,16 +15,15 @@ export const USER_STATUS_VIEW: Record<UserStatus, { tone: StatusTone; label: str
 };
 
 interface UserColumnActions {
-  branchNames: Map<string, string>;
-  onEdit: (user: ManagedUser) => void;
-  onResend: (user: ManagedUser) => void;
-  onToggle: (user: ManagedUser, active: boolean) => void;
+  onEdit: (user: UserListItem) => void;
+  onResend: (user: UserListItem) => void;
+  onToggle: (user: UserListItem, active: boolean) => void;
 }
 
-const helper = columnHelperFor<ManagedUser>();
+const helper = columnHelperFor<UserListItem>();
 
 // Columns must be stable between renders, so they are rebuilt only when their inputs change.
-export function useUserColumns({ branchNames, onEdit, onResend, onToggle }: UserColumnActions) {
+export function useUserColumns({ onEdit, onResend, onToggle }: UserColumnActions) {
   return useMemo(
     () =>
       helper.columns([
@@ -46,13 +45,9 @@ export function useUserColumns({ branchNames, onEdit, onResend, onToggle }: User
           ),
         }),
         helper.accessor('role', { header: 'Rol', cell: (info) => ROLE_LABELS[info.getValue()] }),
-        helper.accessor('branchId', {
+        helper.accessor('branchName', {
           header: 'Sucursal',
-          cell: (info) => {
-            const branchId = info.getValue();
-            const name = branchId ? branchNames.get(branchId) : undefined;
-            return name ?? <span className="text-muted-foreground">—</span>;
-          },
+          cell: (info) => info.getValue() ?? <span className="text-muted-foreground">—</span>,
         }),
         helper.accessor('status', {
           header: 'Estado',
@@ -95,6 +90,6 @@ export function useUserColumns({ branchNames, onEdit, onResend, onToggle }: User
           },
         }),
       ]),
-    [branchNames, onEdit, onResend, onToggle],
+    [onEdit, onResend, onToggle],
   );
 }

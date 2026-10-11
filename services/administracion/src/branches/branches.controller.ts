@@ -1,8 +1,12 @@
 import {
   type Branch,
+  type BranchListQuery,
+  type BranchPage,
+  type BranchWithAdminsPage,
   CORRELATION_HEADER,
   type CreateBranchRequest,
   type UpdateBranchRequest,
+  branchListQuerySchema,
   createBranchRequestSchema,
   updateBranchRequestSchema,
 } from '@debus/contracts';
@@ -12,15 +16,14 @@ import {
   Get,
   Headers,
   Param,
-  ParseBoolPipe,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { apiErrors, apiSuccess } from '../common/api-errors';
-import { ZodBody, apiBody } from '../common/zod-body.pipe';
+import { ZodBody, apiBody, apiQuery } from '../common/zod-body.pipe';
 import { CurrentIdentity, type Identity, Roles } from '../identity/identity';
 import { BranchesService } from './branches.service';
 
@@ -32,13 +35,13 @@ export class BranchesController {
 
   @Get()
   @apiSuccess(200)
-  @apiErrors(401)
-  @ApiQuery({ name: 'includeInactive', required: false, type: Boolean })
+  @apiErrors(400, 401)
+  @apiQuery(branchListQuerySchema)
   list(
     @CurrentIdentity() actor: Identity,
-    @Query('includeInactive', new ParseBoolPipe({ optional: true })) includeInactive?: boolean,
-  ): Promise<Branch[]> {
-    return this.branches.list(actor, includeInactive ?? false);
+    @Query(new ZodBody(branchListQuerySchema)) query: BranchListQuery,
+  ): Promise<BranchPage | BranchWithAdminsPage> {
+    return this.branches.list(actor, query);
   }
 
   @Get(':id')

@@ -8,7 +8,7 @@ describe('UsersController', () => {
       create: jest.fn().mockResolvedValue({ id }),
       deactivate: jest.fn().mockResolvedValue(undefined),
       reactivate: jest.fn().mockResolvedValue(undefined),
-      list: jest.fn().mockResolvedValue([]),
+      list: jest.fn().mockResolvedValue({ items: [] }),
       get: jest.fn().mockResolvedValue({ id }),
       update: jest.fn().mockResolvedValue({ id }),
       resendInvitation: jest.fn().mockResolvedValue({ message: 'ok' }),
@@ -39,12 +39,13 @@ describe('UsersController', () => {
     const { users, controller } = setup();
     const actor = { userId: id, role: 'BRANCH_ADMIN' as const, branchId: id };
 
-    expect(await controller.list(actor, { q: 'ana' })).toEqual([]);
+    const query = { q: 'ana', page: 1, pageSize: 20 };
+    expect(await controller.list(actor, query)).toEqual({ items: [] });
     expect(await controller.get(actor, id)).toEqual({ id });
     expect(await controller.update(id, { fullName: 'Ana Sic' })).toEqual({ id });
     expect(await controller.resendInvitation(actor, id, 'c')).toEqual({ message: 'ok' });
 
-    expect(users.list).toHaveBeenCalledWith(actor, { q: 'ana' });
+    expect(users.list).toHaveBeenCalledWith(actor, query);
     expect(users.get).toHaveBeenCalledWith(actor, id);
     expect(users.update).toHaveBeenCalledWith(id, { fullName: 'Ana Sic' });
     expect(users.resendInvitation).toHaveBeenCalledWith(actor, id, 'c');

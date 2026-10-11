@@ -6,7 +6,7 @@ const actor = { userId: id, role: 'SYSTEM_ADMIN' as const, branchId: null };
 describe('BranchesController', () => {
   const setup = () => {
     const branches = {
-      list: jest.fn().mockResolvedValue([]),
+      list: jest.fn().mockResolvedValue({ items: [] }),
       get: jest.fn().mockResolvedValue({ id }),
       create: jest.fn().mockResolvedValue({ id }),
       update: jest.fn().mockResolvedValue({ id }),
@@ -15,14 +15,12 @@ describe('BranchesController', () => {
     return { branches, controller: new BranchesController(branches as never) };
   };
 
-  it('lists active branches unless inactive ones are requested', async () => {
+  it('lists the page the query asks for', async () => {
     const { branches, controller } = setup();
+    const query = { status: 'all' as const, q: 'peten', page: 2, pageSize: 20 };
 
-    await controller.list(actor);
-    await controller.list(actor, true);
-
-    expect(branches.list).toHaveBeenNthCalledWith(1, actor, false);
-    expect(branches.list).toHaveBeenNthCalledWith(2, actor, true);
+    expect(await controller.list(actor, query)).toEqual({ items: [] });
+    expect(branches.list).toHaveBeenCalledWith(actor, query);
   });
 
   it('gets a branch by id', async () => {

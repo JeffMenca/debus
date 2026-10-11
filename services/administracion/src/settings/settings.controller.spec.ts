@@ -9,17 +9,18 @@ const actor = {
 describe('SettingsController', () => {
   const setup = () => {
     const settings = {
-      overview: jest.fn().mockResolvedValue({ current: null, versions: [] }),
+      list: jest.fn().mockResolvedValue({ items: [] }),
       create: jest.fn().mockResolvedValue({ id: 'v' }),
     };
     return { settings, controller: new SettingsController(settings as never) };
   };
 
-  it('shows the overview', async () => {
+  it('lists a page of the history', async () => {
     const { settings, controller } = setup();
+    const query = { page: 2, pageSize: 50 };
 
-    expect(await controller.overview()).toEqual({ current: null, versions: [] });
-    expect(settings.overview).toHaveBeenCalledTimes(1);
+    expect(await controller.list(query)).toEqual({ items: [] });
+    expect(settings.list).toHaveBeenCalledWith(query);
   });
 
   it('schedules a version on behalf of the caller', async () => {

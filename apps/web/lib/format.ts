@@ -1,5 +1,6 @@
 import { GUATEMALA_TIME_ZONE } from '@debus/contracts';
 
+const COUNT = new Intl.NumberFormat('es-GT');
 const QUETZALES = new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' });
 // UTC on purpose: an ISO date is a calendar day, and a local zone could show the day before.
 const LONG_DATE = new Intl.DateTimeFormat('es-GT', {
@@ -18,6 +19,8 @@ export function initialsOf(fullName: string): string {
     .map((word) => word[0]!.toUpperCase())
     .join('');
 }
+
+export const formatCount = (value: number): string => COUNT.format(value);
 
 export const formatQuetzales = (value: number): string => QUETZALES.format(value);
 

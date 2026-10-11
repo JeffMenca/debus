@@ -5,7 +5,8 @@ import {
   useResendInvitation,
   useSetUserActive,
   useUpdateUser,
-  useUsers,
+  useUserCounts,
+  useUsersPage,
 } from './use-users';
 
 const user = {
@@ -18,15 +19,46 @@ const user = {
 };
 const API = 'http://localhost:4000/api/administracion/users';
 
+const page = {
+  items: [{ ...user, branchName: 'Quetzaltenango' }],
+  total: 41,
+  page: 2,
+  pageSize: 20,
+  summary: { statusCounts: { ACTIVE: 30, PENDING: 10, INACTIVE: 1 } },
+};
+
 afterEach(() => jest.restoreAllMocks());
 
-it('lists the users the session may see', async () => {
-  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json([user]));
+it('asks for the page and the filters of the screen and validates the answer', async () => {
+  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(page));
   const { wrapper } = queryWrapper();
-  const { result } = renderHook(() => useUsers(), { wrapper });
+  const { result } = renderHook(
+    () => useUsersPage({ page: 2, pageSize: 20, status: 'PENDING', q: 'ana' }),
+    { wrapper },
+  );
 
-  await waitFor(() => expect(result.current.data).toEqual([user]));
-  expect(fetchMock).toHaveBeenCalledWith(API, expect.anything());
+  await waitFor(() => expect(result.current.data).toEqual(page));
+  expect(fetchMock).toHaveBeenCalledWith(
+    `${API}?page=2&pageSize=20&q=ana&status=PENDING`,
+    expect.anything(),
+  );
+});
+
+it('fails when the server answers a list instead of a page', async () => {
+  jest.spyOn(global, 'fetch').mockResolvedValue(Response.json([user]));
+  const { wrapper } = queryWrapper();
+  const { result } = renderHook(() => useUsersPage({ page: 1, pageSize: 20 }), { wrapper });
+
+  await waitFor(() => expect(result.current.isError).toBe(true));
+});
+
+it('counts the staff by status with a single row', async () => {
+  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(page));
+  const { wrapper } = queryWrapper();
+  const { result } = renderHook(() => useUserCounts(), { wrapper });
+
+  await waitFor(() => expect(result.current.data).toEqual(page.summary.statusCounts));
+  expect(fetchMock).toHaveBeenCalledWith(`${API}?group=staff&page=1&pageSize=1`, expect.anything());
 });
 
 it('invites a user and refreshes users and branches', async () => {

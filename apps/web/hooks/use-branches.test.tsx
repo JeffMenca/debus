@@ -2,7 +2,9 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { queryWrapper } from '../test-support/query-wrapper';
 import {
   useBranch,
-  useBranches,
+  useBranchCounts,
+  useBranchOptions,
+  useBranchesPage,
   useCreateBranch,
   useSetBranchActive,
   useUpdateBranch,
@@ -26,31 +28,57 @@ const API = 'http://localhost:4000/api/administracion/branches';
 
 afterEach(() => jest.restoreAllMocks());
 
-describe('useBranches', () => {
-  it('asks only for active branches by default and validates the answer', async () => {
-    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json([branch]));
-    const { wrapper } = queryWrapper();
-    const { result } = renderHook(() => useBranches({ includeInactive: false }), { wrapper });
+const branchPage = {
+  items: [branch],
+  total: 21,
+  page: 2,
+  pageSize: 20,
+  summary: { statusCounts: { active: 20, inactive: 1 } },
+};
 
-    await waitFor(() => expect(result.current.data).toEqual([branch]));
-    expect(fetchMock).toHaveBeenCalledWith(API, expect.anything());
+describe('paged branch hooks', () => {
+  it('asks for the page, tab and search of the screen and validates the answer', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(branchPage));
+    const { wrapper } = queryWrapper();
+    const { result } = renderHook(
+      () => useBranchesPage({ status: 'all', q: 'xela', page: 2, pageSize: 20 }),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.data).toEqual(branchPage));
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}?page=2&pageSize=20&q=xela&status=all`,
+      expect.anything(),
+    );
   });
 
-  it('asks for the inactive ones too when requested', async () => {
-    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json([branch]));
+  it('fails when the server answers a list instead of a page', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue(Response.json([branch]));
     const { wrapper } = queryWrapper();
-    const { result } = renderHook(() => useBranches({ includeInactive: true }), { wrapper });
-
-    await waitFor(() => expect(result.current.data).toEqual([branch]));
-    expect(fetchMock).toHaveBeenCalledWith(`${API}?includeInactive=true`, expect.anything());
-  });
-
-  it('fails when the server sends something that is not a branch list', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(Response.json([{ id: 'x' }]));
-    const { wrapper } = queryWrapper();
-    const { result } = renderHook(() => useBranches({ includeInactive: false }), { wrapper });
+    const { result } = renderHook(
+      () => useBranchesPage({ status: 'active', page: 1, pageSize: 20 }),
+      { wrapper },
+    );
 
     await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+
+  it('offers up to 100 branches to choose from', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(branchPage));
+    const { wrapper } = queryWrapper();
+    const { result } = renderHook(() => useBranchOptions({ status: 'active' }), { wrapper });
+
+    await waitFor(() => expect(result.current.data).toEqual([branch]));
+    expect(fetchMock).toHaveBeenCalledWith(`${API}?pageSize=100&status=active`, expect.anything());
+  });
+
+  it('counts active and inactive branches with a single row', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(branchPage));
+    const { wrapper } = queryWrapper();
+    const { result } = renderHook(() => useBranchCounts(), { wrapper });
+
+    await waitFor(() => expect(result.current.data).toEqual({ active: 20, inactive: 1 }));
+    expect(fetchMock).toHaveBeenCalledWith(`${API}?page=1&pageSize=1`, expect.anything());
   });
 });
 

@@ -19,7 +19,7 @@ const buttonVariants = cva(
         default: 'bg-primary text-primary-foreground hover:bg-primary-hover',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/70',
         accent: 'bg-mango-300 text-foreground hover:brightness-95',
-        ghost: 'bg-transparent text-foreground hover:bg-muted',
+        ghost: 'bg-transparent text-foreground hover:bg-muted disabled:bg-transparent',
         destructive: 'bg-destructive text-destructive-foreground hover:brightness-90',
         coral: 'bg-coral-700 text-white hover:brightness-90',
       },

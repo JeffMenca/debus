@@ -53,9 +53,12 @@ describe('apiQuery', () => {
         ['query', 'role', false],
         ['query', 'status', false],
         ['query', 'branchId', false],
+        ['query', 'group', false],
         ['query', 'q', false],
+        ['query', 'page', false],
+        ['query', 'pageSize', false],
       ]),
     );
-    expect(parameters).toHaveLength(4);
+    expect(parameters).toHaveLength(7);
   });
 });

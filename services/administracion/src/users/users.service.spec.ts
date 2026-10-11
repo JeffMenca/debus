@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
-import { userListWhere } from './user-scope';
+import { userCountWhere, userListWhere } from './user-scope';
 import { UsersService } from './users.service';
 
 const admin = {
@@ -38,9 +38,13 @@ const setup = () => {
       update: jest.fn().mockResolvedValue({}),
       findMany: jest.fn().mockResolvedValue([]),
       findFirst: jest.fn().mockResolvedValue(null),
+      count: jest.fn().mockResolvedValue(0),
+      groupBy: jest.fn().mockResolvedValue([]),
     },
     branch: { findUnique: jest.fn().mockResolvedValue({ id: branch, active: true }) },
-    $transaction: jest.fn().mockImplementation((fn) => fn(tx)),
+    $transaction: jest
+      .fn()
+      .mockImplementation((work) => (Array.isArray(work) ? Promise.all(work) : work(tx))),
   };
   const links = { issue: jest.fn().mockResolvedValue(true) };
   return { tx, prisma, links, service: new UsersService(prisma as never, links as never) };
@@ -424,18 +428,45 @@ describe('list and get', () => {
     status: 'ACTIVE',
   };
 
-  it('lists the users the actor may see, ordered by name', async () => {
+  it('lists a page in a stable order with the tab counts of the whole filter', async () => {
     const { prisma, service } = setup();
-    prisma.user.findMany.mockResolvedValue([row]);
-    const query = { role: 'CASHIER' as const, q: 'ana' };
+    prisma.user.findMany.mockResolvedValue([{ ...row, branch: { name: 'Xela' } }]);
+    prisma.user.count.mockResolvedValue(41);
+    prisma.user.groupBy.mockResolvedValue([{ status: 'ACTIVE', _count: { _all: 41 } }]);
+    const query = { role: 'CASHIER' as const, q: 'ana', page: 3, pageSize: 20 };
 
-    const users = await service.list(admin, query);
+    const page = await service.list(admin, query);
 
     expect(prisma.user.findMany).toHaveBeenCalledWith({
       where: userListWhere(admin, query),
-      orderBy: { fullName: 'asc' },
+      include: { branch: { select: { name: true } } },
+      orderBy: [{ fullName: 'asc' }, { id: 'asc' }],
+      skip: 40,
+      take: 20,
     });
-    expect(users).toEqual([row]);
+    expect(prisma.user.count).toHaveBeenCalledWith({ where: userListWhere(admin, query) });
+    expect(prisma.user.groupBy).toHaveBeenCalledWith({
+      by: ['status'],
+      where: userCountWhere(admin, query),
+      orderBy: { status: 'asc' },
+      _count: { _all: true },
+    });
+    expect(page).toEqual({
+      items: [{ ...row, branchName: 'Xela' }],
+      total: 41,
+      page: 3,
+      pageSize: 20,
+      summary: { statusCounts: { PENDING: 0, ACTIVE: 41, INACTIVE: 0 } },
+    });
+  });
+
+  it('names no branch for people without one', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findMany.mockResolvedValue([{ ...row, branchId: null, branch: null }]);
+
+    const page = await service.list(admin, { page: 1, pageSize: 20 });
+
+    expect(page.items[0]?.branchName).toBeNull();
   });
 
   it('gets one user inside the actor scope', async () => {

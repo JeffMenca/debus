@@ -1,12 +1,14 @@
 'use client';
 
-import { type SettingsVersion, todayInGuatemala } from '@debus/contracts';
 import { CalendarClock } from 'lucide-react';
+import { tablePagination } from '@/components/data/data-table';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/layout/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useSettings } from '@/hooks/use-settings';
-import { upcomingVersion } from '@/lib/admin/settings-status';
+import { usePageInRange } from '@/hooks/use-page-in-range';
+import { useSettingsPage, useSettingsSummary } from '@/hooks/use-settings';
+import { useUrlQuery } from '@/hooks/use-url-query';
+import { readSettingsListParams, writeSettingsListParams } from '@/lib/admin/settings-list-params';
 import { formatLongDate, formatQuetzales } from '@/lib/format';
 import { SettingsForm } from './settings-form';
 import { SettingsHistory } from './settings-history';
@@ -34,7 +36,10 @@ function CurrentCard({
 }
 
 export function SettingsScreen() {
-  const settings = useSettings();
+  const [query, update] = useUrlQuery(readSettingsListParams, writeSettingsListParams);
+  const settings = useSettingsSummary();
+  const history = useSettingsPage(query);
+  usePageInRange(history.data, update);
 
   if (settings.isPending) {
     return (
@@ -64,8 +69,7 @@ export function SettingsScreen() {
     );
   }
 
-  const { current, versions } = settings.data;
-  const next: SettingsVersion | null = upcomingVersion(versions, todayInGuatemala());
+  const { current, upcoming: next } = settings.data;
 
   return (
     <>
@@ -108,7 +112,15 @@ export function SettingsScreen() {
         <h2 id="settings-history" className="font-display text-xl font-bold">
           Historial
         </h2>
-        <SettingsHistory versions={versions} current={current} />
+        <SettingsHistory
+          versions={history.data?.items ?? []}
+          current={current}
+          isLoading={history.isPending}
+          isRefreshing={history.isPlaceholderData}
+          error={history.isError ? 'No pudimos cargar el historial.' : null}
+          onRetry={() => void history.refetch()}
+          pagination={tablePagination(query, history.data?.total, update)}
+        />
       </section>
     </>
   );
