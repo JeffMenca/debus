@@ -1,11 +1,12 @@
 import 'reflect-metadata';
 import { createEnvelope, eventEnvelopeSchema } from '@debus/contracts';
-import { type Message, PubSub } from '@google-cloud/pubsub';
+import { PubSub } from '@google-cloud/pubsub';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { EventPublisher, InMemoryInboxStore, MessagingModule, Outbox } from '../src';
 import { recreateOutboxTable, testPool, transactional } from './support/pg';
+import { pullOne } from './support/pull';
 
 const push = (value: unknown) => ({
   message: { data: Buffer.from(JSON.stringify(value)).toString('base64') },
@@ -113,13 +114,6 @@ describe('MessagingModule outbox', () => {
   });
 
   it('publishes an event added in a transaction when the flush endpoint is called', async () => {
-    const subscription = pubsub.subscription(subscriptionName);
-    const received = new Promise<Message>((resolve) => {
-      subscription.once('message', (message: Message) => {
-        message.ack();
-        resolve(message);
-      });
-    });
     const envelope = await db.$transaction((tx) =>
       app.get(Outbox).add(tx, 'BusAdded', { busId: 'b-1' }, 'c-outbox'),
     );
@@ -127,9 +121,8 @@ describe('MessagingModule outbox', () => {
     const response = await request(app.getHttpServer()).post('/outbox/flush').expect(200);
 
     expect(response.body).toEqual({ published: 1, failed: 0 });
-    const message = await received;
-    await subscription.close();
-    expect(eventEnvelopeSchema.parse(JSON.parse(message.data.toString()))).toEqual(envelope);
+    const message = await pullOne(subscriptionName);
+    expect(eventEnvelopeSchema.parse(JSON.parse(message.data))).toEqual(envelope);
   });
 
   it('keeps an event the service may not publish pending and counts the attempt', async () => {
