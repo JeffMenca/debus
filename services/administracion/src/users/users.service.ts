@@ -8,8 +8,8 @@ import {
 import { AccountLinksService } from '../accounts/account-links.service';
 import { canCreateRole, canDeactivate } from '../accounts/account-rules';
 import { MESSAGES } from '../accounts/messages';
-import { isSerializationFailure, isUniqueViolation } from '../common/prisma-errors';
-import type { User } from '../generated/prisma/client';
+import { isUniqueViolation } from '../common/prisma-errors';
+import type { Prisma, User } from '../generated/prisma/client';
 import type { Identity } from '../identity/identity';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -73,19 +73,33 @@ export class UsersService {
   }
 
   async deactivate(id: string, now = new Date()): Promise<void> {
-    // Two admins deactivating each other at once make the database abort one serializable
-    // transaction; the second try sees the other change and answers with the real rule.
-    try {
-      return await this.deactivateOnce(id, now);
-    } catch (error) {
-      if (!isSerializationFailure(error)) throw error;
-    }
-    try {
-      return await this.deactivateOnce(id, now);
-    } catch (error) {
-      if (isSerializationFailure(error)) throw new ConflictException(MESSAGES.busy);
-      throw error;
-    }
+    await this.prisma.$transaction(async (tx) => {
+      const found = await tx.user.findUnique({ where: { id } });
+      if (!found) throw new NotFoundException(MESSAGES.userNotFound);
+      let status = found.status;
+      // Deactivating an admin must see the other admins' changes: whoever holds the lock decides
+      // first and the rest wait, then read the status again with what was committed meanwhile.
+      if (found.role === 'SYSTEM_ADMIN') {
+        await this.lockActiveSystemAdmins(tx);
+        const current = await tx.user.findUniqueOrThrow({
+          where: { id },
+          select: { status: true },
+        });
+        status = current.status;
+      }
+      if (status === 'INACTIVE') return;
+      const activeAdmins = await tx.user.count({
+        where: { role: 'SYSTEM_ADMIN', status: 'ACTIVE' },
+      });
+      if (!canDeactivate({ role: found.role, status }, activeAdmins)) {
+        throw new ConflictException(MESSAGES.lastSystemAdmin);
+      }
+      await tx.user.update({ where: { id }, data: { status: 'INACTIVE' } });
+      await tx.refreshToken.updateMany({
+        where: { userId: id, revokedAt: null },
+        data: { revokedAt: now },
+      });
+    });
   }
 
   async reactivate(id: string): Promise<void> {
@@ -98,25 +112,8 @@ export class UsersService {
     });
   }
 
-  private deactivateOnce(id: string, now: Date): Promise<void> {
-    return this.prisma.$transaction(
-      async (tx) => {
-        const user = await tx.user.findUnique({ where: { id } });
-        if (!user) throw new NotFoundException(MESSAGES.userNotFound);
-        if (user.status === 'INACTIVE') return;
-        const activeAdmins = await tx.user.count({
-          where: { role: 'SYSTEM_ADMIN', status: 'ACTIVE' },
-        });
-        if (!canDeactivate(user, activeAdmins)) {
-          throw new ConflictException(MESSAGES.lastSystemAdmin);
-        }
-        await tx.user.update({ where: { id }, data: { status: 'INACTIVE' } });
-        await tx.refreshToken.updateMany({
-          where: { userId: id, revokedAt: null },
-          data: { revokedAt: now },
-        });
-      },
-      { isolationLevel: 'Serializable' },
-    );
+  // Always in the same order, so two transactions can never wait on each other in a loop.
+  private async lockActiveSystemAdmins(tx: Prisma.TransactionClient): Promise<void> {
+    await tx.$queryRaw`SELECT id FROM users WHERE role = 'SYSTEM_ADMIN' AND status = 'ACTIVE' ORDER BY id FOR UPDATE`;
   }
 }

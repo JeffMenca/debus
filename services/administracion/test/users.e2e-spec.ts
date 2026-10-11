@@ -152,7 +152,7 @@ describe('users', () => {
     const ids = [first.id, second.id];
     await withOnlyActiveAdmins(prisma, ids, async () => {
       const server = app.getHttpServer();
-      // The database only aborts one of the two transactions some of the time: repeat the race.
+      // Races only show up some of the time: repeat them.
       for (let round = 0; round < 12; round += 1) {
         await prisma.user.updateMany({ where: { id: { in: ids } }, data: { status: 'ACTIVE' } });
         const responses = await Promise.all(
@@ -166,6 +166,31 @@ describe('users', () => {
         expect(loser?.body.message).toBe(
           'Debe quedar al menos un administrador del sistema activo.',
         );
+        expect(await prisma.user.count({ where: { id: { in: ids }, status: 'ACTIVE' } })).toBe(1);
+      }
+    });
+  });
+
+  it('lets exactly one system admin survive when several are deactivated at once, round after round', async () => {
+    const prisma = app.get(PrismaService);
+    const admins = await Promise.all(
+      Array.from({ length: 4 }, () => activeAccount(app, events, { role: 'SYSTEM_ADMIN' })),
+    );
+    const ids = admins.map((account) => account.id);
+    await withOnlyActiveAdmins(prisma, ids, async () => {
+      const server = app.getHttpServer();
+      for (let round = 0; round < 30; round += 1) {
+        await prisma.user.updateMany({ where: { id: { in: ids } }, data: { status: 'ACTIVE' } });
+        const responses = await Promise.all(
+          ids.map((id) =>
+            request(server).post(`/users/${id}/deactivate`).set(as(callerId, 'SYSTEM_ADMIN')),
+          ),
+        );
+
+        const losers = responses.filter((response) => response.status !== 204);
+        expect(losers.map((loser) => [loser.status, loser.body.message])).toEqual([
+          [409, 'Debe quedar al menos un administrador del sistema activo.'],
+        ]);
         expect(await prisma.user.count({ where: { id: { in: ids }, status: 'ACTIVE' } })).toBe(1);
       }
     });
