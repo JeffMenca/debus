@@ -97,6 +97,47 @@ test.describe('admin branches', () => {
     await expect(page.getByRole('row', { name: /Escuintla/ })).toContainText('Inactiva');
   });
 
+  test('brings back a closed branch by inviting its new admin from the users screen', async ({
+    page,
+    baseURL,
+  }) => {
+    const gateway = await mockAdminGateway(page, seed);
+    await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+    await page.goto('/admin/usuarios');
+
+    await page.getByRole('button', { name: 'Invitar usuario' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Invitar usuario' });
+    await dialog.getByLabel('Nombre completo').fill('Diego Cux');
+    await dialog.getByLabel('Correo').fill('diego@correo.com');
+    await dialog.getByRole('combobox', { name: 'Rol' }).click();
+    await page.getByRole('option', { name: 'Cajero' }).click();
+    await dialog.getByRole('combobox', { name: 'Sucursal' }).click();
+    await expect(page.getByRole('option', { name: /Escuintla/ })).toBeHidden();
+    await page.keyboard.press('Escape');
+    await dialog.getByRole('combobox', { name: 'Rol' }).click();
+    await page.getByRole('option', { name: 'Admin. de sucursal' }).click();
+    await dialog.getByRole('combobox', { name: 'Sucursal' }).click();
+    await page.getByRole('option', { name: 'Escuintla (inactiva)' }).click();
+    await dialog.getByRole('button', { name: 'Enviar invitación' }).click();
+    await expect(page.getByText('Le enviamos un correo a diego@correo.com')).toBeVisible();
+
+    await page.goto('/admin/sucursales');
+    await page.getByRole('tab', { name: /Inactivas/ }).click();
+    await expect(page.getByRole('row', { name: /Escuintla/ })).toContainText('Diego Cux');
+    await page.getByRole('button', { name: 'Acciones de Escuintla' }).click();
+    await page.getByRole('menuitem', { name: 'Reactivar' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Reactivar' }).click();
+
+    await expect(page.getByText('Reactivamos la sucursal Escuintla.')).toBeVisible();
+    await page.getByRole('tab', { name: /Activas/ }).click();
+    await expect(page.getByRole('row', { name: /Escuintla/ })).toContainText('Activa');
+    expect(
+      gateway.requests.some((r) =>
+        r.path.endsWith('/branches/8e2f3a20-3333-4e4e-8888-123456789abc/reactivate'),
+      ),
+    ).toBe(true);
+  });
+
   test('is reached from the sidebar', async ({ page, baseURL }) => {
     await mockAdminGateway(page, seed);
     await signInAs(page, baseURL!, 'SYSTEM_ADMIN');

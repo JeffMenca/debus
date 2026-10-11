@@ -5,9 +5,7 @@ import { ApiError } from '@/lib/api/api-error';
 import { useCreateBranch, useUpdateBranch } from '../../hooks/use-branches';
 import { BranchForm } from './branch-form';
 
-// The whole check runs next to every other task, so this long form gets room to finish on a busy
-// machine; the typing itself skips the pauses between events.
-jest.setTimeout(30_000);
+// The typing skips the pauses between events: this long form is not about keystroke timing.
 let user: UserEvent;
 beforeEach(() => {
   user = userEvent.setup({ delay: null });

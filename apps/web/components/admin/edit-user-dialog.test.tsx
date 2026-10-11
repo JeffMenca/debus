@@ -8,10 +8,12 @@ jest.mock('../../hooks/use-users');
 jest.mock('sonner', () => ({ toast: { success: jest.fn() } }));
 
 const branchId = '9b2c7a10-1111-4c4c-8888-123456789abc';
+const closedBranch = '3e8a1b30-3333-4e4e-aaaa-123456789abc';
 const otherBranch = '5d1f3a20-2222-4d4d-9999-123456789abc';
 const branches = [
   { id: branchId, name: 'Quetzaltenango', active: true },
   { id: otherBranch, name: 'Flores', active: true },
+  { id: closedBranch, name: 'Cobán', active: false },
 ] as never;
 const cashier = {
   id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
@@ -65,6 +67,24 @@ describe('EditUserDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     expect(mutateAsync).toHaveBeenCalledWith({ id: cashier.id, input: { branchId: otherBranch } });
+  });
+
+  it('does not offer a closed branch to staff that is not a branch admin', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('combobox', { name: 'Sucursal' }));
+
+    expect(await screen.findByRole('option', { name: 'Flores' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Cobán/ })).not.toBeInTheDocument();
+  });
+
+  it('moves a branch admin to a closed branch, marked as inactive', async () => {
+    const { mutateAsync } = setup({ ...cashier, role: 'BRANCH_ADMIN' });
+    await userEvent.click(screen.getByRole('combobox', { name: 'Sucursal' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Cobán (inactiva)' }));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(mutateAsync).toHaveBeenCalledWith({ id: cashier.id, input: { branchId: closedBranch } });
   });
 
   it('just closes when nothing changed', async () => {

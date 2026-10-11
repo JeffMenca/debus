@@ -1,3 +1,4 @@
+import { testEmail } from '@debus/config/test-data';
 import {
   type AccountLinkSentPayload,
   type BranchChangedPayload,
@@ -9,7 +10,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { activeAccount } from './support/accounts';
-import { createTestApp, tokenOf, uniqueEmail } from './support/app';
+import { createTestApp, tokenOf } from './support/app';
 import { branchFields, createTestBranch } from './support/branches';
 import { cleanTestData } from './support/cleanup';
 import { type EventCapture, captureEvents } from './support/events';
@@ -37,7 +38,7 @@ describe('branches', () => {
 
   it('creates a branch with its first admin, who receives the invitation and signs in to that branch', async () => {
     const admin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
-    const email = uniqueEmail('first-admin');
+    const email = testEmail('first-admin');
     const body = { ...branchFields(), admin: { fullName: 'Luis Ramírez', email } };
 
     const created = await request(app.getHttpServer())
@@ -94,7 +95,7 @@ describe('branches', () => {
     const server = app.getHttpServer();
 
     for (let round = 0; round < 6; round += 1) {
-      const email = uniqueEmail('shared-admin');
+      const email = testEmail('shared-admin');
       const responses = await Promise.all(
         [0, 1].map(() =>
           request(server)
@@ -117,7 +118,7 @@ describe('branches', () => {
       'SYSTEM_ADMIN',
     );
     const existing = await createTestBranch(prisma);
-    const newAdmin = () => ({ fullName: 'Ana Sic', email: uniqueEmail('admin') });
+    const newAdmin = () => ({ fullName: 'Ana Sic', email: testEmail('admin') });
 
     const sameCode = await request(server)
       .post('/branches')
@@ -142,7 +143,7 @@ describe('branches', () => {
 
   it('only lets a system admin create branches, and only with a session', async () => {
     const server = app.getHttpServer();
-    const body = { ...branchFields(), admin: { fullName: 'Ana Sic', email: uniqueEmail('admin') } };
+    const body = { ...branchFields(), admin: { fullName: 'Ana Sic', email: testEmail('admin') } };
 
     await request(server).post('/branches').send(body).expect(401);
     await request(server)
@@ -383,7 +384,7 @@ describe('branches', () => {
         .set(headers)
         .send({
           fullName: 'Nueva Admin',
-          email: uniqueEmail('new-admin'),
+          email: testEmail('new-admin'),
           role: 'BRANCH_ADMIN',
           branchId: branch.id,
         })

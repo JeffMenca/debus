@@ -1,8 +1,14 @@
+import { testEmail } from '@debus/config/test-data';
 import { expect, test } from '@playwright/test';
+import { isLocalStack } from './support/local-stack';
 import { isReachable, latestLink, mailpitUrl } from './support/mailpit';
 
 test.describe('real access', () => {
   test.skip(!process.env.E2E_REAL_API, 'runs only against a running gateway');
+  test.skip(
+    ({ baseURL }) => !isLocalStack(baseURL),
+    'creates accounts: runs only on the local stack',
+  );
   test.setTimeout(180_000);
 
   test('sign-up, email, password, sign-in and recovery', async ({ page, baseURL }, testInfo) => {
@@ -10,7 +16,7 @@ test.describe('real access', () => {
     test.skip(!mailpit || !(await isReachable(mailpit)), 'needs a reachable Mailpit');
     const inbox = mailpit as string;
     // One address per run: projects and repeats run at the same time and must not share an inbox.
-    const email = `e2e-${testInfo.project.name}-${testInfo.repeatEachIndex}-${Date.now()}@correo.com`;
+    const email = testEmail(`e2e-${testInfo.project.name}-${testInfo.repeatEachIndex}`);
 
     await page.goto('/registro');
     await page.getByLabel('Nombre completo').fill('Prueba de Punta a Punta');

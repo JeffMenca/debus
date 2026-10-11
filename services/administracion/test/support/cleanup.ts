@@ -1,5 +1,5 @@
+import { TEST_BRANCH_PREFIX, TEST_RUN } from '@debus/config/test-data';
 import type { PrismaService } from '../../src/prisma/prisma.service';
-import { TEST_RUN } from './app';
 
 // Removes only what this test file created, so the local database does not pile up accounts.
 export async function cleanTestData(prisma: PrismaService): Promise<void> {
@@ -11,5 +11,7 @@ export async function cleanTestData(prisma: PrismaService): Promise<void> {
   await prisma.refreshToken.deleteMany({ where: { userId: { in: ids } } });
   await prisma.accountLink.deleteMany({ where: { userId: { in: ids } } });
   await prisma.user.deleteMany({ where: { id: { in: ids } } });
-  await prisma.branch.deleteMany({ where: { name: { startsWith: `Prueba ${TEST_RUN}` } } });
+  await prisma.branch.deleteMany({
+    where: { name: { startsWith: `${TEST_BRANCH_PREFIX}${TEST_RUN}` } },
+  });
 }

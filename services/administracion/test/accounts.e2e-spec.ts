@@ -1,9 +1,10 @@
+import { testEmail } from '@debus/config/test-data';
 import type { AccountLinkSentPayload, UserRegisteredPayload } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { activeAccount } from './support/accounts';
-import { createTestApp, tokenOf, uniqueEmail } from './support/app';
+import { createTestApp, tokenOf } from './support/app';
 import { cleanTestData } from './support/cleanup';
 import { type EventCapture, captureEvents } from './support/events';
 
@@ -51,7 +52,7 @@ describe('accounts', () => {
   });
 
   it('signs up, activates with the emailed link and publishes the new user', async () => {
-    const email = uniqueEmail('signup');
+    const email = testEmail('signup');
 
     const accepted = await signUp(email).expect(202);
     expect(accepted.body.message).toContain('te enviamos un correo');
@@ -82,7 +83,7 @@ describe('accounts', () => {
   });
 
   it('answers the same to an existing account and only warns its owner', async () => {
-    const email = uniqueEmail('dup');
+    const email = testEmail('dup');
     await signUp(email).expect(202);
     await setPassword(await tokenFor(email, 'SIGNUP')).expect(204);
 
@@ -93,7 +94,7 @@ describe('accounts', () => {
   });
 
   it('resets a forgotten password with a one hour link', async () => {
-    const email = uniqueEmail('reset');
+    const email = testEmail('reset');
     await signUp(email).expect(202);
     await setPassword(await tokenFor(email, 'SIGNUP'), 'clave-1-uno').expect(204);
 
@@ -105,7 +106,7 @@ describe('accounts', () => {
   });
 
   it('keeps silent about unknown emails', async () => {
-    const email = uniqueEmail('ghost');
+    const email = testEmail('ghost');
 
     await forgotPassword(email);
 
@@ -113,7 +114,7 @@ describe('accounts', () => {
   });
 
   it('renews an expired link without asking for the email', async () => {
-    const email = uniqueEmail('renew');
+    const email = testEmail('renew');
     await signUp(email).expect(202);
     const first = await tokenFor(email, 'SIGNUP');
     await prisma.accountLink.updateMany({
@@ -146,7 +147,7 @@ describe('accounts', () => {
 
   it('lets several pending sign ups claim the same NIT and gives it to the first to activate', async () => {
     const nit = String(Date.now()).slice(-10);
-    const [firstEmail, secondEmail] = [uniqueEmail('nit-a'), uniqueEmail('nit-b')];
+    const [firstEmail, secondEmail] = [testEmail('nit-a'), testEmail('nit-b')];
     await signUp(firstEmail, { nit }).expect(202);
     await signUp(secondEmail, { nit }).expect(202);
     const firstToken = await tokenFor(firstEmail, 'SIGNUP');
@@ -175,7 +176,7 @@ describe('accounts', () => {
 
   it('activates both accounts when two sign ups with the same NIT activate at the same time', async () => {
     const nit = String(Date.now()).slice(-9);
-    const emails = [uniqueEmail('nit-c'), uniqueEmail('nit-d')];
+    const emails = [testEmail('nit-c'), testEmail('nit-d')];
     const tokens: string[] = [];
     for (const email of emails) {
       await signUp(email, { nit }).expect(202);
@@ -189,7 +190,7 @@ describe('accounts', () => {
   });
 
   it('answers 202 to every one of five simultaneous sign ups of the same new email', async () => {
-    const email = uniqueEmail('twin');
+    const email = testEmail('twin');
 
     const responses = await Promise.all(Array.from({ length: 5 }, () => signUp(email)));
 
@@ -198,7 +199,7 @@ describe('accounts', () => {
   });
 
   it('sends a new activation link when a pending account signs up again', async () => {
-    const email = uniqueEmail('again');
+    const email = testEmail('again');
     await signUp(email).expect(202);
     const first = await tokenFor(email, 'SIGNUP');
 
@@ -213,7 +214,7 @@ describe('accounts', () => {
   });
 
   it('limits a person to three links per hour without telling them', async () => {
-    const email = uniqueEmail('limit');
+    const email = testEmail('limit');
     await signUp(email).expect(202);
     for (let attempt = 0; attempt < 3; attempt += 1) {
       await forgotPassword(email);
@@ -227,7 +228,7 @@ describe('accounts', () => {
   });
 
   it('lets a link be used once even when five requests use it at the same time', async () => {
-    const email = uniqueEmail('race');
+    const email = testEmail('race');
     await signUp(email).expect(202);
     const token = await tokenFor(email, 'SIGNUP');
 
@@ -243,7 +244,7 @@ describe('accounts', () => {
   });
 
   it('applies only one password when a reset link is used at the same time', async () => {
-    const email = uniqueEmail('race-reset');
+    const email = testEmail('race-reset');
     await signUp(email).expect(202);
     await setPassword(await tokenFor(email, 'SIGNUP'), 'clave-inicial-1').expect(204);
     await forgotPassword(email);
@@ -257,7 +258,7 @@ describe('accounts', () => {
 
   it('takes about the same time to answer an existing, a pending and an unknown email', async () => {
     const active = await activeAccount(app, events);
-    const pending = uniqueEmail('timing-pending');
+    const pending = testEmail('timing-pending');
     await signUp(pending).expect(202);
     const timeOf = async (email: string) => {
       const startedAt = Date.now();
@@ -268,7 +269,7 @@ describe('accounts', () => {
     const times = [
       await timeOf(active.email),
       await timeOf(pending),
-      await timeOf(uniqueEmail('timing-unknown')),
+      await timeOf(testEmail('timing-unknown')),
     ];
 
     expect(Math.min(...times)).toBeGreaterThanOrEqual(290);

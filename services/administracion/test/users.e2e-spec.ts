@@ -1,8 +1,9 @@
+import { testEmail } from '@debus/config/test-data';
 import type { AccountLinkSentPayload } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { createTestApp, uniqueEmail } from './support/app';
+import { createTestApp } from './support/app';
 import { activeAccount } from './support/accounts';
 import { createTestBranch } from './support/branches';
 import { cleanTestData } from './support/cleanup';
@@ -34,7 +35,7 @@ describe('users', () => {
 
   it('lets a system admin create a branch admin who then sets their own password', async () => {
     const admin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
-    const email = uniqueEmail('branch-admin');
+    const email = testEmail('branch-admin');
 
     const created = await request(app.getHttpServer())
       .post('/users')
@@ -58,12 +59,12 @@ describe('users', () => {
     await request(server)
       .post('/users')
       .set(actor)
-      .send({ fullName: 'Caja', email: uniqueEmail('cashier'), role: 'CASHIER', branchId: branch })
+      .send({ fullName: 'Caja', email: testEmail('cashier'), role: 'CASHIER', branchId: branch })
       .expect(201);
     await request(server)
       .post('/users')
       .set(actor)
-      .send({ fullName: 'Jefe', email: uniqueEmail('boss'), role: 'SYSTEM_ADMIN' })
+      .send({ fullName: 'Jefe', email: testEmail('boss'), role: 'SYSTEM_ADMIN' })
       .expect(403);
   });
 
@@ -71,7 +72,7 @@ describe('users', () => {
     await expect(
       app.get(PrismaService).user.create({
         data: {
-          email: uniqueEmail('orphan'),
+          email: testEmail('orphan'),
           fullName: 'Sin sucursal',
           role: 'CASHIER',
           branchId: '00000000-0000-4000-8000-000000000000',
@@ -81,7 +82,7 @@ describe('users', () => {
   });
 
   it('asks for a session and the right role', async () => {
-    const body = { fullName: 'X', email: uniqueEmail('x'), role: 'CLIENT' };
+    const body = { fullName: 'X', email: testEmail('x'), role: 'CLIENT' };
     await request(app.getHttpServer()).post('/users').send(body).expect(401);
     await request(app.getHttpServer())
       .post('/users')
@@ -138,7 +139,7 @@ describe('users', () => {
       phone: '55554444',
       nit: '1234567',
     });
-    const email = uniqueEmail('first-client');
+    const email = testEmail('first-client');
 
     await request(server).post('/users').set(admin).send(client(email)).expect(201);
     const sameEmail = await request(server).post('/users').set(admin).send(client(email));
@@ -146,7 +147,7 @@ describe('users', () => {
     await request(server)
       .post('/users')
       .set(admin)
-      .send(client(uniqueEmail('second-client')))
+      .send(client(testEmail('second-client')))
       .expect(201);
 
     expect(sameEmail.status).toBe(409);
@@ -212,7 +213,7 @@ describe('users', () => {
   it('brings back a never activated account as pending', async () => {
     const server = app.getHttpServer();
     const admin = as(callerId, 'SYSTEM_ADMIN');
-    const email = uniqueEmail('never-activated');
+    const email = testEmail('never-activated');
     const created = await request(server)
       .post('/users')
       .set(admin)
@@ -246,7 +247,7 @@ describe('users', () => {
       .set(headers)
       .send({
         fullName: 'Segunda Admin',
-        email: uniqueEmail('second-admin'),
+        email: testEmail('second-admin'),
         role: 'BRANCH_ADMIN',
         branchId: ownBranch.id,
       })
@@ -284,7 +285,7 @@ describe('users', () => {
   it('resends an invitation until the hourly limit', async () => {
     const admin = await activeAccount(app, events, { role: 'SYSTEM_ADMIN' });
     const headers = as(admin.id, 'SYSTEM_ADMIN');
-    const email = uniqueEmail('resend');
+    const email = testEmail('resend');
     const server = app.getHttpServer();
     const created = await request(server)
       .post('/users')
@@ -324,7 +325,7 @@ describe('users', () => {
       .set(headers)
       .send({
         fullName: 'Ana Sic',
-        email: uniqueEmail('inactive-branch'),
+        email: testEmail('inactive-branch'),
         role: 'CASHIER',
         branchId: inactive.id,
       })
@@ -343,7 +344,7 @@ describe('users', () => {
     const marker = `find-${Date.now()}`;
     const mine = await prisma.user.create({
       data: {
-        email: uniqueEmail(`${marker}-mine`),
+        email: testEmail(`${marker}-mine`),
         fullName: 'Mía',
         role: 'CASHIER',
         branchId: ownBranch.id,
@@ -351,7 +352,7 @@ describe('users', () => {
     });
     const theirs = await prisma.user.create({
       data: {
-        email: uniqueEmail(`${marker}-theirs`),
+        email: testEmail(`${marker}-theirs`),
         fullName: 'Suya',
         role: 'CASHIER',
         branchId: otherBranch.id,

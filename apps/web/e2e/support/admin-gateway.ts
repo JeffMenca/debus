@@ -4,6 +4,7 @@ import {
   type BranchWithAdmins,
   type ManagedUser,
   type SettingsVersion,
+  type UserRole,
   createBranchRequestSchema,
   createSettingsRequestSchema,
   createUserRequestSchema,
@@ -34,9 +35,8 @@ const LAST_ADMIN = 'La sucursal debe conservar al menos un administrador.';
 // Plays the administracion API with state: what a screen creates shows up in the next listing,
 // and the main rules answer with the same status codes and texts as the real service.
 export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
-  const branches = [...(seed.branches ?? [])];
-  const users = [...(seed.users ?? [])];
-  const versions = [...(seed.versions ?? [])];
+  // The seed is shared by every test of a worker and the handlers change what they hold.
+  const { branches = [], users = [], versions = [] } = structuredClone(seed);
   const requests: RecordedRequest[] = [];
 
   const adminsOf = (branchId: string) =>
@@ -47,6 +47,11 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
     ...branch,
     admins: adminsOf(branch.id),
   });
+  // Like the service: only a branch admin may join a branch that is closed.
+  const mayJoin = (branchId: string, role: UserRole) => {
+    const target = branches.find((branch) => branch.id === branchId);
+    return target !== undefined && (target.active || role === 'BRANCH_ADMIN');
+  };
   const error = (route: Route, status: number, message: string) =>
     fulfillJson(route, status, { statusCode: status, message });
 
@@ -136,8 +141,7 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
         if (users.some((user) => user.email === parsed.data.email)) {
           return error(route, 409, 'Ya existe una cuenta con ese correo.');
         }
-        const target = branches.find((branch) => branch.id === parsed.data.branchId);
-        if (parsed.data.branchId && !target?.active) {
+        if (parsed.data.branchId && !mayJoin(parsed.data.branchId, parsed.data.role)) {
           return error(route, 400, 'Elige una sucursal activa.');
         }
         const user: ManagedUser = {
@@ -167,7 +171,7 @@ export async function mockAdminGateway(page: Page, seed: AdminSeed = {}) {
           if (user.role === 'SYSTEM_ADMIN' || user.role === 'CLIENT') {
             return error(route, 400, 'Este rol no pertenece a una sucursal.');
           }
-          if (!branches.find((branch) => branch.id === parsed.data.branchId)?.active) {
+          if (!mayJoin(parsed.data.branchId, user.role)) {
             return error(route, 400, 'Elige una sucursal activa.');
           }
           if (user.role === 'BRANCH_ADMIN' && user.status !== 'INACTIVE' && peers.length === 0) {

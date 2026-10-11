@@ -17,6 +17,7 @@ jest.mock('../../hooks/use-users');
 jest.mock('sonner', () => ({ toast: { success: jest.fn() } }));
 
 const branchId = '9b2c7a10-1111-4c4c-8888-123456789abc';
+const closedBranchId = '3e8a1b30-3333-4e4e-aaaa-123456789abc';
 const users = [
   {
     id: 'u1',
@@ -59,9 +60,12 @@ function setup({ error = false }: { error?: boolean } = {}) {
         }
       : { data: users, isPending: false, isError: false, refetch }) as never,
   );
-  jest
-    .mocked(useBranches)
-    .mockReturnValue({ data: [{ id: branchId, name: 'Quetzaltenango', active: true }] } as never);
+  jest.mocked(useBranches).mockReturnValue({
+    data: [
+      { id: branchId, name: 'Quetzaltenango', active: true },
+      { id: closedBranchId, name: 'Cobán', active: false },
+    ],
+  } as never);
   jest.mocked(useInviteUser).mockReturnValue({ mutateAsync: jest.fn() } as never);
   jest.mocked(useUpdateUser).mockReturnValue({ mutateAsync: jest.fn() } as never);
   jest.mocked(useSetUserActive).mockReturnValue({ mutateAsync: setActive } as never);
@@ -96,6 +100,18 @@ describe('UsersScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Invitar usuario' }));
 
     expect(screen.getByRole('dialog', { name: 'Invitar usuario' })).toBeInTheDocument();
+  });
+
+  it('lets a branch admin be invited to a closed branch', async () => {
+    setup();
+    await userEvent.click(screen.getByRole('button', { name: 'Invitar usuario' }));
+    const invite = within(screen.getByRole('dialog', { name: 'Invitar usuario' }));
+    await userEvent.click(invite.getByRole('combobox', { name: 'Rol' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Admin. de sucursal' }));
+
+    await userEvent.click(invite.getByRole('combobox', { name: 'Sucursal' }));
+
+    expect(await screen.findByRole('option', { name: 'Cobán (inactiva)' })).toBeInTheDocument();
   });
 
   it('names the tabs like the statuses of the rows', () => {

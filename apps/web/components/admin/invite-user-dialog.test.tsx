@@ -8,9 +8,11 @@ jest.mock('../../hooks/use-users');
 jest.mock('sonner', () => ({ toast: { success: jest.fn() } }));
 
 const branchId = '9b2c7a10-1111-4c4c-8888-123456789abc';
+const closedId = '3e8a1b30-3333-4e4e-aaaa-123456789abc';
 const branches = [
   { id: branchId, name: 'Quetzaltenango', active: true },
   { id: '5d1f3a20-2222-4d4d-9999-123456789abc', name: 'Flores', active: true },
+  { id: closedId, name: 'Cobán', active: false },
 ] as never;
 
 function setup(mutateAsync = jest.fn().mockResolvedValue({})) {
@@ -59,6 +61,51 @@ describe('InviteUserDialog', () => {
 
     await choose('Rol', 'Admin. del sistema');
     expect(screen.queryByRole('combobox', { name: 'Sucursal' })).not.toBeInTheDocument();
+  });
+
+  it('offers a closed branch only to a branch admin, marked as inactive', async () => {
+    setup();
+
+    await choose('Rol', 'Cajero');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Sucursal' }));
+    expect(await screen.findByRole('option', { name: 'Flores' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Cobán/ })).not.toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+
+    await choose('Rol', 'Admin. de sucursal');
+    await userEvent.click(screen.getByRole('combobox', { name: 'Sucursal' }));
+    expect(await screen.findByRole('option', { name: 'Cobán (inactiva)' })).toBeInTheDocument();
+  });
+
+  it('invites a branch admin to a closed branch', async () => {
+    const { mutateAsync } = setup();
+    await userEvent.type(screen.getByLabelText('Nombre completo'), 'Ana Sic');
+    await userEvent.type(screen.getByLabelText('Correo'), 'ana@correo.com');
+    await choose('Rol', 'Admin. de sucursal');
+    await choose('Sucursal', 'Cobán (inactiva)');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar invitación' }));
+
+    expect(mutateAsync).toHaveBeenCalledWith({
+      fullName: 'Ana Sic',
+      email: 'ana@correo.com',
+      role: 'BRANCH_ADMIN',
+      branchId: closedId,
+    });
+  });
+
+  it('drops a closed branch when the role changes to one that cannot take it', async () => {
+    const { mutateAsync } = setup();
+    await userEvent.type(screen.getByLabelText('Nombre completo'), 'Ana Sic');
+    await userEvent.type(screen.getByLabelText('Correo'), 'ana@correo.com');
+    await choose('Rol', 'Admin. de sucursal');
+    await choose('Sucursal', 'Cobán (inactiva)');
+    await choose('Rol', 'Cajero');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar invitación' }));
+
+    expect(await screen.findByText('Elige una sucursal.')).toBeInTheDocument();
+    expect(mutateAsync).not.toHaveBeenCalled();
   });
 
   it('does not offer clients, who register on their own', async () => {

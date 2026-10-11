@@ -1,4 +1,6 @@
+import { TEST_BRANCH_PREFIX, testEmail } from '@debus/config/test-data';
 import { expect, test } from '@playwright/test';
+import { isLocalStack } from './support/local-stack';
 import { isReachable, latestLink, mailpitUrl } from './support/mailpit';
 import { signInAsRealAdmin } from './support/real-admin';
 
@@ -6,6 +8,10 @@ test.describe('real system administration', () => {
   test.skip(
     !process.env.E2E_REAL_API || !process.env.E2E_ADMIN_EMAIL,
     'runs only against a running stack with an admin',
+  );
+  test.skip(
+    ({ baseURL }) => !isLocalStack(baseURL),
+    'creates branches: runs only on the local stack',
   );
   test.setTimeout(240_000);
 
@@ -21,9 +27,9 @@ test.describe('real system administration', () => {
     const code = String.fromCharCode(
       ...Array.from({ length: 5 }, () => 65 + Math.floor(Math.random() * 26)),
     );
-    const branchAdmin = `e2e-branch-${stamp}@correo.com`;
+    const branchAdmin = testEmail(`e2e-branch-${testInfo.project.name}`);
     await page.goto('/admin/sucursales/nueva');
-    await page.getByLabel('Nombre', { exact: true }).fill(`E2E ${stamp}`);
+    await page.getByLabel('Nombre', { exact: true }).fill(`${TEST_BRANCH_PREFIX}E2E ${stamp}`);
     await page.getByLabel('Código').fill(code);
     await page.getByRole('combobox', { name: 'Departamento' }).click();
     await page.getByRole('option', { name: 'Quetzaltenango' }).click();

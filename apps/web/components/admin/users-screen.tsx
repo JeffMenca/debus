@@ -1,6 +1,6 @@
 'use client';
 
-import type { ManagedUser, UserRole } from '@debus/contracts';
+import type { Branch, ManagedUser, UserRole } from '@debus/contracts';
 import { Info, Search, UserPlus } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -27,6 +27,7 @@ import { InviteUserDialog } from './invite-user-dialog';
 import { useUserColumns } from './user-columns';
 
 const EMPTY_USERS: ManagedUser[] = [];
+const EMPTY_BRANCHES: Branch[] = [];
 
 export function UsersScreen() {
   const users = useUsers();
@@ -43,13 +44,10 @@ export function UsersScreen() {
   const [toggling, setToggling] = useState<{ user: ManagedUser; active: boolean } | null>(null);
 
   const all = users.data ?? EMPTY_USERS;
+  const allBranches = branches.data ?? EMPTY_BRANCHES;
   const branchNames = useMemo(
-    () => new Map((branches.data ?? []).map((branch) => [branch.id, branch.name])),
-    [branches.data],
-  );
-  const activeBranches = useMemo(
-    () => (branches.data ?? []).filter((branch) => branch.active),
-    [branches.data],
+    () => new Map(allBranches.map((branch) => [branch.id, branch.name])),
+    [allBranches],
   );
   const visible = useMemo(
     () => filterUsers(all, { tab, role, branchId, search }),
@@ -164,11 +162,11 @@ export function UsersScreen() {
         minWidth={880}
       />
 
-      <InviteUserDialog open={inviting} onOpenChange={setInviting} branches={activeBranches} />
+      <InviteUserDialog open={inviting} onOpenChange={setInviting} branches={allBranches} />
       <EditUserDialog
         user={editing}
         onOpenChange={(open) => !open && setEditing(null)}
-        branches={activeBranches}
+        branches={allBranches}
       />
       <ActiveToggleDialog
         pending={toggling}

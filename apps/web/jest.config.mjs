@@ -7,6 +7,10 @@ const config = {
   testEnvironment: '<rootDir>/jest.environment.mjs',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testPathIgnorePatterns: ['<rootDir>/e2e/', '<rootDir>/.next/'],
+  // Turbo runs every task of the repo at once, so a form test that takes 1 s alone can take 20 s
+  // on a busy machine: the timeout is generous on purpose and Jest leaves half the cores free.
+  testTimeout: 30_000,
+  maxWorkers: '50%',
   collectCoverageFrom: [
     'app/**/*.{ts,tsx}',
     'components/**/*.{ts,tsx}',

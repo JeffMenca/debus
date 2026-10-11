@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type Branch, type ManagedUser, fullNameSchema, isBranchRole } from '@debus/contracts';
+import { type ManagedUser, fullNameSchema, isBranchRole } from '@debus/contracts';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -18,6 +18,7 @@ import {
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useUpdateUser } from '@/hooks/use-users';
+import type { BranchOption } from '@/lib/admin/branch-options';
 import { messageOf } from '@/lib/api/client';
 import { UserRoleFields } from './user-role-fields';
 
@@ -27,7 +28,7 @@ type EditValues = z.infer<typeof editSchema>;
 interface EditUserDialogProps {
   user: ManagedUser | null;
   onOpenChange: (open: boolean) => void;
-  branches: Pick<Branch, 'id' | 'name'>[];
+  branches: BranchOption[];
 }
 
 function EditForm({

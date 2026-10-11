@@ -2,14 +2,18 @@
   "name": "@debus/config",
   "version": "0.0.0",
   "private": true,
-  "description": "Shared tsconfig, ESLint, Prettier and Jest settings",
+  "description": "Shared tsconfig, ESLint, Prettier and Jest settings, and test data markers",
   "exports": {
     "./tsconfig.base.json": "./tsconfig.base.json",
     "./tsconfig.node.json": "./tsconfig.node.json",
     "./eslint": "./eslint.config.mjs",
     "./prettier": "./prettier.config.mjs",
     "./jest": "./jest.base.cjs",
-    "./jest-integration": "./jest.integration.cjs"
+    "./jest-integration": "./jest.integration.cjs",
+    "./test-data": {
+      "types": "./test-data.d.ts",
+      "default": "./test-data.cjs"
+    }
   },
   "dependencies": {
     "dotenv": "^18.0.5"

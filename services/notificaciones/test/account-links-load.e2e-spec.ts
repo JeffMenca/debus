@@ -1,3 +1,4 @@
+import { testEmail } from '@debus/config/test-data';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createEnvelope } from '@debus/contracts';
@@ -5,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { Mailer, type MailMessage } from '../src/mail/mailer';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { cleanTestData } from './cleanup';
 
 const push = (value: unknown) => ({
   message: { data: Buffer.from(JSON.stringify(value)).toString('base64'), messageId: '1' },
@@ -51,6 +53,7 @@ describe('Account link emails under a tiny pool and a slow SMTP server', () => {
   });
 
   afterAll(async () => {
+    await cleanTestData(app.get(PrismaService));
     await app.close();
     if (previousPoolMax === undefined) delete process.env.DB_POOL_MAX;
     else process.env.DB_POOL_MAX = previousPoolMax;
@@ -62,8 +65,7 @@ describe('Account link emails under a tiny pool and a slow SMTP server', () => {
 
   it('delivers two different events at the same time with a pool of two', async () => {
     sendDelayMs = 300;
-    const stamp = Date.now();
-    const emails = [`pool-a-${stamp}@correo.com`, `pool-b-${stamp}@correo.com`];
+    const emails = [testEmail('pool-a'), testEmail('pool-b')];
 
     const responses = await Promise.all(
       emails.map((email) =>
@@ -83,7 +85,7 @@ describe('Account link emails under a tiny pool and a slow SMTP server', () => {
 
   it('keeps one email and one row when SMTP takes longer than Prisma default timeout', async () => {
     sendDelayMs = 6000;
-    const email = `slow-${Date.now()}@correo.com`;
+    const email = testEmail('slow');
 
     const response = await request(app.getHttpServer())
       .post('/events/pubsub')
@@ -97,8 +99,7 @@ describe('Account link emails under a tiny pool and a slow SMTP server', () => {
 
   it('queues a burst above the pool size instead of failing the events that wait', async () => {
     sendDelayMs = 2500;
-    const stamp = Date.now();
-    const emails = Array.from({ length: 4 }, (_, index) => `burst-${index}-${stamp}@correo.com`);
+    const emails = Array.from({ length: 4 }, (_, index) => testEmail(`burst-${index}`));
 
     const responses = await Promise.all(
       emails.map((email) =>

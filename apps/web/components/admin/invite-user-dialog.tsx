@@ -2,7 +2,6 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  type Branch,
   type CreateUserRequest,
   type UserRole,
   createUserRequestSchema,
@@ -24,6 +23,7 @@ import {
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useInviteUser } from '@/hooks/use-users';
+import { type BranchOption, branchesFor } from '@/lib/admin/branch-options';
 import { messageOf } from '@/lib/api/client';
 import { UserRoleFields } from './user-role-fields';
 
@@ -39,7 +39,7 @@ const MESSAGES = {
 interface InviteUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  branches: Pick<Branch, 'id' | 'name'>[];
+  branches: BranchOption[];
 }
 
 function InviteForm({
@@ -105,8 +105,11 @@ function InviteForm({
         branchError={error('branchId')}
         onRoleChange={(next) => {
           setValue('role', next, { shouldValidate: isSubmitted });
-          // A role without a branch must not keep one picked for the previous role.
-          if (!isBranchRole(next)) setValue('branchId', undefined);
+          // The branch picked for the previous role stays only if the new role may be placed in it.
+          const keepsBranch =
+            isBranchRole(next) &&
+            branchesFor(next, branches).some((branch) => branch.id === branchId);
+          if (!keepsBranch) setValue('branchId', undefined);
         }}
         onBranchChange={(id) => setValue('branchId', id, { shouldValidate: isSubmitted })}
       />

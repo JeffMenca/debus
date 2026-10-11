@@ -1,6 +1,6 @@
 'use client';
 
-import { type Branch, type UserRole, isBranchRole } from '@debus/contracts';
+import { type UserRole, isBranchRole } from '@debus/contracts';
 import { Field } from '@/components/ui/field';
 import {
   Select,
@@ -9,14 +9,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { type BranchOption, branchLabel, branchesFor } from '@/lib/admin/branch-options';
 import { ROLE_LABELS, STAFF_ROLES } from '@/lib/roles';
 
 interface UserRoleFieldsProps {
   idPrefix: string;
   role: UserRole | undefined;
   branchId: string | undefined;
-  // Only active branches: nobody can be placed in a closed one.
-  branches: Pick<Branch, 'id' | 'name'>[];
+  // Every branch; the ones this role may be placed in are picked here.
+  branches: BranchOption[];
   // Without it the role is fixed and only the branch can change (editing).
   onRoleChange?: (role: UserRole) => void;
   onBranchChange: (branchId: string) => void;
@@ -60,9 +61,9 @@ export function UserRoleFields({
               <SelectValue placeholder="Elige una sucursal" />
             </SelectTrigger>
             <SelectContent>
-              {branches.map((branch) => (
+              {branchesFor(role, branches).map((branch) => (
                 <SelectItem key={branch.id} value={branch.id}>
-                  {branch.name}
+                  {branchLabel(branch)}
                 </SelectItem>
               ))}
             </SelectContent>
