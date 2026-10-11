@@ -1,5 +1,13 @@
+# Local logs rotate so a noisy container never fills the disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
 services:
   postgres:
+    logging: *logging
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-debus}
@@ -16,8 +24,12 @@ services:
       retries: 10
 
   pubsub:
+    logging: *logging
     image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
     command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=${PUBSUB_PROJECT_ID:-debus-local}
+    # gcloud also copies the emulator output to an unrotated file; every failed push writes a full stack trace.
+    environment:
+      CLOUDSDK_CORE_DISABLE_FILE_LOGGING: 'true'
     ports:
       - '8085:8085'
     # Push subscriptions reach the services running on the host.
@@ -25,6 +37,7 @@ services:
       - 'host.docker.internal:host-gateway'
 
   mailpit:
+    logging: *logging
     image: axllent/mailpit:latest
     ports:
       - '1025:1025'
