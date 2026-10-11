@@ -159,6 +159,8 @@
   --animate-grow-x: grow-x 1.3s var(--ease-route) both;
   --animate-pulse-live: pulse-live 1.8s ease-out infinite;
   --animate-drive-across: drive-across 9s linear infinite;
+  --animate-drive-along: drive-along 9s linear infinite;
+  --animate-bounce-soft: bounce-soft 1.6s ease-in-out infinite;
   --animate-rise: rise 0.45s var(--ease-spring) both;
   --animate-shimmer: shimmer 1.4s linear infinite;
   --animate-bird: bird 14s linear infinite;
@@ -269,6 +271,19 @@
     left: 100%;
   }
 }
+@keyframes drive-along {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+@keyframes bounce-soft {
+  50% {
+    transform: translateY(6px);
+  }
+}
 @keyframes rise {
   from {
     opacity: 0;
@@ -301,6 +316,13 @@
 .wheel {
   transform-box: fill-box;
   transform-origin: center;
+}
+
+/* In-page links glide, unless the visitor asked for less motion */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 /* Leaflet skin (react-leaflet route map) */

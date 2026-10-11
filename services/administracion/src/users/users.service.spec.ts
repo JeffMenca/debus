@@ -14,10 +14,12 @@ const setup = () => {
   const tx = {
     user: {
       findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn().mockResolvedValue({ status: 'ACTIVE' }),
       count: jest.fn().mockResolvedValue(2),
       update: jest.fn().mockResolvedValue({}),
     },
     refreshToken: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    $queryRaw: jest.fn().mockResolvedValue([]),
   };
   const prisma = {
     user: {
@@ -187,15 +189,14 @@ describe('deactivate and reactivate edge cases', () => {
     expect(tx.user.update).not.toHaveBeenCalled();
   });
 
-  it('runs the check and the change as one serializable transaction', async () => {
+  it('runs the check and the change as one transaction', async () => {
     const { prisma, tx, service } = setup();
     tx.user.findUnique.mockResolvedValue({ id, role: 'CASHIER', status: 'ACTIVE' });
 
     await service.deactivate(id);
 
-    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
-      isolationLevel: 'Serializable',
-    });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it('answers 404 for unknown users and ignores accounts that are not inactive', async () => {
@@ -210,44 +211,44 @@ describe('deactivate and reactivate edge cases', () => {
 });
 
 describe('deactivate under concurrency', () => {
-  const conflict = () =>
-    new Prisma.PrismaClientKnownRequestError('write conflict', {
-      code: 'P2034',
-      clientVersion: 'x',
-    });
+  const activeAdmin = { id, role: 'SYSTEM_ADMIN', status: 'ACTIVE' };
 
-  it('runs the check again when the database aborts a serializable transaction', async () => {
-    const { prisma, tx, service } = setup();
-    tx.user.findUnique.mockResolvedValue({ id, role: 'SYSTEM_ADMIN', status: 'ACTIVE' });
-    tx.user.count.mockResolvedValue(1);
-    prisma.$transaction.mockRejectedValueOnce(conflict());
+  it('locks the active system admins before counting them', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(activeAdmin);
 
-    await expect(service.deactivate(id)).rejects.toThrow(
-      new ConflictException('Debe quedar al menos un administrador del sistema activo.'),
-    );
-    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    await service.deactivate(id);
+
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    const [lockedAt] = tx.$queryRaw.mock.invocationCallOrder;
+    const [countedAt] = tx.user.count.mock.invocationCallOrder;
+    expect(lockedAt).toBeLessThan(countedAt!);
+    expect(tx.user.update).toHaveBeenCalledWith({ where: { id }, data: { status: 'INACTIVE' } });
   });
 
-  it('succeeds when the second try finds no conflict', async () => {
-    const { prisma, tx, service } = setup();
-    tx.user.findUnique.mockResolvedValue({ id, role: 'CASHIER', status: 'ACTIVE' });
-    prisma.$transaction.mockRejectedValueOnce(conflict());
+  it('reads the status again once it holds the lock', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(activeAdmin);
+    tx.user.findUniqueOrThrow.mockResolvedValue({ status: 'INACTIVE' });
+    tx.user.count.mockResolvedValue(1);
 
     await expect(service.deactivate(id)).resolves.toBeUndefined();
+
+    expect(tx.user.findUniqueOrThrow).toHaveBeenCalledTimes(1);
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 
-  it('asks to try again, with a friendly 409, when the conflict persists', async () => {
-    const { prisma, service } = setup();
-    prisma.$transaction.mockRejectedValue(conflict());
+  it('does not lock anything for accounts that are not system admins', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue({ id, role: 'BRANCH_ADMIN', status: 'ACTIVE' });
 
-    await expect(service.deactivate(id)).rejects.toThrow(
-      new ConflictException(
-        'Otra persona está haciendo un cambio al mismo tiempo. Intenta de nuevo.',
-      ),
-    );
+    await service.deactivate(id);
+
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(tx.user.update).toHaveBeenCalled();
   });
 
-  it('does not hide other database errors', async () => {
+  it('does not retry or hide database errors', async () => {
     const { prisma, service } = setup();
     prisma.$transaction.mockRejectedValue(new Error('connection lost'));
 

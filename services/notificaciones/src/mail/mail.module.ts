@@ -1,18 +1,12 @@
 import { Global, Module } from '@nestjs/common';
-import { createTransport } from 'nodemailer';
+import { createSmtpMailer } from './create-smtp-mailer';
 import { loadMailSettings } from './mail-settings';
-import { Mailer, SmtpMailer } from './mailer';
+import { Mailer } from './mailer';
 
 @Global()
 @Module({
   providers: [
-    {
-      provide: Mailer,
-      useFactory: () => {
-        const settings = loadMailSettings(process.env);
-        return new SmtpMailer(createTransport(settings.transport), settings);
-      },
-    },
+    { provide: Mailer, useFactory: () => createSmtpMailer(loadMailSettings(process.env)) },
   ],
   exports: [Mailer],
 })

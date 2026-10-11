@@ -10,7 +10,6 @@ export const MESSAGES = {
   linkExpired: 'Este enlace ya venció. Pide uno nuevo.',
   linkUsed: 'Este enlace ya se usó. Inicia sesión.',
   emailTaken: 'Ya existe una cuenta con ese correo.',
-  busy: 'Otra persona está haciendo un cambio al mismo tiempo. Intenta de nuevo.',
   lastSystemAdmin: 'Debe quedar al menos un administrador del sistema activo.',
   userNotFound: 'No encontramos esa cuenta.',
 } as const;

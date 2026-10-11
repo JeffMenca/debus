@@ -1,8 +1,9 @@
 import 'reflect-metadata';
 import { createEnvelope, eventEnvelopeSchema } from '@debus/contracts';
-import { type Message, PubSub } from '@google-cloud/pubsub';
+import { PubSub } from '@google-cloud/pubsub';
 import { EventPublisher } from '../src/publishing/event-publisher';
 import { loadMessagingSettings } from '../src/settings';
+import { pullOne } from './support/pull';
 
 describe('EventPublisher against the Pub/Sub emulator', () => {
   const settings = loadMessagingSettings('gateway', process.env);
@@ -22,19 +23,11 @@ describe('EventPublisher against the Pub/Sub emulator', () => {
 
   it('delivers the envelope with its attributes', async () => {
     const envelope = createEnvelope('ProbeSent', { requestedAt: new Date().toISOString() }, 'c-1');
-    const subscription = pubsub.subscription(subscriptionName);
-    const received = new Promise<Message>((resolve) => {
-      subscription.once('message', (message: Message) => {
-        message.ack();
-        resolve(message);
-      });
-    });
 
     await new EventPublisher(pubsub, settings).publish(envelope);
 
-    const message = await received;
-    await subscription.close();
-    expect(eventEnvelopeSchema.parse(JSON.parse(message.data.toString()))).toEqual(envelope);
+    const message = await pullOne(subscriptionName);
+    expect(eventEnvelopeSchema.parse(JSON.parse(message.data))).toEqual(envelope);
     expect(message.attributes).toMatchObject({ type: 'ProbeSent', eventId: envelope.eventId });
   });
 });

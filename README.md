@@ -52,6 +52,14 @@ Imágenes: `docker build -f infra/docker/service.Dockerfile --build-arg SERVICE=
 
 La primera vez, después de correr `infra/gcp/bootstrap.sh` y cargar sus variables en GitHub, se ejecuta `deploy` a mano con `all=true`.
 
+En cada despliegue, el job `pubsub` de `release` crea los tópicos y las suscripciones **antes** de desplegar los servicios (`deploy` depende de él). Pub/Sub descarta los mensajes publicados a un tópico sin una suscripción que los acepte, así que un servicio que publica al arrancar, como el primer admin, no puede adelantarse a ellas.
+
+### Si el correo del primer admin no llega
+
+1. En GitHub, **Actions > smtp-check > Run workflow**. Envía un correo real de prueba a `BOOTSTRAP_ADMIN_EMAIL` con la configuración de producción y termina con un resumen: "Enviado correctamente" o la causa (contraseña de aplicación incorrecta o verificación en 2 pasos inactiva, sin conexión con `smtp.gmail.com:465`, o el código y el mensaje del servidor). Nunca imprime contraseñas ni direcciones completas.
+2. Con `smtp-check` en verde, abrir `/recuperar` en la web de producción e ingresar el correo del admin. Mientras la cuenta esté pendiente, reenvía el enlace de activación; si ya está activa, envía el de restablecimiento.
+3. Si sigue sin llegar, revisar los logs de Cloud Run de `notificaciones` (¿recibió `AccountLinkSent`?) y de `administracion` (¿publicó el evento?), y las suscripciones `notificaciones-from-administracion` y su dead-letter en Pub/Sub. Requiere acceso a GCP. En un entorno nuevo, si `notificaciones` tarda más de unos 2,5 minutos en estar en línea después de que arranque `administracion`, Pub/Sub agota sus 5 reintentos y deja la invitación del primer admin en `notificaciones-dlq-sub`; en ese caso basta con el paso 2.
+
 ## Convenciones
 
 Commits convencionales (validados en `commit-msg`), PR pequeños y `main` protegida con una aprobación. Todo el código en inglés (identificadores, eventos como `TicketSold` o `TripScheduled`, rutas de la API, Swagger y logs); en español solo los textos de la interfaz, los correos, las URL del navegador y la documentación.
