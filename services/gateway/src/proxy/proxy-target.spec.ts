@@ -44,4 +44,9 @@ describe('resolveProxyTarget', () => {
   ])('refuses %s', (url) => {
     expect(resolve(url)).toEqual({ kind: 'not-found' });
   });
+
+  it('never exposes the service-to-service endpoints', () => {
+    expect(resolve('/api/flota/internal/availability?busId=1')).toEqual({ kind: 'not-found' });
+    expect(resolve('/api/viajes/Internal/trips/1/sale-status')).toEqual({ kind: 'not-found' });
+  });
 });

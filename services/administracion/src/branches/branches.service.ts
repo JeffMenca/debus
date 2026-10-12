@@ -1,3 +1,4 @@
+import { isUniqueViolation, type Identity, SERVER_MESSAGES } from '@debus/server';
 import {
   type Branch,
   type BranchListQuery,
@@ -19,9 +20,7 @@ import { AccountLinksService } from '../accounts/account-links.service';
 import { lockBranchAdmins } from '../accounts/admin-locks';
 import { MESSAGES } from '../accounts/messages';
 import { AdminEvents } from '../common/admin-events';
-import { isUniqueViolation } from '../common/prisma-errors';
 import type { Prisma } from '../generated/prisma/client';
-import type { Identity } from '../identity/identity';
 import { PrismaService } from '../prisma/prisma.service';
 import { WITH_ADMINS, toBranch, toBranchPayload, toBranchWithAdmins } from './branch-mappers';
 import { canViewBranch } from './branch-rules';
@@ -72,7 +71,7 @@ export class BranchesService {
   }
 
   async get(actor: Identity, id: string): Promise<Branch> {
-    if (!canViewBranch(actor, id)) throw new ForbiddenException(MESSAGES.forbidden);
+    if (!canViewBranch(actor, id)) throw new ForbiddenException(SERVER_MESSAGES.forbidden);
     if (actor.role !== 'SYSTEM_ADMIN') {
       return toBranch(this.found(await this.prisma.branch.findUnique({ where: { id } })));
     }

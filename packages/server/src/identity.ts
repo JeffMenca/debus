@@ -12,8 +12,8 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ApiOperation } from '@nestjs/swagger';
 import { z } from 'zod';
-import { MESSAGES } from '../accounts/messages';
-import { apiErrors } from '../common/api-errors';
+import { apiErrors } from './api-docs';
+import { SERVER_MESSAGES } from './messages';
 
 export interface Identity {
   userId: string;
@@ -45,13 +45,19 @@ export function readIdentity(headers: Headers): Identity | null {
 
 export function requireIdentity(context: ExecutionContext): Identity {
   const identity = readIdentity(context.switchToHttp().getRequest<{ headers: Headers }>().headers);
-  if (!identity) throw new UnauthorizedException(MESSAGES.signInRequired);
+  if (!identity) throw new UnauthorizedException(SERVER_MESSAGES.signInRequired);
   return identity;
 }
 
 export const CurrentIdentity = createParamDecorator((_: unknown, context: ExecutionContext) =>
   requireIdentity(context),
 );
+
+// Branch staff work only on their own branch; the gateway puts it in the identity headers.
+export function requireBranch(identity: Identity): string {
+  if (!identity.branchId) throw new ForbiddenException(SERVER_MESSAGES.forbidden);
+  return identity.branchId;
+}
 
 // The same list feeds the guard and the Swagger description, so the docs cannot drift.
 export const Roles = (...roles: UserRole[]) =>
@@ -72,7 +78,7 @@ export class RolesGuard implements CanActivate {
     ]);
     if (!roles) return true;
     if (!roles.includes(requireIdentity(context).role)) {
-      throw new ForbiddenException(MESSAGES.forbidden);
+      throw new ForbiddenException(SERVER_MESSAGES.forbidden);
     }
     return true;
   }

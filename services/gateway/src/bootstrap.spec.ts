@@ -3,7 +3,7 @@ import { SwaggerModule } from '@nestjs/swagger';
 import { configureDocs, configureGateway } from './bootstrap';
 import { GatewayConfig } from './config/gateway-config';
 import { DocsService } from './docs/docs.service';
-import { HttpExceptionFilter } from './errors/http-exception.filter';
+import { HttpExceptionFilter } from '@debus/server';
 
 describe('configureGateway', () => {
   it('enables CORS for the configured origins and installs the error filter', () => {

@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { emailRequestSchema, userListQuerySchema } from '@debus/contracts';
 import { DECORATORS } from '@nestjs/swagger';
-import { ZodBody, apiBody, apiQuery } from './zod-body.pipe';
+import { ZodBody, apiBody, apiQuery } from './zod';
 
 describe('ZodBody', () => {
   it('returns the parsed value', () => {

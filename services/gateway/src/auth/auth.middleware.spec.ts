@@ -220,7 +220,7 @@ describe('AuthMiddleware', () => {
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'No tienes permiso para ver esto.' }),
+      expect.objectContaining({ message: 'No tienes permiso para hacer esto.' }),
     );
   });
 

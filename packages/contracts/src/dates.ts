@@ -14,3 +14,7 @@ const dayFormat = new Intl.DateTimeFormat('en-CA', {
 export function todayInGuatemala(now: Date = new Date()): string {
   return dayFormat.format(now);
 }
+
+// ISO strings of different precision (`...:00Z` and `...:00.000Z`) are not comparable as text.
+export const isLaterInstant = (later: string, earlier: string): boolean =>
+  Date.parse(later) > Date.parse(earlier);

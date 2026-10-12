@@ -2,7 +2,7 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import { DECORATORS } from '@nestjs/swagger';
-import { Roles, RolesGuard, readIdentity, requireIdentity } from './identity';
+import { Roles, RolesGuard, readIdentity, requireBranch, requireIdentity } from './identity';
 
 const userId = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 
@@ -87,5 +87,16 @@ describe('Roles', () => {
 
     expect(operation.description).toBe('Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN.');
     expect(Object.keys(responses)).toEqual(['401', '403']);
+  });
+});
+
+describe('requireBranch', () => {
+  it('returns the branch of branch staff', () => {
+    expect(requireBranch({ userId: 'u', role: 'BRANCH_ADMIN', branchId: 'b' })).toBe('b');
+  });
+  it('refuses an identity without a branch', () => {
+    expect(() => requireBranch({ userId: 'u', role: 'SYSTEM_ADMIN', branchId: null })).toThrow(
+      ForbiddenException,
+    );
   });
 });

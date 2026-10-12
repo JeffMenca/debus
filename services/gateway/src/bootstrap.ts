@@ -3,7 +3,7 @@ import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { GatewayConfig } from './config/gateway-config';
 import { DocsService } from './docs/docs.service';
-import { HttpExceptionFilter } from './errors/http-exception.filter';
+import { HttpExceptionFilter } from '@debus/server';
 
 export function configureGateway(app: INestApplication): void {
   const config = app.get(GatewayConfig);

@@ -23,7 +23,7 @@ describe('buildPubSubPlan', () => {
       name: 'reportes-from-flota',
       topic: 'flota-events',
       filter:
-        'attributes.type = "BusAdded" OR attributes.type = "BusUpdated" OR attributes.type = "BusDeactivated" OR attributes.type = "RouteCreated" OR attributes.type = "RouteDeleted"',
+        'attributes.type = "BusAdded" OR attributes.type = "BusUpdated" OR attributes.type = "BusDeactivated" OR attributes.type = "RouteCreated" OR attributes.type = "RouteUpdated" OR attributes.type = "RouteDeleted"',
       pushEndpoint: 'https://reportes-123.us-central1.run.app/events/pubsub',
       oidc: {
         serviceAccountEmail: 'pubsub-invoker@p.iam.gserviceaccount.com',
@@ -31,6 +31,20 @@ describe('buildPubSubPlan', () => {
       },
       deadLetterTopic: 'reportes-dlq',
     });
+  });
+
+  it('lets flota follow the trips and administracion the drivers', () => {
+    const plan = buildPubSubPlan({ env: 'production', projectId: 'p', location });
+    const names = plan.subscriptions.map((s) => s.name);
+
+    expect(names).toEqual(
+      expect.arrayContaining(['flota-from-viajes', 'administracion-from-flota']),
+    );
+    // flota listens to every trip event, so its subscription needs no filter.
+    expect(plan.subscriptions.find((s) => s.name === 'flota-from-viajes')?.filter).toBe('');
+    expect(plan.subscriptions.find((s) => s.name === 'administracion-from-flota')?.filter).toBe(
+      'attributes.type = "DriverAdded" OR attributes.type = "DriverUpdated"',
+    );
   });
 
   it('subscribes every backend service to the probe', () => {

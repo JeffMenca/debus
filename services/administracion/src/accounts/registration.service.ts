@@ -1,3 +1,4 @@
+import { isUniqueViolation } from '@debus/server';
 import type {
   LinkStatus,
   SetPasswordRequest,
@@ -5,7 +6,6 @@ import type {
   UserRegisteredPayload,
 } from '@debus/contracts';
 import { BadRequestException, ConflictException, GoneException, Injectable } from '@nestjs/common';
-import { isUniqueViolation } from '../common/prisma-errors';
 import { Prisma, type User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountEvents } from './account-events';

@@ -1,3 +1,4 @@
+import { isUniqueViolation, type Identity, SERVER_MESSAGES } from '@debus/server';
 import {
   type CreateUserRequest,
   type ManagedUser,
@@ -23,9 +24,7 @@ import { canCreateRole, canDeactivate, leavesBranchWithoutAdmin } from '../accou
 import { lockActiveSystemAdmins, lockBranchAdmins } from '../accounts/admin-locks';
 import { MESSAGES } from '../accounts/messages';
 import { canLinkToBranch } from '../branches/branch-rules';
-import { isUniqueViolation } from '../common/prisma-errors';
 import type { Prisma, User } from '../generated/prisma/client';
-import type { Identity } from '../identity/identity';
 import { PrismaService } from '../prisma/prisma.service';
 import { toStatusCounts } from './user-counts';
 import { userCountWhere, userListWhere } from './user-scope';
@@ -54,7 +53,7 @@ export class UsersService {
     correlationId?: string,
   ): Promise<ManagedUser> {
     if (!canCreateRole(actor, input)) {
-      throw new ForbiddenException(MESSAGES.forbidden);
+      throw new ForbiddenException(SERVER_MESSAGES.forbidden);
     }
     if (input.branchId) await this.assertLinkableBranch(this.prisma, input.role, input.branchId);
     if (await this.prisma.user.findUnique({ where: { email: input.email } })) {

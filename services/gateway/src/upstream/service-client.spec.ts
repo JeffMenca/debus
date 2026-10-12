@@ -1,5 +1,5 @@
 import type { GatewayConfig } from '../config/gateway-config';
-import type { IdentityTokens } from './identity-tokens';
+import type { IdentityTokens } from '@debus/server';
 import { ServiceClient } from './service-client';
 
 describe('ServiceClient', () => {

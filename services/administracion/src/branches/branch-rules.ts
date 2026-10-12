@@ -1,5 +1,5 @@
+import type { Identity } from '@debus/server';
 import type { UserRole } from '@debus/contracts';
-import type { Identity } from '../identity/identity';
 
 export function canViewBranch(actor: Identity, branchId: string): boolean {
   return actor.role === 'SYSTEM_ADMIN' || (actor.role !== 'CLIENT' && actor.branchId === branchId);

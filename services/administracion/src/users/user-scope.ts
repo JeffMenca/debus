@@ -1,6 +1,6 @@
+import type { Identity } from '@debus/server';
 import { type UserListQuery, escapeLikePattern } from '@debus/contracts';
 import type { Prisma, UserRole } from '../generated/prisma/client';
-import type { Identity } from '../identity/identity';
 
 // The filters a list may carry; paging is not part of who can be seen.
 type UserFilters = Partial<UserListQuery>;

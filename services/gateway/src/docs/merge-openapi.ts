@@ -1,13 +1,12 @@
 import type { BackendService } from '@debus/contracts';
 import type { OpenAPIObject } from '@nestjs/swagger';
-import { isUnderPrefix } from '../routing/canonical-path';
+import { canonicalPath, isInternalPath } from '../routing/canonical-path';
 
 export interface ServiceDocument {
   service: BackendService;
   document: OpenAPIObject | null;
 }
 
-const INTERNAL_PREFIXES = ['/events', '/outbox'];
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
 
 function namespaceRefs(document: OpenAPIObject, service: string): OpenAPIObject {
@@ -33,7 +32,7 @@ export function mergeOpenApi(
     }
     const source = namespaceRefs(document, service);
     for (const [path, item] of Object.entries(source.paths ?? {})) {
-      if (INTERNAL_PREFIXES.some((prefix) => isUnderPrefix(path, prefix))) continue;
+      if (isInternalPath(canonicalPath(path))) continue;
       const operations = { ...item };
       for (const method of METHODS) {
         const operation = operations[method];

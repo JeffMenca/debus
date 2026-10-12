@@ -1,5 +1,23 @@
 import { type ArgumentsHost, BadRequestException, HttpException } from '@nestjs/common';
-import { HttpExceptionFilter } from './http-exception.filter';
+import { HttpExceptionFilter, correlationOf, errorResponse } from './errors';
+import { SERVER_MESSAGES } from './messages';
+
+describe('errorResponse', () => {
+  it('builds the common error body', () => {
+    expect(errorResponse(502, 'x', 'c')).toEqual({
+      statusCode: 502,
+      error: 'Bad Gateway',
+      message: 'x',
+      correlationId: 'c',
+    });
+    expect(errorResponse(599, 'x')).toEqual({ statusCode: 599, error: 'Error', message: 'x' });
+  });
+
+  it('reads the correlation id from the request', () => {
+    expect(correlationOf({ headers: { 'x-correlation-id': 'c' } })).toBe('c');
+    expect(correlationOf({ headers: {} })).toBeUndefined();
+  });
+});
 
 function host() {
   const json = jest.fn();
@@ -54,5 +72,25 @@ describe('HttpExceptionFilter', () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Algo salió mal. Intenta de nuevo en unos segundos.' }),
     );
+  });
+});
+
+function hostWith(req: unknown, res: unknown): ArgumentsHost {
+  return {
+    switchToHttp: () => ({ getRequest: () => req, getResponse: () => res }),
+  } as unknown as ArgumentsHost;
+}
+
+describe('HttpExceptionFilter with the shared texts', () => {
+  it('answers a zod pipe rejection with the shared Spanish text and the correlation id', () => {
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const host = hostWith({ headers: { 'x-correlation-id': 'c1' } }, res);
+    new HttpExceptionFilter().catch(new BadRequestException(SERVER_MESSAGES.invalidData), host);
+    expect(res.json).toHaveBeenCalledWith({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: SERVER_MESSAGES.invalidData,
+      correlationId: 'c1',
+    });
   });
 });

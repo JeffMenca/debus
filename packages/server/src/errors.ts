@@ -1,3 +1,5 @@
+import { STATUS_CODES } from 'node:http';
+import { CORRELATION_HEADER, type ErrorResponse } from '@debus/contracts';
 import {
   type ArgumentsHost,
   Catch,
@@ -6,7 +8,27 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { MESSAGES, correlationOf, errorResponse } from './error-response';
+import { SERVER_MESSAGES } from './messages';
+
+export function errorResponse(
+  statusCode: number,
+  message: string,
+  correlationId?: string,
+): ErrorResponse {
+  return {
+    statusCode,
+    error: STATUS_CODES[statusCode] ?? 'Error',
+    message,
+    ...(correlationId && { correlationId }),
+  };
+}
+
+export function correlationOf(req: {
+  headers: Record<string, string | string[] | undefined>;
+}): string | undefined {
+  const value = req.headers[CORRELATION_HEADER];
+  return typeof value === 'string' ? value : undefined;
+}
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -19,7 +41,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const message =
       exception instanceof HttpException && status < 500
         ? clientMessage(exception)
-        : MESSAGES.generic;
+        : SERVER_MESSAGES.generic;
     http
       .getResponse<Response>()
       .status(status)

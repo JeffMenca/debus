@@ -10,6 +10,8 @@ const DESCRIPTIONS = {
   410: 'The link has expired.',
   423: 'Account temporarily locked after failed attempts.',
   429: 'Too many emails sent to this account in the last hour.',
+  502: 'Another service answered with an error.',
+  503: 'Another service did not answer in time. Try again.',
 } as const;
 
 export type DocumentedError = keyof typeof DESCRIPTIONS;

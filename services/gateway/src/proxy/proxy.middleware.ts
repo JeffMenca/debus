@@ -4,8 +4,7 @@ import { Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import { createProxyMiddleware, fixRequestBody, type RequestHandler } from 'http-proxy-middleware';
 import { GatewayConfig } from '../config/gateway-config';
-import { MESSAGES, correlationOf, errorResponse } from '../errors/error-response';
-import { IdentityTokens } from '../upstream/identity-tokens';
+import { IdentityTokens, SERVER_MESSAGES, correlationOf, errorResponse } from '@debus/server';
 import { type ProxyResolution, resolveProxyTarget } from './proxy-target';
 
 type ServiceResolution = Extract<ProxyResolution, { kind: 'service' }>;
@@ -37,7 +36,7 @@ export class ProxyMiddleware implements NestMiddleware {
     const correlationId = correlationIdFor(req, res);
     const resolution = resolveProxyTarget(req.originalUrl, this.config.serviceUrls);
     if (resolution.kind === 'not-found') {
-      res.status(404).json(errorResponse(404, MESSAGES.notFound, correlationId));
+      res.status(404).json(errorResponse(404, SERVER_MESSAGES.notFound, correlationId));
       return;
     }
     Object.assign(req.headers, await this.tokens.headersFor(resolution.target));
@@ -57,6 +56,6 @@ function sendUpstreamError(req: IncomingMessage, res: unknown): void {
   if (typeof res !== 'object' || res === null || !('writeHead' in res)) return;
   const response = res as ServerResponse;
   if (response.headersSent) return;
-  const body = errorResponse(502, MESSAGES.upstream, correlationOf(req));
+  const body = errorResponse(502, SERVER_MESSAGES.upstream, correlationOf(req));
   response.writeHead(502, { 'content-type': 'application/json' }).end(JSON.stringify(body));
 }

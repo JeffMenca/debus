@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import type { GatewayConfig } from '../config/gateway-config';
-import type { IdentityTokens } from '../upstream/identity-tokens';
+import type { IdentityTokens } from '@debus/server';
 import { ProxyMiddleware } from './proxy.middleware';
 
 const proxyHandler = jest.fn();

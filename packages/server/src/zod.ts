@@ -1,14 +1,14 @@
 import { BadRequestException, type PipeTransform, applyDecorators } from '@nestjs/common';
 import { ApiBody, ApiQuery } from '@nestjs/swagger';
 import { z } from 'zod';
-import { MESSAGES } from '../accounts/messages';
+import { SERVER_MESSAGES } from './messages';
 
 export class ZodBody<T> implements PipeTransform<unknown, T> {
   constructor(private readonly schema: z.ZodType<T>) {}
 
   transform(value: unknown): T {
     const parsed = this.schema.safeParse(value);
-    if (!parsed.success) throw new BadRequestException(MESSAGES.invalidData);
+    if (!parsed.success) throw new BadRequestException(SERVER_MESSAGES.invalidData);
     return parsed.data;
   }
 }

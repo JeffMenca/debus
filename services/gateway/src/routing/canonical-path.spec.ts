@@ -1,4 +1,4 @@
-import { canonicalPath, isUnderPrefix } from './canonical-path';
+import { canonicalPath, isInternalPath, isUnderPrefix } from './canonical-path';
 
 describe('canonicalPath', () => {
   it('collapses repeated slashes and lowercases', () => {
@@ -20,5 +20,15 @@ describe('isUnderPrefix', () => {
   it('rejects siblings that only share the leading characters', () => {
     expect(isUnderPrefix('/apis', '/api')).toBe(false);
     expect(isUnderPrefix('/', '/api')).toBe(false);
+  });
+});
+
+describe('isInternalPath', () => {
+  it('flags the Pub/Sub, scheduler and service-to-service paths, and nothing else', () => {
+    expect(isInternalPath('/events/pubsub')).toBe(true);
+    expect(isInternalPath('/outbox/flush')).toBe(true);
+    expect(isInternalPath('/internal/availability')).toBe(true);
+    expect(isInternalPath('/buses')).toBe(false);
+    expect(isInternalPath('/internals')).toBe(false);
   });
 });

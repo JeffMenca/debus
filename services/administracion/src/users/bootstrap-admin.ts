@@ -1,7 +1,7 @@
+import { isUniqueViolation } from '@debus/server';
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { AccountLinksService } from '../accounts/account-links.service';
 import { AUTH_SETTINGS, type AuthSettings } from '../accounts/auth-settings';
-import { isUniqueViolation } from '../common/prisma-errors';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
