@@ -35,7 +35,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @debus/web exec playwright install --with-deps chromium
-      - run: pnpm --filter @debus/web test:e2e
+      - run: pnpm turbo run test:e2e --filter=@debus/web
         env:
           E2E_BASE_URL: https://web-${{ vars.GCP_PROJECT_NUMBER }}.${{ vars.GCP_REGION }}.run.app
           E2E_REAL_API: '1'
