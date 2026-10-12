@@ -7,11 +7,11 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { Field, invalidProps } from '@/components/ui/field';
 import { ApiError, messageOf } from '@/lib/api/api-error';
 import { setPassword } from '@/lib/auth/auth-api';
 import { FIELD_MESSAGES } from '@/lib/auth/form-messages';
 import { AuthCard } from './auth-card';
-import { Field, invalidProps } from './field';
 import { FormAlert } from './form-alert';
 import { PasswordInput } from './password-input';
 

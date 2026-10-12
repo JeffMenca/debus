@@ -1,18 +1,36 @@
+import { randomUUID } from 'node:crypto';
 import { PubSub } from '@google-cloud/pubsub';
 import { applyPubSubPlan, provisionPubSub } from '../src/provisioning/apply-pubsub-plan';
 import { planInputFromEnv } from '../src/provisioning/plan-input';
 import { buildPubSubPlan } from '../src/provisioning/pubsub-plan';
 
 describe('Pub/Sub provisioning against the emulator', () => {
-  const projectId = process.env.PUBSUB_PROJECT_ID ?? 'debus-local';
+  // The plan pushes to the ports of the services on this machine, so it never goes into a project
+  // that tests publish to, nor into debus-local: a project of its own, emptied when the file ends.
+  const projectId = `debus-provisioning-${randomUUID().slice(0, 8)}`;
   const pubsub = new PubSub({ projectId });
   const plan = buildPubSubPlan({ env: 'local', projectId });
   const quiet = (): void => undefined;
 
-  afterAll(() => pubsub.close());
+  afterAll(async () => {
+    try {
+      const [subscriptions] = await pubsub.getSubscriptions();
+      await Promise.all(subscriptions.map((subscription) => subscription.delete()));
+      const [topics] = await pubsub.getTopics();
+      await Promise.all(topics.map((topic) => topic.delete()));
+      // Nothing may outlive the run: the emulator keeps it, and its push endpoints are real ports.
+      expect((await pubsub.getSubscriptions())[0]).toHaveLength(0);
+      expect((await pubsub.getTopics())[0]).toHaveLength(0);
+    } finally {
+      await pubsub.close();
+    }
+  });
 
   it('is idempotent and leaves every subscription with its filter and push endpoint', async () => {
-    await provisionPubSub(planInputFromEnv(process.env), quiet);
+    await provisionPubSub(
+      planInputFromEnv({ ...process.env, PUBSUB_PROJECT_ID: projectId }),
+      quiet,
+    );
     await applyPubSubPlan(pubsub, plan, quiet);
 
     const [metadata] = await pubsub.subscription('ventas-from-viajes').getMetadata();

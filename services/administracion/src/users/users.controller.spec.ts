@@ -8,6 +8,10 @@ describe('UsersController', () => {
       create: jest.fn().mockResolvedValue({ id }),
       deactivate: jest.fn().mockResolvedValue(undefined),
       reactivate: jest.fn().mockResolvedValue(undefined),
+      list: jest.fn().mockResolvedValue({ items: [] }),
+      get: jest.fn().mockResolvedValue({ id }),
+      update: jest.fn().mockResolvedValue({ id }),
+      resendInvitation: jest.fn().mockResolvedValue({ message: 'ok' }),
     };
     return { users, controller: new UsersController(users as never) };
   };
@@ -29,5 +33,21 @@ describe('UsersController', () => {
 
     expect(users.deactivate).toHaveBeenCalledWith(id);
     expect(users.reactivate).toHaveBeenCalledWith(id);
+  });
+
+  it('lists, gets, updates and resends within the caller scope', async () => {
+    const { users, controller } = setup();
+    const actor = { userId: id, role: 'BRANCH_ADMIN' as const, branchId: id };
+
+    const query = { q: 'ana', page: 1, pageSize: 20 };
+    expect(await controller.list(actor, query)).toEqual({ items: [] });
+    expect(await controller.get(actor, id)).toEqual({ id });
+    expect(await controller.update(id, { fullName: 'Ana Sic' })).toEqual({ id });
+    expect(await controller.resendInvitation(actor, id, 'c')).toEqual({ message: 'ok' });
+
+    expect(users.list).toHaveBeenCalledWith(actor, query);
+    expect(users.get).toHaveBeenCalledWith(actor, id);
+    expect(users.update).toHaveBeenCalledWith(id, { fullName: 'Ana Sic' });
+    expect(users.resendInvitation).toHaveBeenCalledWith(actor, id, 'c');
   });
 });

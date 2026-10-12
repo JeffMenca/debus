@@ -1,10 +1,12 @@
+import { isLocalStack } from './local-stack';
+
 const LOCAL_MAILPIT = 'http://localhost:8025';
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Mailpit only exists next to a local stack; against a deployed web it must be given explicitly.
 export function mailpitUrl(baseURL: string | undefined): string | undefined {
   if (process.env.MAILPIT_URL) return process.env.MAILPIT_URL;
-  return baseURL && new URL(baseURL).hostname === 'localhost' ? LOCAL_MAILPIT : undefined;
+  return isLocalStack(baseURL) ? LOCAL_MAILPIT : undefined;
 }
 
 export async function isReachable(mailpit: string): Promise<boolean> {

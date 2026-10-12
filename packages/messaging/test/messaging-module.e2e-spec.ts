@@ -4,7 +4,7 @@ import { PubSub } from '@google-cloud/pubsub';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { EventPublisher, InMemoryInboxStore, MessagingModule, Outbox } from '../src';
+import { EventPublisher, InMemoryInboxStore, MessagingModule, OIDC_VERIFIER, Outbox } from '../src';
 import { recreateOutboxTable, testPool, transactional } from './support/pg';
 import { pullOne } from './support/pull';
 
@@ -84,6 +84,65 @@ describe('MessagingModule outside the emulator', () => {
 
     await app.close();
     process.env.PUBSUB_EMULATOR_HOST = emulatorHost;
+  });
+
+  describe('with a configured push identity', () => {
+    const pushServiceAccount = 'pubsub-invoker@debus.iam.gserviceaccount.com';
+    const saved = { ...process.env };
+    const payloads: Record<string, { email?: string; email_verified?: boolean }> = {
+      valid: { email: pushServiceAccount, email_verified: true },
+      unverified: { email: pushServiceAccount, email_verified: false },
+      foreign: { email: 'someone@else.com', email_verified: true },
+    };
+    let app: INestApplication;
+
+    beforeAll(async () => {
+      delete process.env.PUBSUB_EMULATOR_HOST;
+      process.env.PUBSUB_AUDIENCE = 'https://flota.example.com';
+      process.env.PUBSUB_PUSH_SA = pushServiceAccount;
+      const moduleRef = await Test.createTestingModule({
+        imports: [
+          MessagingModule.forRoot({
+            service: 'flota',
+            inbox: { useFactory: () => new InMemoryInboxStore() },
+          }),
+        ],
+      })
+        .overrideProvider(OIDC_VERIFIER)
+        .useValue({
+          verifyIdToken: async ({ idToken }: { idToken: string }) => {
+            const payload = payloads[idToken];
+            if (!payload) throw new Error('invalid token');
+            return { getPayload: () => payload };
+          },
+        })
+        .compile();
+      app = moduleRef.createNestApplication();
+      await app.init();
+    });
+
+    afterAll(async () => {
+      await app.close();
+      process.env = saved;
+    });
+
+    it('accepts a push signed by the push service account', async () => {
+      const envelope = createEnvelope('ProbeSent', { requestedAt: new Date().toISOString() }, 'c');
+
+      await request(app.getHttpServer())
+        .post('/events/pubsub')
+        .set('Authorization', 'Bearer valid')
+        .send(push(envelope))
+        .expect(204);
+    });
+
+    it.each(['unverified', 'foreign', 'forged'])('rejects a %s token', async (token) => {
+      await request(app.getHttpServer())
+        .post('/events/pubsub')
+        .set('Authorization', `Bearer ${token}`)
+        .send({})
+        .expect(401);
+    });
   });
 });
 

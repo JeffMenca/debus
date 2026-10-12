@@ -1,5 +1,5 @@
-import { BadRequestException, type PipeTransform } from '@nestjs/common';
-import { ApiBody } from '@nestjs/swagger';
+import { BadRequestException, type PipeTransform, applyDecorators } from '@nestjs/common';
+import { ApiBody, ApiQuery } from '@nestjs/swagger';
 import { z } from 'zod';
 import { MESSAGES } from '../accounts/messages';
 
@@ -15,3 +15,6 @@ export class ZodBody<T> implements PipeTransform<unknown, T> {
 
 export const apiBody = (schema: z.ZodType) =>
   ApiBody({ schema: z.toJSONSchema(schema, { io: 'input' }) as Record<string, unknown> });
+
+export const apiQuery = (schema: z.ZodObject) =>
+  applyDecorators(...Object.keys(schema.shape).map((name) => ApiQuery({ name, required: false })));

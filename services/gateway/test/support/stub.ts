@@ -15,6 +15,14 @@ export function startStub(): Promise<Server> {
       const json = (status: number, value: unknown) =>
         res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(value));
       if (req.url?.endsWith('/health')) return json(200, { status: 'ok' });
+      if (req.url?.endsWith('/docs-json')) {
+        const title = req.url.split('/')[1];
+        return json(200, {
+          openapi: '3.0.0',
+          info: { title, version: '1.0' },
+          paths: { '/things': { get: { tags: ['things'], responses: {} } } },
+        });
+      }
       if (req.url?.startsWith('/flota/events/processed/')) {
         return json(200, { processedAt: '2026-10-06T12:00:00.000Z' });
       }

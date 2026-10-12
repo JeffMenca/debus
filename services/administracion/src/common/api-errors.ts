@@ -9,6 +9,7 @@ const DESCRIPTIONS = {
   409: 'Conflict with the current state: it already exists, was already used or cannot be changed.',
   410: 'The link has expired.',
   423: 'Account temporarily locked after failed attempts.',
+  429: 'Too many emails sent to this account in the last hour.',
 } as const;
 
 export type DocumentedError = keyof typeof DESCRIPTIONS;

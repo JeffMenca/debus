@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { clearSession, getSession, setSession } from '@/lib/auth/session-store';
-import { ApiError, FRIENDLY_NETWORK_MESSAGE, apiRequest } from './client';
+import { ApiError, FRIENDLY_NETWORK_MESSAGE, apiRequest, noContent } from './client';
 
 const schema = z.object({ ok: z.boolean() });
 
@@ -155,5 +155,15 @@ describe('apiRequest without a session', () => {
 
     await expect(apiRequest('/api/x', schema)).rejects.toMatchObject({ status: 401 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('noContent', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('accepts an answer without a body', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+
+    await expect(apiRequest('/x', noContent, { method: 'POST' })).resolves.toBeNull();
   });
 });

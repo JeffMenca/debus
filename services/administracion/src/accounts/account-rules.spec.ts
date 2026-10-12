@@ -4,6 +4,7 @@ import {
   canDeactivate,
   canSendNotice,
   linkState,
+  leavesBranchWithoutAdmin,
   lockExpiry,
 } from './account-rules';
 
@@ -71,5 +72,21 @@ describe('notices', () => {
     expect(canSendNotice(null, now)).toBe(true);
     expect(canSendNotice(new Date(now.getTime() - 59 * 60_000), now)).toBe(false);
     expect(canSendNotice(new Date(now.getTime() - 60 * 60_000), now)).toBe(true);
+  });
+});
+
+describe('leavesBranchWithoutAdmin', () => {
+  const admin = { role: 'BRANCH_ADMIN' as const, status: 'ACTIVE' as const };
+
+  it('protects the last admin of an active branch', () => {
+    expect(leavesBranchWithoutAdmin(admin, true, 0)).toBe(true);
+    expect(leavesBranchWithoutAdmin({ ...admin, status: 'PENDING' }, true, 0)).toBe(true);
+  });
+
+  it('allows it when another admin remains, the branch is inactive or the user is not an admin', () => {
+    expect(leavesBranchWithoutAdmin(admin, true, 1)).toBe(false);
+    expect(leavesBranchWithoutAdmin(admin, false, 0)).toBe(false);
+    expect(leavesBranchWithoutAdmin({ ...admin, status: 'INACTIVE' }, true, 0)).toBe(false);
+    expect(leavesBranchWithoutAdmin({ role: 'CASHIER', status: 'ACTIVE' }, true, 0)).toBe(false);
   });
 });

@@ -1,39 +1,31 @@
 import { type BrowserContext, expect, type Page, test } from '@playwright/test';
+import { mockAdminGateway } from './support/admin-gateway';
+import {
+  CORS_HEADERS as cors,
+  expectNoHorizontalScroll,
+  fulfillJson,
+  openMenuOnPhone,
+  sessionFor,
+} from './support/session';
 
 const realApi = Boolean(process.env.E2E_REAL_API);
-const cors = {
-  'access-control-allow-origin': '*',
-  'access-control-allow-headers': '*',
-  'access-control-allow-methods': '*',
-};
-const session = (role: string) => ({
-  accessToken: 'a',
-  accessExpiresIn: 900,
-  user: {
-    id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
-    fullName: 'Marta Ruiz',
-    email: 'marta@correo.com',
-    role,
-    branchId: null,
-  },
-});
+const session = (role: string) => sessionFor(role);
 
-// The gateway lives on another origin, so the browser sends a preflight before each call.
 const mockGateway = (page: Page, path: string, reply: { status?: number; json?: unknown }) =>
   page.route(`**/api/administracion/auth/${path}`, (route) =>
-    route.request().method() === 'OPTIONS'
-      ? route.fulfill({ status: 204, headers: cors })
-      : route.fulfill({ status: reply.status ?? 200, json: reply.json, headers: cors }),
+    fulfillJson(route, reply.status ?? 200, reply.json),
   );
-
-async function expectNoHorizontalScroll(page: Page) {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(
-    false,
-  );
-}
 
 test.describe('access with a mocked gateway', () => {
   test.skip(realApi, 'runs only without a real gateway');
+
+  // A gateway running on this machine must never answer these tests: whatever a page asks that the
+  // test did not simulate gets a plain failure, never a 401 that would sign the session out.
+  test.beforeEach(({ page }) =>
+    page.route('**/api/administracion/**', (route) =>
+      fulfillJson(route, 503, { statusCode: 503, message: 'Not simulated in this test.' }),
+    ),
+  );
 
   test('signs in and reaches the dashboard of its role', async ({ page, baseURL }) => {
     await page.route('**/api/session/refresh', (route) => route.fulfill({ status: 401, json: {} }));
@@ -57,11 +49,13 @@ test.describe('access with a mocked gateway', () => {
     await expect(page).toHaveURL(/\/sucursal$/);
     await expect(page.getByRole('heading', { name: 'Hola, Marta Ruiz' })).toBeVisible();
 
+    await openMenuOnPhone(page);
     await page.getByRole('button', { name: 'Cerrar sesión' }).click();
     await expect(page).toHaveURL(/\/login/);
   });
 
   test('returns to the page requested before signing in', async ({ page, baseURL }) => {
+    await mockAdminGateway(page);
     await page.route('**/api/session/refresh', (route) => route.fulfill({ status: 401, json: {} }));
     await page.route('**/api/session/login', (route) =>
       route.fulfill({ json: session('SYSTEM_ADMIN') }),
@@ -399,6 +393,7 @@ test.describe('access with a mocked gateway', () => {
         await expect(page.getByRole('heading', { name: 'Hola, Marta Ruiz' })).toBeVisible();
       }
 
+      await openMenuOnPhone(first);
       await first.getByRole('button', { name: 'Cerrar sesión' }).click();
 
       await expect(first).toHaveURL(/\/login/);

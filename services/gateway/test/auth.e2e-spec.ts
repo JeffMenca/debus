@@ -138,6 +138,20 @@ describe('gateway authentication', () => {
     expect(received.at(-1)?.headers['x-branch-id']).toBeUndefined();
   });
 
+  it('lets only system admins read the system status', async () => {
+    const server = app.getHttpServer();
+
+    await request(server).get('/api/system/status').expect(401);
+    await request(server)
+      .get('/api/system/status')
+      .set('authorization', bearer({ role: 'CLIENT' }))
+      .expect(403);
+    await request(server)
+      .get('/api/system/status')
+      .set('authorization', bearer({ role: 'SYSTEM_ADMIN' }))
+      .expect(200);
+  });
+
   it('answers CORS preflights without a session', async () => {
     const response = await request(app.getHttpServer())
       .options('/api/flota/buses')

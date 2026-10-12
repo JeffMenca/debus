@@ -1,10 +1,13 @@
-import type { z } from 'zod';
+import { z } from 'zod';
 import { runtimeEnv } from '@/lib/env';
 import { getSession, getSessionStatus } from '@/lib/auth/session-store';
 import { refreshSession } from '@/lib/auth/session-client';
 import { ApiError, FRIENDLY_NETWORK_MESSAGE, apiErrorFrom, messageOf } from './api-error';
 
 export { ApiError, FRIENDLY_NETWORK_MESSAGE, messageOf };
+
+// For answers that carry no body (204): apiRequest hands the schema a null.
+export const noContent = z.null();
 
 export async function apiRequest<T>(
   path: string,

@@ -1,16 +1,20 @@
 import { cn } from '@/lib/utils';
 
-export type StatusTone = 'mint' | 'rose' | 'mango';
+export type StatusTone = 'mint' | 'rose' | 'mango' | 'sky' | 'muted';
 
 const DOT: Record<StatusTone, string> = {
   mint: 'bg-mint-300',
   rose: 'bg-rose-300',
   mango: 'bg-mango-300',
+  sky: 'bg-sky-300',
+  muted: 'bg-muted-foreground/50',
 };
 const TEXT: Record<StatusTone, string> = {
   mint: 'text-mint-700',
   rose: 'text-rose-700',
   mango: 'text-mango-700',
+  sky: 'text-sky-700',
+  muted: 'text-muted-foreground',
 };
 
 interface StatusDotProps {

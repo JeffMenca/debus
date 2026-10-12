@@ -23,19 +23,26 @@ Node 22 o superior, pnpm 10 y Docker.
 
 ```bash
 pnpm install
-for d in services/* apps/web; do cp -n "$d/.env.example" "$d/.env"; done
-pnpm infra:up             # PostgreSQL, emulador de Pub/Sub (8085) y Mailpit (8025)
-pnpm pubsub:provision     # tópicos y suscripciones push hacia los servicios locales
-for s in administracion flota viajes ventas clientes reportes notificaciones; do pnpm --filter @debus/$s prisma:deploy; done
-pnpm dev                  # web :3000, gateway :4000, servicios :4001-4007
+pnpm local                # todo en local: .env, docker, Pub/Sub, migraciones y apps en modo watch
 ```
+
+`pnpm local` crea los `.env` que falten a partir de `.env.example`, levanta PostgreSQL, el emulador de Pub/Sub (8085) y Mailpit (8025), crea los tópicos y suscripciones, aplica las migraciones y arranca el web (:3000), el gateway (:4000) y los servicios (:4001-4007). `pnpm local:setup` hace lo mismo sin arrancar las apps y `pnpm local:down` apaga los contenedores.
 
 Abre `http://localhost:3000/estado`: muestra si cada servicio responde y permite enviar un aviso de prueba que viaja por Pub/Sub hasta los 7 servicios.
 
+| Comando                 | Qué hace                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| `pnpm test:unit`        | Pruebas unitarias de todo el repo y tabla de cobertura (mínimo 85%)                                     |
+| `pnpm test:integration` | Pruebas de integración y tabla de cobertura (mínimo 65%); necesita `pnpm local:setup`                   |
+| `pnpm test:e2e`         | Playwright del web a 1440 y 390 px con el gateway simulado                                              |
+| `pnpm test:e2e:real`    | Playwright contra el stack local real (con `pnpm local` corriendo), un worker, como `admin@debus.local` |
+| `pnpm test:all`         | Unitarias, integración y e2e en orden                                                                   |
+| `pnpm check`            | Lint, typecheck y unitarias (lo que corre la CI)                                                        |
+| `pnpm test:clean`       | Borra los datos de prueba de las bases locales                                                          |
+
+Todas aceptan filtros de turbo, por ejemplo `pnpm test:unit --filter=@debus/flota`. El reporte HTML de cobertura queda en `<paquete>/coverage/lcov-report` (unitarias) y `<paquete>/coverage-integration/lcov-report` (integración).
+
 ```bash
-pnpm check                # lint, typecheck y pruebas unitarias (umbral 85%)
-pnpm test:integration     # pruebas de integración (umbral 60%), necesitan pnpm infra:up
-pnpm test:e2e             # Playwright del web a 1440 y 390 px
 pnpm new-service <nombre> --port <puerto> [--no-db]
 ```
 

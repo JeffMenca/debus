@@ -36,11 +36,12 @@ describe('isPublicRoute', () => {
     expect(isPublicRoute('POST', '//api/administracion//auth/login')).toBe(true);
   });
 
-  it('keeps the diagnostics and CORS preflights open', () => {
-    expect(isPublicRoute('GET', '/api/system/status')).toBe(true);
-    expect(isPublicRoute('POST', '/api//System/probes')).toBe(true);
+  it('keeps CORS preflights open and protects the system diagnostics', () => {
     expect(isPublicRoute('OPTIONS', '/api/flota/buses')).toBe(true);
+    expect(isPublicRoute('OPTIONS', '/api/system/status')).toBe(true);
     expect(isPublicRoute('HEAD', '/api/flota/buses')).toBe(false);
+    expect(isPublicRoute('GET', '/api/system/status')).toBe(false);
+    expect(isPublicRoute('POST', '/api/system/probes')).toBe(false);
   });
 
   it('protects everything else', () => {
@@ -60,7 +61,13 @@ describe('isPublicRoute', () => {
 });
 
 describe('requiredRoles', () => {
-  it('asks only for a session until a prefix declares roles', () => {
+  it('asks only for a session on routes without a declared role', () => {
     expect(requiredRoles('/api/flota/buses')).toBeNull();
+  });
+
+  it('keeps the system diagnostics for system admins', () => {
+    expect(requiredRoles('/api/system/status')).toEqual(['SYSTEM_ADMIN']);
+    expect(requiredRoles('/API/System//probes/abc/')).toEqual(['SYSTEM_ADMIN']);
+    expect(requiredRoles('/api/system-x')).toBeNull();
   });
 });

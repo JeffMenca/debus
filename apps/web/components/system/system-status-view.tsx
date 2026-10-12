@@ -1,5 +1,6 @@
 'use client';
 
+import { PageHeader } from '@/components/layout/page-header';
 import { ProbeCard } from '@/components/system/probe-card';
 import { ServiceHealthCard } from '@/components/system/service-health-card';
 import { useProbe } from '@/hooks/use-probe';
@@ -11,16 +12,16 @@ export function SystemStatusView() {
   const probe = useProbe();
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8">
-      <header className="animate-arrive motion-reduce:animate-none">
-        <h1 className="text-3xl font-bold sm:text-4xl">Estado del sistema</h1>
-        <p className="mt-1 text-muted-foreground">
+    <>
+      <PageHeader eyebrow="Sistema" title="Estado del sistema" />
+      <div className="flex flex-col gap-1">
+        <p className="text-muted-foreground">
           Revisa que cada parte de debus responda y reciba avisos.
         </p>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Entorno: {ENVIRONMENT_LABELS[runtimeEnv().appEnv]}
         </p>
-      </header>
+      </div>
       <div className="grid gap-6 lg:grid-cols-2">
         {health.isPending && (
           <div
@@ -59,6 +60,6 @@ export function SystemStatusView() {
           errorMessage={probe.error?.message}
         />
       </div>
-    </main>
+    </>
   );
 }

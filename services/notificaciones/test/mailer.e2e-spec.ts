@@ -1,3 +1,4 @@
+import { testEmail } from '@debus/config/test-data';
 import { Test } from '@nestjs/testing';
 import { MailModule } from '../src/mail/mail.module';
 import { Mailer } from '../src/mail/mailer';
@@ -26,7 +27,7 @@ describe('Mailer against Mailpit', () => {
   it('delivers the message', async () => {
     const moduleRef = await Test.createTestingModule({ imports: [MailModule] }).compile();
     // Test files share one Mailpit inbox, so each recipient is unique instead of clearing it.
-    const to = `mailer-${Date.now()}@correo.com`;
+    const to = testEmail('mailer');
 
     await moduleRef.get(Mailer).send({
       to,

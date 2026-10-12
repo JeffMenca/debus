@@ -15,3 +15,9 @@ it('provides a query client', () => {
 
   expect(screen.getByText('con cliente')).toBeInTheDocument();
 });
+
+it('mounts the notification area', () => {
+  const { container } = render(<Providers>contenido</Providers>);
+
+  expect(container.ownerDocument.querySelector('section[aria-label]')).toBeInTheDocument();
+});

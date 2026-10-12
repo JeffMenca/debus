@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { TextLink } from '@/components/ui/text-link';
 import { messageOf } from '@/lib/api/api-error';
@@ -14,7 +15,6 @@ import { forgotPassword } from '@/lib/auth/auth-api';
 import { FIELD_MESSAGES } from '@/lib/auth/form-messages';
 import { AuthCard } from './auth-card';
 import { CheckEmail } from './check-email';
-import { Field, invalidProps } from './field';
 import { FormAlert } from './form-alert';
 
 type ForgotInput = z.input<typeof emailRequestSchema>;

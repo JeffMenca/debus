@@ -9,7 +9,4 @@ export async function createTestApp(): Promise<INestApplication> {
   return app;
 }
 
-export const uniqueEmail = (label: string): string =>
-  `${label}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@correo.com`;
-
 export const tokenOf = (link: string): string => new URL(link).searchParams.get('token') ?? '';

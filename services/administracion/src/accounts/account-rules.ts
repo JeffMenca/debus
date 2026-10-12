@@ -1,6 +1,6 @@
-import type { AccountLinkPurpose, UserRole } from '@debus/contracts';
+import type { AccountLinkPurpose, UserRole, UserStatus } from '@debus/contracts';
 
-export type UserStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE';
+export type { UserStatus };
 export type LinkState = 'valid' | 'expired' | 'used' | 'invalid';
 
 export interface Actor {
@@ -61,4 +61,19 @@ export function activationReason(user: {
 
 export function canSendNotice(lastNoticeAt: Date | null, now: Date): boolean {
   return !lastNoticeAt || now.getTime() - lastNoticeAt.getTime() >= HOUR_MS;
+}
+
+// The project brief requires every active branch to keep at least one linked admin (pending or
+// active). Reactivating a branch checks the same thing in BranchesService.setActive.
+export function leavesBranchWithoutAdmin(
+  target: { role: UserRole; status: UserStatus },
+  branchActive: boolean,
+  otherAdmins: number,
+): boolean {
+  return (
+    target.role === 'BRANCH_ADMIN' &&
+    target.status !== 'INACTIVE' &&
+    branchActive &&
+    otherAdmins === 0
+  );
 }

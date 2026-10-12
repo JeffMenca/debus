@@ -1,9 +1,11 @@
+import { testEmail } from '@debus/config/test-data';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { createEnvelope } from '@debus/contracts';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { cleanTestData } from './cleanup';
 import { findMail, mailHtml } from './mailpit';
 
 const push = (value: unknown) => ({
@@ -21,11 +23,12 @@ describe('AccountLinkSent', () => {
   });
 
   afterAll(async () => {
+    await cleanTestData(app.get(PrismaService));
     await app.close();
   });
 
   it('sends exactly one email even when the event arrives twice', async () => {
-    const email = `link-${Date.now()}@correo.com`;
+    const email = testEmail('link');
     const envelope = createEnvelope(
       'AccountLinkSent',
       {
@@ -56,7 +59,7 @@ describe('AccountLinkSent', () => {
     ['PASSWORD_RESET', 'Restablece tu contraseña de debus', 'restablecer?token=abc'],
     ['ALREADY_REGISTERED', 'Ya tienes una cuenta en debus', undefined],
   ] as const)('delivers the %s email in Spanish', async (reason, subject, linkPart) => {
-    const email = `${reason.toLowerCase()}-${Date.now()}@correo.com`;
+    const email = testEmail(reason.toLowerCase());
     const envelope = createEnvelope(
       'AccountLinkSent',
       {

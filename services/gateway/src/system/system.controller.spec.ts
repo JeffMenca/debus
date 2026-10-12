@@ -32,23 +32,37 @@ describe('SystemController', () => {
     );
   });
 
-  it('documents the three responses in English', () => {
-    const descriptions = (handler: object) =>
-      Object.values(
+  it('documents the success of each route in English', () => {
+    const description = (handler: object, status: number) =>
+      (
         Reflect.getMetadata(DECORATORS.API_RESPONSE, handler) as Record<
           string,
           { description: string }
-        >,
-      ).map((response) => response.description);
+        >
+      )[status]?.description;
 
-    expect(descriptions(SystemController.prototype.check)).toEqual([
+    expect(description(SystemController.prototype.check, 200)).toBe(
       'Health of the gateway and every service.',
-    ]);
-    expect(descriptions(SystemController.prototype.emit)).toEqual([
+    );
+    expect(description(SystemController.prototype.emit, 202)).toBe(
       'Probe accepted; its id is returned to follow the delivery.',
-    ]);
-    expect(descriptions(SystemController.prototype.probe)).toEqual([
+    );
+    expect(description(SystemController.prototype.probe, 200)).toBe(
       'Which services received the probe so far.',
+    );
+  });
+
+  it('asks for a bearer token and a system admin on the whole controller', () => {
+    expect(Reflect.getMetadata(DECORATORS.API_SECURITY, SystemController)).toEqual([
+      { bearer: [] },
     ]);
+    const responses = Reflect.getMetadata(DECORATORS.API_RESPONSE, SystemController) as Record<
+      string,
+      unknown
+    >;
+    expect(Object.keys(responses).sort()).toEqual(['401', '403']);
+    expect(Reflect.getMetadata(DECORATORS.API_OPERATION, SystemController.prototype.check)).toEqual(
+      expect.objectContaining({ description: 'Allowed roles: SYSTEM_ADMIN.' }),
+    );
   });
 });

@@ -17,4 +17,14 @@ describe('StatusDot', () => {
       'bg-mango-300',
     );
   });
+
+  it.each([
+    ['sky', 'bg-sky-300', 'text-sky-700'],
+    ['muted', 'bg-muted-foreground/50', 'text-muted-foreground'],
+  ] as const)('paints the %s tone with tokens', (tone, dot, text) => {
+    render(<StatusDot tone={tone} label="Programado" />);
+
+    expect(screen.getByText('Programado')).toHaveClass(text);
+    expect(screen.getByText('Programado').firstChild).toHaveClass(dot);
+  });
 });

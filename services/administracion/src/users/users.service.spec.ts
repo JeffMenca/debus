@@ -1,5 +1,12 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
+import { userCountWhere, userListWhere } from './user-scope';
 import { UsersService } from './users.service';
 
 const admin = {
@@ -18,6 +25,7 @@ const setup = () => {
       count: jest.fn().mockResolvedValue(2),
       update: jest.fn().mockResolvedValue({}),
     },
+    branch: { findUnique: jest.fn().mockResolvedValue({ id: branch, active: true }) },
     refreshToken: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     $queryRaw: jest.fn().mockResolvedValue([]),
   };
@@ -28,8 +36,15 @@ const setup = () => {
         .fn()
         .mockImplementation(({ data }) => ({ id, status: 'PENDING', branchId: null, ...data })),
       update: jest.fn().mockResolvedValue({}),
+      findMany: jest.fn().mockResolvedValue([]),
+      findFirst: jest.fn().mockResolvedValue(null),
+      count: jest.fn().mockResolvedValue(0),
+      groupBy: jest.fn().mockResolvedValue([]),
     },
-    $transaction: jest.fn().mockImplementation((fn) => fn(tx)),
+    branch: { findUnique: jest.fn().mockResolvedValue({ id: branch, active: true }) },
+    $transaction: jest
+      .fn()
+      .mockImplementation((work) => (Array.isArray(work) ? Promise.all(work) : work(tx))),
   };
   const links = { issue: jest.fn().mockResolvedValue(true) };
   return { tx, prisma, links, service: new UsersService(prisma as never, links as never) };
@@ -238,9 +253,9 @@ describe('deactivate under concurrency', () => {
     expect(tx.user.update).not.toHaveBeenCalled();
   });
 
-  it('does not lock anything for accounts that are not system admins', async () => {
+  it('does not lock anything for accounts that are not admins', async () => {
     const { tx, service } = setup();
-    tx.user.findUnique.mockResolvedValue({ id, role: 'BRANCH_ADMIN', status: 'ACTIVE' });
+    tx.user.findUnique.mockResolvedValue({ id, role: 'CASHIER', status: 'ACTIVE' });
 
     await service.deactivate(id);
 
@@ -254,5 +269,361 @@ describe('deactivate under concurrency', () => {
 
     await expect(service.deactivate(id)).rejects.toThrow('connection lost');
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('create in a branch', () => {
+  it.each([
+    ['does not exist', null],
+    ['is inactive', { id: branch, active: false }],
+  ])('refuses a branch that %s', async (_, found) => {
+    const { prisma, service } = setup();
+    prisma.branch.findUnique.mockResolvedValue(found);
+
+    await expect(
+      service.create(admin, {
+        fullName: 'Luis',
+        email: 'luis@correo.com',
+        role: 'CASHIER',
+        branchId: branch,
+      }),
+    ).rejects.toThrow(new BadRequestException('Elige una sucursal activa.'));
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('invites a branch admin to an inactive branch, so it can get an admin back', async () => {
+    const { prisma, service } = setup();
+    prisma.branch.findUnique.mockResolvedValue({ id: branch, active: false });
+
+    await service.create(admin, {
+      fullName: 'Luis',
+      email: 'luis@correo.com',
+      role: 'BRANCH_ADMIN',
+      branchId: branch,
+    });
+
+    expect(prisma.user.create).toHaveBeenCalled();
+  });
+});
+
+describe('deactivate the admin of a branch', () => {
+  const branchAdmin = { id, role: 'BRANCH_ADMIN', status: 'ACTIVE', branchId: branch };
+
+  it('keeps the last admin of an active branch', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(branchAdmin);
+    tx.user.count.mockResolvedValue(0);
+
+    await expect(service.deactivate(id)).rejects.toThrow(
+      new ConflictException('La sucursal debe conservar al menos un administrador.'),
+    );
+    expect(tx.user.count).toHaveBeenCalledWith({
+      where: {
+        role: 'BRANCH_ADMIN',
+        branchId: branch,
+        status: { not: 'INACTIVE' },
+        id: { not: id },
+      },
+    });
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it('deactivates when another admin, pending or active, remains', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(branchAdmin);
+    tx.user.count.mockResolvedValue(1);
+
+    await service.deactivate(id);
+
+    expect(tx.user.update).toHaveBeenCalledWith({ where: { id }, data: { status: 'INACTIVE' } });
+  });
+
+  it('locks the admins of that branch before counting them', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(branchAdmin);
+    tx.user.count.mockResolvedValue(1);
+
+    await service.deactivate(id);
+
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    const [lockedAt] = tx.$queryRaw.mock.invocationCallOrder;
+    const [countedAt] = tx.user.count.mock.invocationCallOrder;
+    expect(lockedAt).toBeLessThan(countedAt!);
+  });
+});
+
+describe('reactivate in a branch', () => {
+  it.each([
+    ['without a branch', { id, role: 'CASHIER', status: 'INACTIVE', branchId: null }, null],
+    [
+      'whose branch is inactive',
+      { id, role: 'CASHIER', status: 'INACTIVE', branchId: branch },
+      { id: branch, active: false },
+    ],
+  ])('refuses staff %s', async (_, user, found) => {
+    const { prisma, service } = setup();
+    prisma.user.findUnique.mockResolvedValueOnce(user);
+    prisma.branch.findUnique.mockResolvedValue(found);
+
+    await expect(service.reactivate(id)).rejects.toThrow(
+      new ConflictException('Elige una sucursal activa.'),
+    );
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('reactivates a branch admin even when the branch is inactive, to get it out of the lock', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findUnique.mockResolvedValueOnce({
+      id,
+      role: 'BRANCH_ADMIN',
+      status: 'INACTIVE',
+      branchId: branch,
+      passwordHash: 'h',
+    });
+    prisma.branch.findUnique.mockResolvedValue({ id: branch, active: false });
+
+    await service.reactivate(id);
+
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id }, data: { status: 'ACTIVE' } });
+  });
+
+  it('still refuses a branch admin whose branch does not exist', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findUnique.mockResolvedValueOnce({
+      id,
+      role: 'BRANCH_ADMIN',
+      status: 'INACTIVE',
+      branchId: branch,
+    });
+    prisma.branch.findUnique.mockResolvedValue(null);
+
+    await expect(service.reactivate(id)).rejects.toThrow(
+      new ConflictException('Elige una sucursal activa.'),
+    );
+  });
+
+  it('reactivates staff of an active branch', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findUnique.mockResolvedValueOnce({
+      id,
+      role: 'CASHIER',
+      status: 'INACTIVE',
+      branchId: branch,
+      passwordHash: 'h',
+    });
+
+    await service.reactivate(id);
+
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id }, data: { status: 'ACTIVE' } });
+  });
+});
+
+describe('list and get', () => {
+  const row = {
+    id,
+    email: 'a@correo.com',
+    fullName: 'Ana',
+    role: 'CASHIER',
+    branchId: branch,
+    status: 'ACTIVE',
+  };
+
+  it('lists a page in a stable order with the tab counts of the whole filter', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findMany.mockResolvedValue([{ ...row, branch: { name: 'Xela' } }]);
+    prisma.user.count.mockResolvedValue(41);
+    prisma.user.groupBy.mockResolvedValue([{ status: 'ACTIVE', _count: { _all: 41 } }]);
+    const query = { role: 'CASHIER' as const, q: 'ana', page: 3, pageSize: 20 };
+
+    const page = await service.list(admin, query);
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith({
+      where: userListWhere(admin, query),
+      include: { branch: { select: { name: true } } },
+      orderBy: [{ fullName: 'asc' }, { id: 'asc' }],
+      skip: 40,
+      take: 20,
+    });
+    expect(prisma.user.count).toHaveBeenCalledWith({ where: userListWhere(admin, query) });
+    expect(prisma.user.groupBy).toHaveBeenCalledWith({
+      by: ['status'],
+      where: userCountWhere(admin, query),
+      orderBy: { status: 'asc' },
+      _count: { _all: true },
+    });
+    expect(page).toEqual({
+      items: [{ ...row, branchName: 'Xela' }],
+      total: 41,
+      page: 3,
+      pageSize: 20,
+      summary: { statusCounts: { PENDING: 0, ACTIVE: 41, INACTIVE: 0 } },
+    });
+  });
+
+  it('names no branch for people without one', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findMany.mockResolvedValue([{ ...row, branchId: null, branch: null }]);
+
+    const page = await service.list(admin, { page: 1, pageSize: 20 });
+
+    expect(page.items[0]?.branchName).toBeNull();
+  });
+
+  it('gets one user inside the actor scope', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findFirst.mockResolvedValue(row);
+
+    expect(await service.get(admin, id)).toEqual(row);
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: { AND: [userListWhere(admin, {}), { id }] },
+    });
+  });
+
+  it('answers not found when the user is out of scope', async () => {
+    const { service } = setup();
+
+    await expect(service.get(admin, id)).rejects.toThrow(NotFoundException);
+  });
+});
+
+describe('update', () => {
+  const cashier = { id, role: 'CASHIER', status: 'ACTIVE', branchId: branch };
+  const newBranch = '5d1f3a20-2222-4d4d-9999-123456789abc';
+
+  it('changes the name', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(cashier);
+    tx.user.update.mockResolvedValue({ ...cashier, fullName: 'Ana Sic', email: 'a@correo.com' });
+
+    const user = await service.update(id, { fullName: 'Ana Sic' });
+
+    expect(tx.user.update).toHaveBeenCalledWith({ where: { id }, data: { fullName: 'Ana Sic' } });
+    expect(user.fullName).toBe('Ana Sic');
+  });
+
+  it('moves staff to an active branch', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(cashier);
+    tx.branch.findUnique.mockResolvedValue({ id: newBranch, active: true });
+    tx.user.update.mockResolvedValue({ ...cashier, branchId: newBranch });
+
+    await service.update(id, { branchId: newBranch });
+
+    expect(tx.user.update).toHaveBeenCalledWith({ where: { id }, data: { branchId: newBranch } });
+  });
+
+  it('answers not found for unknown users', async () => {
+    const { service } = setup();
+
+    await expect(service.update(id, { fullName: 'Ana Sic' })).rejects.toThrow(NotFoundException);
+  });
+
+  it('refuses a branch for roles that do not belong to one', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue({
+      id,
+      role: 'SYSTEM_ADMIN',
+      status: 'ACTIVE',
+      branchId: null,
+    });
+
+    await expect(service.update(id, { branchId: newBranch })).rejects.toThrow(
+      new BadRequestException('Este rol no pertenece a una sucursal.'),
+    );
+  });
+
+  it('refuses an inactive target branch', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(cashier);
+    tx.branch.findUnique.mockResolvedValue({ id: newBranch, active: false });
+
+    await expect(service.update(id, { branchId: newBranch })).rejects.toThrow(
+      new BadRequestException('Elige una sucursal activa.'),
+    );
+  });
+
+  it('moves a branch admin into an inactive branch, where one is needed before reactivating', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue({ ...cashier, role: 'BRANCH_ADMIN' });
+    tx.user.findUniqueOrThrow.mockResolvedValue({ status: 'ACTIVE', branchId: branch });
+    tx.user.count.mockResolvedValue(1);
+    tx.branch.findUnique.mockResolvedValue({ id: newBranch, active: false });
+    tx.user.update.mockResolvedValue({ ...cashier, role: 'BRANCH_ADMIN', branchId: newBranch });
+
+    await service.update(id, { branchId: newBranch });
+
+    expect(tx.user.update).toHaveBeenCalled();
+  });
+
+  it('does not move the last admin of an active branch', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue({ ...cashier, role: 'BRANCH_ADMIN' });
+    tx.user.findUniqueOrThrow.mockResolvedValue({ status: 'ACTIVE', branchId: branch });
+    tx.user.count.mockResolvedValue(0);
+
+    await expect(service.update(id, { branchId: newBranch })).rejects.toThrow(
+      new ConflictException('La sucursal debe conservar al menos un administrador.'),
+    );
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it('moves an admin when another one remains', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue({ ...cashier, role: 'BRANCH_ADMIN' });
+    tx.user.findUniqueOrThrow.mockResolvedValue({ status: 'ACTIVE', branchId: branch });
+    tx.user.count.mockResolvedValue(1);
+    tx.user.update.mockResolvedValue({ ...cashier, role: 'BRANCH_ADMIN', branchId: newBranch });
+
+    await service.update(id, { branchId: newBranch });
+
+    expect(tx.user.update).toHaveBeenCalled();
+  });
+});
+
+describe('resendInvitation', () => {
+  const pending = { id, email: 'a@correo.com', fullName: 'Ana', status: 'PENDING' };
+
+  it('sends a new invitation to a pending account', async () => {
+    const { prisma, links, service } = setup();
+    prisma.user.findFirst.mockResolvedValue(pending);
+
+    expect(await service.resendInvitation(admin, id, 'c')).toEqual({
+      message: 'Enviamos de nuevo la invitación.',
+    });
+    expect(links.issue).toHaveBeenCalledWith(pending, 'ACTIVATION', 'INVITATION', 'c');
+  });
+
+  it.each([
+    ['ACTIVE', 'Esta cuenta ya creó su contraseña.'],
+    ['INACTIVE', 'Esta cuenta está desactivada. Reactívala primero.'],
+  ])('refuses an %s account', async (status, message) => {
+    const { prisma, links, service } = setup();
+    prisma.user.findFirst.mockResolvedValue({ ...pending, status });
+
+    await expect(service.resendInvitation(admin, id)).rejects.toThrow(
+      new ConflictException(message),
+    );
+    expect(links.issue).not.toHaveBeenCalled();
+  });
+
+  it('answers 429 when the hourly limit is reached', async () => {
+    const { prisma, links, service } = setup();
+    prisma.user.findFirst.mockResolvedValue(pending);
+    links.issue.mockResolvedValue(false);
+
+    const failure = await service.resendInvitation(admin, id).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(HttpException);
+    expect((failure as HttpException).getStatus()).toBe(429);
+    expect((failure as HttpException).message).toBe(
+      'Ya enviamos varios correos a esta cuenta. Intenta de nuevo en una hora.',
+    );
+  });
+
+  it('answers not found outside the actor scope', async () => {
+    const { service } = setup();
+
+    await expect(service.resendInvitation(admin, id)).rejects.toThrow(NotFoundException);
   });
 });

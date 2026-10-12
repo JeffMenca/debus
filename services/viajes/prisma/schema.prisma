@@ -28,3 +28,27 @@ model OutboxEvent {
 
   @@map("outbox")
 }
+
+// Local copy fed by BranchCreated/BranchUpdated from administracion.
+model BranchCopy {
+  id        String   @id @db.Uuid
+  code      String
+  name      String
+  active    Boolean
+  version   Int
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("branches")
+}
+
+// Local copy fed by SettingsUpdated; J3-2 fixes the depreciation of a trip from it.
+model SettingsVersionCopy {
+  id                String   @id @db.Uuid
+  depreciationPerKm Decimal  @map("depreciation_per_km") @db.Decimal(10, 2)
+  rentalRatePerKm   Decimal  @map("rental_rate_per_km") @db.Decimal(10, 2)
+  effectiveFrom     DateTime @map("effective_from") @db.Date
+  createdAt         DateTime @map("created_at") @db.Timestamptz(3)
+
+  @@index([effectiveFrom, createdAt])
+  @@map("settings_versions")
+}

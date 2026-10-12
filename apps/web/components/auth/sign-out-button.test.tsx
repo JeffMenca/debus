@@ -20,3 +20,15 @@ it('closes the session and returns to the login', async () => {
   expect(fetchMock).toHaveBeenCalledWith('/api/session/logout', expect.anything());
   expect(replace).toHaveBeenCalledWith('/login');
 });
+
+it('can be an icon-only button that keeps its name', async () => {
+  fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+  render(<SignOutButton compact />);
+
+  const button = screen.getByRole('button', { name: 'Cerrar sesión' });
+  expect(button).toHaveTextContent('');
+
+  await userEvent.click(button);
+
+  expect(replace).toHaveBeenCalledWith('/login');
+});
