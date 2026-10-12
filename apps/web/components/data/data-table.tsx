@@ -13,6 +13,7 @@ import { FileDown } from 'lucide-react';
 import type { PageQuery } from '@debus/contracts';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { ErrorAlert } from './error-alert';
 import { TablePagination } from './table-pagination';
 
 export const dataTableFeatures = tableFeatures({ rowPaginationFeature });
@@ -114,17 +115,7 @@ export function DataTable<T extends RowData>({
         </div>
       )}
       {error ? (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-rose-100 p-4 text-rose-700"
-        >
-          <span>{error}</span>
-          {onRetry && (
-            <Button variant="ghost" onClick={onRetry}>
-              Reintentar
-            </Button>
-          )}
-        </div>
+        <ErrorAlert message={error} onRetry={onRetry} />
       ) : (
         <div className="overflow-x-auto">
           <table

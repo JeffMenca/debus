@@ -10,6 +10,11 @@ import {
 
 const realApi = Boolean(process.env.E2E_REAL_API);
 const session = (role: string) => sessionFor(role);
+// The branch admin lands on the panel, which greets by the hour of Guatemala.
+const BRANCH_ADMIN_HOME = {
+  level: 1,
+  name: /^(Buenos días|Buenas tardes|Buenas noches), Marta$/,
+} as const;
 
 const mockGateway = (page: Page, path: string, reply: { status?: number; json?: unknown }) =>
   page.route(`**/api/administracion/auth/${path}`, (route) =>
@@ -47,7 +52,7 @@ test.describe('access with a mocked gateway', () => {
     await page.getByRole('button', { name: /Ingresar/ }).click();
 
     await expect(page).toHaveURL(/\/sucursal$/);
-    await expect(page.getByRole('heading', { name: 'Hola, Marta Ruiz' })).toBeVisible();
+    await expect(page.getByRole('heading', BRANCH_ADMIN_HOME)).toBeVisible();
 
     await openMenuOnPhone(page);
     await page.getByRole('button', { name: 'Cerrar sesión' }).click();
@@ -298,7 +303,7 @@ test.describe('access with a mocked gateway', () => {
     available = true;
     await page.getByRole('button', { name: 'Reintentar' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Hola, Marta Ruiz' })).toBeVisible();
+    await expect(page.getByRole('heading', BRANCH_ADMIN_HOME)).toBeVisible();
   });
 
   test('when the session ended it goes to sign-in and returns to where it was', async ({
@@ -372,13 +377,13 @@ test.describe('access with a mocked gateway', () => {
       const second = await context.newPage();
       for (const page of [first, second]) {
         await page.goto('/sucursal');
-        await expect(page.getByRole('heading', { name: 'Hola, Marta Ruiz' })).toBeVisible();
+        await expect(page.getByRole('heading', BRANCH_ADMIN_HOME)).toBeVisible();
       }
 
       await Promise.all([first.reload(), second.reload()]);
 
       for (const page of [first, second]) {
-        await expect(page.getByRole('heading', { name: 'Hola, Marta Ruiz' })).toBeVisible();
+        await expect(page.getByRole('heading', BRANCH_ADMIN_HOME)).toBeVisible();
         expect(page.url()).toMatch(/\/sucursal$/);
       }
       expect(state.rejected).toBe(0);
@@ -390,7 +395,7 @@ test.describe('access with a mocked gateway', () => {
       const second = await context.newPage();
       for (const page of [first, second]) {
         await page.goto('/sucursal');
-        await expect(page.getByRole('heading', { name: 'Hola, Marta Ruiz' })).toBeVisible();
+        await expect(page.getByRole('heading', BRANCH_ADMIN_HOME)).toBeVisible();
       }
 
       await openMenuOnPhone(first);

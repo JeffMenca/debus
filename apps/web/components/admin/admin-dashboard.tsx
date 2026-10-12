@@ -3,9 +3,9 @@
 import { Building2, MailOpen, Settings2, TrendingDown, Users, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { KPI_TONE_SURFACES, KpiCard, type KpiTone } from '@/components/data/kpi-card';
+import { KpiSkeleton } from '@/components/data/kpi-skeleton';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useBranchCounts } from '@/hooks/use-branches';
 import { useSettingsSummary } from '@/hooks/use-settings';
 import { useUserCounts } from '@/hooks/use-users';
@@ -36,14 +36,6 @@ const SHORTCUTS: { href: string; title: string; text: string; icon: LucideIcon; 
       tone: 'lilac',
     },
   ];
-
-function KpiSkeleton() {
-  return (
-    <div aria-label="Cargando" className="rounded-[22px] bg-card p-4">
-      <Skeleton className="h-[74px]" />
-    </div>
-  );
-}
 
 export function AdminDashboard() {
   const session = useSession();

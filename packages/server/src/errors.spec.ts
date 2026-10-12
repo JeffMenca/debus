@@ -1,4 +1,11 @@
-import { type ArgumentsHost, BadRequestException, HttpException } from '@nestjs/common';
+import {
+  type ArgumentsHost,
+  BadGatewayException,
+  BadRequestException,
+  HttpException,
+  InternalServerErrorException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { HttpExceptionFilter, correlationOf, errorResponse } from './errors';
 import { SERVER_MESSAGES } from './messages';
 
@@ -92,5 +99,42 @@ describe('HttpExceptionFilter with the shared texts', () => {
       message: SERVER_MESSAGES.invalidData,
       correlationId: 'c1',
     });
+  });
+});
+
+describe('HttpExceptionFilter with failures of other services', () => {
+  const answer = (exception: unknown) => {
+    const json = jest.fn();
+    const status = jest.fn().mockReturnValue({ json });
+    const arg = {
+      switchToHttp: () => ({
+        getRequest: () => ({ headers: {} }),
+        getResponse: () => ({ status }),
+      }),
+    } as unknown as ArgumentsHost;
+    new HttpExceptionFilter().catch(exception, arg);
+    return { status, json };
+  };
+
+  it('keeps the friendly text of a service that did not answer or answered wrongly', () => {
+    const unavailable = answer(new ServiceUnavailableException(SERVER_MESSAGES.upstream));
+    const badGateway = answer(new BadGatewayException(SERVER_MESSAGES.upstream));
+
+    expect(unavailable.status).toHaveBeenCalledWith(503);
+    expect(unavailable.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: SERVER_MESSAGES.upstream }),
+    );
+    expect(badGateway.status).toHaveBeenCalledWith(502);
+    expect(badGateway.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: SERVER_MESSAGES.upstream }),
+    );
+  });
+
+  it('still hides the message of any other server error', () => {
+    const failed = answer(new InternalServerErrorException('connection string leaked'));
+
+    expect(failed.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: SERVER_MESSAGES.generic }),
+    );
   });
 });

@@ -5,3 +5,6 @@ export * from './api-docs';
 export * from './prisma-errors';
 export * from './errors';
 export * from './identity-tokens';
+export * from './service-client';
+export * from './service-client.module';
+export * from './testing/fake-service-client';

@@ -1010,6 +1010,9 @@ importers:
       '@debus/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@google-cloud/pubsub':
+        specifier: ^6.1.0
+        version: 6.1.0
       '@nestjs/cli':
         specifier: ^11.0.24
         version: 11.0.24(@types/node@26.6.4)(prettier@3.9.9)

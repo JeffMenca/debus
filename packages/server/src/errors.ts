@@ -30,6 +30,9 @@ export function correlationOf(req: {
   return typeof value === 'string' ? value : undefined;
 }
 
+// Failures of other services are thrown on purpose with a friendly text, so they are not hidden.
+const SHOWN_SERVER_ERRORS: readonly number[] = [502, 503];
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
@@ -39,7 +42,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = exception instanceof HttpException ? exception.getStatus() : 500;
     if (status >= 500) this.logger.error(exception);
     const message =
-      exception instanceof HttpException && status < 500
+      exception instanceof HttpException && (status < 500 || SHOWN_SERVER_ERRORS.includes(status))
         ? clientMessage(exception)
         : SERVER_MESSAGES.generic;
     http

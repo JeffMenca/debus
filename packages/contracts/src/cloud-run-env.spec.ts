@@ -40,14 +40,31 @@ describe('cloudRunEnv', () => {
   });
 
   it('configures push verification and a small pool for backend services', () => {
-    expect(cloudRunEnv('ventas', 'production', settings)).toEqual({
-      SERVICE_NAME: 'ventas',
+    expect(cloudRunEnv('reportes', 'production', settings)).toEqual({
+      SERVICE_NAME: 'reportes',
       DEBUS_ENV: 'production',
       PUBSUB_PROJECT_ID: 'debus-prod',
-      PUBSUB_AUDIENCE: 'https://ventas-123456.us-central1.run.app',
+      PUBSUB_AUDIENCE: 'https://reportes-123456.us-central1.run.app',
       PUBSUB_PUSH_SA: 'pubsub-invoker@debus-prod.iam.gserviceaccount.com',
       DB_POOL_MAX: '2',
     });
+  });
+
+  it('gives each service the URL of the peers it calls synchronously', () => {
+    const viajes = cloudRunEnv('viajes', 'production', settings);
+    expect(viajes).toMatchObject({
+      SERVICE_AUTH: 'google',
+      SERVICE_URL_FLOTA: expect.stringContaining('flota'),
+    });
+    expect(viajes).not.toHaveProperty('SERVICE_URL_VENTAS');
+    expect(cloudRunEnv('ventas', 'production', settings)).toMatchObject({
+      SERVICE_URL_CLIENTES: expect.any(String),
+      SERVICE_URL_VIAJES: expect.any(String),
+    });
+    expect(cloudRunEnv('clientes', 'production', settings)).toMatchObject({
+      SERVICE_URL_FLOTA: expect.any(String),
+    });
+    expect(cloudRunEnv('reportes', 'production', settings)).not.toHaveProperty('SERVICE_AUTH');
   });
 
   it('gives only flota the media bucket', () => {

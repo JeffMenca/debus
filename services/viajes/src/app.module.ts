@@ -1,14 +1,17 @@
 import { MessagingModule, SqlInboxStore, httpLoggerOptions } from '@debus/messaging';
-import { HttpExceptionFilter, RolesGuard } from '@debus/server';
+import { HttpExceptionFilter, RolesGuard, ServiceClientModule } from '@debus/server';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { BranchesModule } from './branches/branches.module';
+import { CopiesModule } from './copies/copies.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
+import { SaleStatusModule } from './sale-status/sale-status.module';
 import { SettingsModule } from './settings/settings.module';
+import { TripsModule } from './trips/trips.module';
 
 @Module({
   imports: [
@@ -16,7 +19,11 @@ import { SettingsModule } from './settings/settings.module';
     LoggerModule.forRoot({ pinoHttp: httpLoggerOptions() }),
     HealthModule,
     BranchesModule,
+    CopiesModule,
     SettingsModule,
+    ServiceClientModule.forRoot(),
+    TripsModule,
+    SaleStatusModule,
     PrismaModule,
     MessagingModule.forRoot({
       service: 'viajes',
