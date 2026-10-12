@@ -33,4 +33,14 @@ describe('KpiCard', () => {
     const circle = container.querySelector('[aria-hidden]');
     expect(circle).toHaveClass('bg-coral-300', 'motion-reduce:animate-none');
   });
+
+  it('shows an illustration instead of the circle when it is given one', () => {
+    const { container } = render(
+      <KpiCard tone="mint" value={2} label="En camino" art={<svg data-testid="art" />} />,
+    );
+
+    expect(screen.getByTestId('art')).toBeInTheDocument();
+    expect(container.querySelector('.animate-float')).toBeNull();
+    expect(screen.getByText('En camino')).toBeInTheDocument();
+  });
 });

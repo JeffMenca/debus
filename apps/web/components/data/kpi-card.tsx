@@ -1,6 +1,7 @@
 'use client';
 
 import type { LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useCountUp } from '@/hooks/use-count-up';
 import { cn } from '@/lib/utils';
 
@@ -31,31 +32,46 @@ interface KpiCardProps {
   label: string;
   format?: (value: number) => string;
   icon?: LucideIcon;
+  // An illustration on the right, which takes the place of the decorative circle.
+  art?: ReactNode;
 }
 
 const wholeNumber = (value: number) => Math.round(value).toLocaleString('es-GT');
 
-export function KpiCard({ tone, value, label, format = wholeNumber, icon: Icon }: KpiCardProps) {
+export function KpiCard({
+  tone,
+  value,
+  label,
+  format = wholeNumber,
+  icon: Icon,
+  art,
+}: KpiCardProps) {
   const shown = useCountUp(value);
   return (
     <div
       className={cn(
-        'relative flex flex-col gap-1 overflow-hidden rounded-[22px] px-[18px] py-4',
+        'relative flex gap-1 overflow-hidden rounded-[22px] px-[18px] py-4',
+        art ? 'items-center justify-between gap-3' : 'flex-col',
         KPI_TONE_SURFACES[tone],
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          'absolute -top-6 -right-6 size-20 animate-float rounded-full opacity-60 motion-reduce:animate-none',
-          CIRCLES[tone],
-        )}
-      />
-      {Icon && <Icon aria-hidden strokeWidth={1.75} className="relative size-5" />}
-      <span className="relative font-display text-[30px] leading-none font-bold tabular-nums">
-        {format(shown)}
-      </span>
-      <span className="relative text-[13px] font-semibold">{label}</span>
+      {!art && (
+        <span
+          aria-hidden
+          className={cn(
+            'absolute -top-6 -right-6 size-20 animate-float rounded-full opacity-60 motion-reduce:animate-none',
+            CIRCLES[tone],
+          )}
+        />
+      )}
+      <div className="relative flex flex-col gap-1">
+        {Icon && <Icon aria-hidden strokeWidth={1.75} className="size-5" />}
+        <span className="font-display text-[30px] leading-none font-bold tabular-nums">
+          {format(shown)}
+        </span>
+        <span className="text-[13px] font-semibold">{label}</span>
+      </div>
+      {art}
     </div>
   );
 }

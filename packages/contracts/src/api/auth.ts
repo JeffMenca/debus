@@ -5,6 +5,14 @@ export type UserRole = (typeof USER_ROLES)[number];
 export const USER_STATUSES = ['PENDING', 'ACTIVE', 'INACTIVE'] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
 
+// Drivers are not invited from users: flota registers them and their account follows from it.
+export const INVITABLE_ROLES = [
+  'SYSTEM_ADMIN',
+  'BRANCH_ADMIN',
+  'CASHIER',
+  'CLIENT',
+] as const satisfies UserRole[];
+
 export const BRANCH_ROLES = ['BRANCH_ADMIN', 'CASHIER', 'DRIVER'] as const satisfies UserRole[];
 export const isBranchRole = (role: UserRole): boolean =>
   (BRANCH_ROLES as readonly UserRole[]).includes(role);
@@ -66,7 +74,7 @@ export const createUserRequestSchema = z
   .object({
     fullName: fullNameSchema,
     email: emailSchema,
-    role: z.enum(USER_ROLES),
+    role: z.enum(INVITABLE_ROLES),
     branchId: optional(z.uuid()),
     dpi: optional(dpiSchema),
     phone: optional(phoneSchema),

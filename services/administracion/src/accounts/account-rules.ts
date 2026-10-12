@@ -24,10 +24,11 @@ export function canCreateRole(
 ): boolean {
   if (actor.role === 'SYSTEM_ADMIN') return true;
   if (actor.role !== 'BRANCH_ADMIN' || !actor.branchId) return false;
-  return (
-    (target.role === 'CASHIER' || target.role === 'DRIVER') && target.branchId === actor.branchId
-  );
+  return target.role === 'CASHIER' && target.branchId === actor.branchId;
 }
+
+// flota owns the drivers: their account follows the driver, so users never changes it.
+export const isManagedByFleet = (user: { role: UserRole }): boolean => user.role === 'DRIVER';
 
 export function canDeactivate(
   target: { role: UserRole; status: UserStatus },

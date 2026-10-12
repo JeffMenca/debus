@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Bus } from './bus';
 
 describe('Bus', () => {
@@ -14,5 +14,13 @@ describe('Bus', () => {
 
     expect(container.querySelector('.animate-wheel')).not.toBeInTheDocument();
     expect(container.querySelector('.animate-puff')).not.toBeInTheDocument();
+  });
+
+  it('is decorative, so a screen reader skips it', () => {
+    const { container } = render(<Bus />);
+
+    expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Bus')).not.toBeInTheDocument();
   });
 });

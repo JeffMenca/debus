@@ -1,6 +1,6 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
-import type { Reflector } from '@nestjs/core';
+import { Reflector } from '@nestjs/core';
 import { DECORATORS } from '@nestjs/swagger';
 import { Roles, RolesGuard, readIdentity, requireBranch, requireIdentity } from './identity';
 
@@ -98,5 +98,32 @@ describe('requireBranch', () => {
     expect(() => requireBranch({ userId: 'u', role: 'SYSTEM_ADMIN', branchId: null })).toThrow(
       ForbiddenException,
     );
+  });
+});
+
+describe('Roles on a whole controller', () => {
+  @Roles('BRANCH_ADMIN')
+  class Controller {
+    handler() {}
+  }
+
+  it('applies to every route of the class and documents the session errors once', () => {
+    const responses = Reflect.getMetadata(DECORATORS.API_RESPONSE, Controller) as Record<
+      string,
+      unknown
+    >;
+    const guard = new RolesGuard(new Reflector());
+    const ctx = (role: string) =>
+      ({
+        getHandler: () => Controller.prototype.handler,
+        getClass: () => Controller,
+        switchToHttp: () => ({
+          getRequest: () => ({ headers: { 'x-user-id': userId, 'x-user-role': role } }),
+        }),
+      }) as unknown as ExecutionContext;
+
+    expect(Object.keys(responses)).toEqual(['401', '403']);
+    expect(guard.canActivate(ctx('BRANCH_ADMIN'))).toBe(true);
+    expect(() => guard.canActivate(ctx('CASHIER'))).toThrow(ForbiddenException);
   });
 });

@@ -20,7 +20,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AccountLinksService } from '../accounts/account-links.service';
-import { canCreateRole, canDeactivate, leavesBranchWithoutAdmin } from '../accounts/account-rules';
+import {
+  canCreateRole,
+  canDeactivate,
+  isManagedByFleet,
+  leavesBranchWithoutAdmin,
+} from '../accounts/account-rules';
 import { lockActiveSystemAdmins, lockBranchAdmins } from '../accounts/admin-locks';
 import { MESSAGES } from '../accounts/messages';
 import { canLinkToBranch } from '../branches/branch-rules';
@@ -91,7 +96,7 @@ export class UsersService {
 
   async deactivate(id: string, now = new Date()): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      const found = await this.findUser(tx, id);
+      const found = await this.findChangeable(tx, id);
       const user = await this.lockPeers(tx, found);
       if (user.status === 'INACTIVE') return;
       const activeAdmins = await tx.user.count({
@@ -110,7 +115,7 @@ export class UsersService {
   }
 
   async reactivate(id: string): Promise<void> {
-    const user = await this.findUser(this.prisma, id);
+    const user = await this.findChangeable(this.prisma, id);
     if (user.status !== 'INACTIVE') return;
     if (isBranchRole(user.role)) await this.assertBranchUsable(user.role, user.branchId);
     await this.prisma.user.update({
@@ -149,7 +154,7 @@ export class UsersService {
 
   update(id: string, input: UpdateUserRequest): Promise<ManagedUser> {
     return this.prisma.$transaction(async (tx) => {
-      const found = await this.findUser(tx, id);
+      const found = await this.findChangeable(tx, id);
       if (input.branchId !== undefined && input.branchId !== found.branchId) {
         if (!isBranchRole(found.role)) throw new BadRequestException(MESSAGES.branchNotAllowed);
         await this.assertLinkableBranch(tx, found.role, input.branchId);
@@ -167,6 +172,7 @@ export class UsersService {
     correlationId?: string,
   ): Promise<{ message: string }> {
     const user = await this.findVisible(actor, id);
+    if (isManagedByFleet(user)) throw new ConflictException(MESSAGES.managedByFleet);
     if (user.status === 'ACTIVE') throw new ConflictException(MESSAGES.accountAlreadyActive);
     if (user.status === 'INACTIVE') throw new ConflictException(MESSAGES.accountInactive);
     const sent = await this.links.issue(user, 'ACTIVATION', 'INVITATION', correlationId);
@@ -180,6 +186,16 @@ export class UsersService {
   ): Promise<User> {
     const user = await client.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException(MESSAGES.userNotFound);
+    return user;
+  }
+
+  // The accounts of drivers change only through flota, so every change made here refuses them.
+  private async findChangeable(
+    client: Pick<Prisma.TransactionClient, 'user'>,
+    id: string,
+  ): Promise<User> {
+    const user = await this.findUser(client, id);
+    if (isManagedByFleet(user)) throw new ConflictException(MESSAGES.managedByFleet);
     return user;
   }
 

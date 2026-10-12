@@ -1,9 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/api-error';
 import { useBranchesPage, useSetBranchActive } from '../../hooks/use-branches';
 import { BranchesScreen } from './branches-screen';
+import { DEBOUNCE_MS, startFakeClock } from '../../test-support/fake-clock';
 
 jest.mock('../../hooks/use-branches');
 jest.mock('sonner', () => ({ toast: { success: jest.fn() } }));
@@ -104,6 +105,10 @@ const lastAddress = () => {
 
 const openActions = (name: string) =>
   userEvent.click(screen.getByRole('button', { name: `Acciones de ${name}` }));
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe('BranchesScreen', () => {
   beforeEach(() => {
@@ -235,13 +240,16 @@ describe('BranchesScreen', () => {
   });
 
   it('searches 300 ms after the last key, not on every key', async () => {
+    const clock = startFakeClock();
     setup();
 
-    await userEvent.type(screen.getByRole('textbox', { name: 'Buscar sucursal' }), 'peten');
+    await clock.type(screen.getByRole('textbox', { name: 'Buscar sucursal' }), 'peten');
+    clock.elapse(DEBOUNCE_MS - 1);
     expect(replace).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(lastAddress().params.get('buscar')).toBe('peten'));
+    clock.elapse(1);
     expect(replace).toHaveBeenCalledTimes(1);
+    expect(lastAddress().params.get('buscar')).toBe('peten');
   });
 
   it('invites to create the first branch when there are none at all', () => {

@@ -16,7 +16,8 @@ const seed = {
   users: [
     sampleUser({ fullName: 'Luis Ramírez', email: 'luis@correo.com', role: 'BRANCH_ADMIN' }),
     sampleUser({ fullName: 'Pedro Gómez', email: 'pedro@correo.com', status: 'PENDING' }),
-    sampleUser({ fullName: 'Rosa Pop', email: 'rosa@correo.com', role: 'DRIVER' }),
+    sampleUser({ fullName: 'Rosa Pop', email: 'rosa@correo.com', role: 'CASHIER' }),
+    sampleUser({ fullName: 'Julio Pérez', email: 'julio@correo.com', role: 'DRIVER' }),
   ],
 };
 
@@ -83,6 +84,22 @@ test.describe('admin users', () => {
     await page.getByRole('menuitem', { name: 'Reactivar' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Reactivar' }).click();
     await expect(page.getByRole('row', { name: /Rosa Pop/ })).toContainText('Activo');
+  });
+
+  test('leaves the driver accounts to the fleet screens', async ({ page, baseURL }) => {
+    await mockAdminGateway(page, seed);
+    await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+    await page.goto('/admin/usuarios');
+
+    await expect(page.getByRole('row', { name: /Julio Pérez/ })).toContainText('Chofer');
+    await expect(page.getByRole('button', { name: 'Acciones de Julio Pérez' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Invitar usuario' }).click();
+    await page
+      .getByRole('dialog', { name: 'Invitar usuario' })
+      .getByRole('combobox', { name: 'Rol' })
+      .click();
+    await expect(page.getByRole('option', { name: 'Cajero' })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'Chofer' })).toHaveCount(0);
   });
 
   test('resends an invitation and tells so', async ({ page, baseURL }) => {

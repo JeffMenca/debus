@@ -61,6 +61,8 @@ export function useUserColumns({ onEdit, onResend, onToggle }: UserColumnActions
           header: () => <span className="sr-only">Acciones</span>,
           cell: ({ row }) => {
             const user = row.original;
+            // A driver's account follows the fleet record, so there is nothing to change here.
+            if (user.role === 'DRIVER') return null;
             return (
               <div className="flex justify-end">
                 <RowActions

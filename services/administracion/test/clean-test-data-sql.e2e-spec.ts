@@ -132,6 +132,21 @@ describe('the SQL of pnpm test:clean', () => {
     });
   });
 
+  it('removes the fleet and trip rows of test branches before the branches', () => {
+    const sql = cleanupStatements().join('\n');
+    const order = [
+      'trip_copies',
+      'buses',
+      'drivers',
+      'routes',
+      'DELETE FROM branches WHERE name LIKE',
+    ];
+    const positions = order.map((fragment) => sql.indexOf(fragment));
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(sql).toContain('DELETE FROM trips WHERE branch_id IN');
+  });
+
   it('refuses a run that is not a TEST_RUN, so nothing can be injected', () => {
     expect(() => cleanupStatements({ run: "x'; DROP TABLE users; --" })).toThrow(/TEST_RUN/);
   });

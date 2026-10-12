@@ -59,13 +59,18 @@ export function requireBranch(identity: Identity): string {
   return identity.branchId;
 }
 
-// The same list feeds the guard and the Swagger description, so the docs cannot drift.
-export const Roles = (...roles: UserRole[]) =>
-  applyDecorators(
+// The same list feeds the guard and the Swagger description, so the docs cannot drift. On a whole
+// controller the description of each route is left alone: only the session errors are documented.
+export const Roles = (...roles: UserRole[]) => {
+  const onRoute = applyDecorators(
     SetMetadata(ROLES_KEY, roles),
     ApiOperation({ description: `Allowed roles: ${roles.join(', ')}.` }),
     apiErrors(401, 403),
   );
+  const onClass = applyDecorators(SetMetadata(ROLES_KEY, roles), apiErrors(401, 403));
+  return (target: object, key?: string | symbol, descriptor?: PropertyDescriptor): void =>
+    (descriptor ? onRoute : onClass)(target, key, descriptor);
+};
 
 @Injectable()
 export class RolesGuard implements CanActivate {

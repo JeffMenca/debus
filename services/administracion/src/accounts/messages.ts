@@ -20,5 +20,6 @@ export const MESSAGES = {
   accountInactive: 'Esta cuenta está desactivada. Reactívala primero.',
   tooManyEmails: 'Ya enviamos varios correos a esta cuenta. Intenta de nuevo en una hora.',
   invitationSent: 'Enviamos de nuevo la invitación.',
+  managedByFleet: 'Los choferes se gestionan desde Flota › Choferes.',
   settingsPastDate: 'La fecha de vigencia no puede ser anterior a hoy.',
 } as const;

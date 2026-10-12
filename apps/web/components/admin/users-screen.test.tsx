@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/api-error';
@@ -11,6 +11,7 @@ import {
   useUsersPage,
 } from '../../hooks/use-users';
 import { UsersScreen } from './users-screen';
+import { DEBOUNCE_MS, startFakeClock } from '../../test-support/fake-clock';
 
 jest.mock('../../hooks/use-branches');
 jest.mock('../../hooks/use-users');
@@ -39,7 +40,7 @@ const users = [
     id: 'u2',
     fullName: 'José Pérez',
     email: 'jose@correo.com',
-    role: 'DRIVER',
+    role: 'CASHIER',
     branchId,
     branchName: 'Quetzaltenango',
     status: 'PENDING',
@@ -129,6 +130,10 @@ const lastAddress = () => {
 const rowOf = (name: RegExp) => screen.getByRole('row', { name });
 const openActions = (name: string) =>
   userEvent.click(screen.getByRole('button', { name: `Acciones de ${name}` }));
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe('UsersScreen', () => {
   beforeEach(() => {
@@ -257,13 +262,16 @@ describe('UsersScreen', () => {
   });
 
   it('searches 300 ms after the last key, not on every key', async () => {
+    const clock = startFakeClock();
     setup();
 
-    await userEvent.type(screen.getByRole('textbox', { name: 'Buscar usuario' }), 'jose');
+    await clock.type(screen.getByRole('textbox', { name: 'Buscar usuario' }), 'jose');
+    clock.elapse(DEBOUNCE_MS - 1);
     expect(replace).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(lastAddress().params.get('buscar')).toBe('jose'));
+    clock.elapse(1);
     expect(replace).toHaveBeenCalledTimes(1);
+    expect(lastAddress().params.get('buscar')).toBe('jose');
   });
 
   it('says so when no one matches', () => {
@@ -295,6 +303,17 @@ describe('UsersScreen', () => {
     await userEvent.click(await screen.findByRole('option', { name: 'Cobán' }));
 
     expect(lastAddress().params.get('sucursal')).toBe(closedBranchId);
+  });
+
+  it('shows no actions on a driver, whose account is managed from the fleet screens', () => {
+    setup({
+      items: [
+        { ...users[1], id: 'u4', fullName: 'Rosa Pop', email: 'rosa@correo.com', role: 'DRIVER' },
+      ],
+    });
+
+    expect(rowOf(/Rosa Pop/)).toHaveTextContent('Chofer');
+    expect(screen.queryByRole('button', { name: 'Acciones de Rosa Pop' })).not.toBeInTheDocument();
   });
 
   it('resends the invitation only to pending accounts', async () => {

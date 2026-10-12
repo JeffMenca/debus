@@ -3,6 +3,7 @@ import {
   canCreateRole,
   canDeactivate,
   canSendNotice,
+  isManagedByFleet,
   linkState,
   leavesBranchWithoutAdmin,
   lockExpiry,
@@ -20,12 +21,12 @@ describe('canCreateRole', () => {
     }
   });
 
-  it('lets a branch admin create cashiers and drivers only in their branch', () => {
+  it('lets a branch admin create cashiers only in their branch, never drivers', () => {
     const actor = { role: 'BRANCH_ADMIN' as const, branchId: branch };
 
     expect(canCreateRole(actor, { role: 'CASHIER', branchId: branch })).toBe(true);
-    expect(canCreateRole(actor, { role: 'DRIVER', branchId: branch })).toBe(true);
-    expect(canCreateRole(actor, { role: 'DRIVER', branchId: other })).toBe(false);
+    expect(canCreateRole(actor, { role: 'CASHIER', branchId: other })).toBe(false);
+    expect(canCreateRole(actor, { role: 'DRIVER', branchId: branch })).toBe(false);
     expect(canCreateRole(actor, { role: 'BRANCH_ADMIN', branchId: branch })).toBe(false);
     expect(canCreateRole(actor, { role: 'CLIENT' })).toBe(false);
   });
@@ -88,5 +89,14 @@ describe('leavesBranchWithoutAdmin', () => {
     expect(leavesBranchWithoutAdmin(admin, false, 0)).toBe(false);
     expect(leavesBranchWithoutAdmin({ ...admin, status: 'INACTIVE' }, true, 0)).toBe(false);
     expect(leavesBranchWithoutAdmin({ role: 'CASHIER', status: 'ACTIVE' }, true, 0)).toBe(false);
+  });
+});
+
+describe('isManagedByFleet', () => {
+  it('is true for drivers only: flota owns them and their account follows it', () => {
+    expect(isManagedByFleet({ role: 'DRIVER' })).toBe(true);
+    for (const role of ['SYSTEM_ADMIN', 'BRANCH_ADMIN', 'CASHIER', 'CLIENT'] as const) {
+      expect(isManagedByFleet({ role })).toBe(false);
+    }
   });
 });

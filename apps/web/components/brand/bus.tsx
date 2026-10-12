@@ -1,4 +1,5 @@
-// Brand illustration used in heroes, empty states, fleet rows and live route lanes.
+// Brand illustration used in heroes, empty states, fleet rows and live route lanes. It is always
+// decorative: whatever it stands for (a plate, a photo) is named by the text or image next to it.
 import { cn } from '@/lib/utils';
 
 const TONES = {
@@ -36,8 +37,7 @@ export function Bus({ width = 284, tone = 'indigo', moving = true, className }: 
       viewBox="0 0 284 134"
       width={width}
       className={cn('block overflow-visible', className)}
-      role="img"
-      aria-label="Bus"
+      aria-hidden
     >
       <ellipse cx={142} cy={129} rx={124} ry={5} fill="#1B1F3B" opacity={0.12} />
       {moving && (

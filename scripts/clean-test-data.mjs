@@ -10,7 +10,7 @@
 import { createRequire } from 'node:module';
 import { localDatabases } from './lib/local-databases.mjs';
 
-const { cleanupStatements, keptBranchesQuery } = createRequire(import.meta.url)(
+const { cleanupStatements, keptBranchesQuery, photoKeysQuery } = createRequire(import.meta.url)(
   '../packages/config/test-data-sql.cjs',
 );
 
@@ -24,8 +24,23 @@ if (run !== null && !/^[0-9a-f]{8}$/.test(run)) {
 
 const SOURCE_OF_SETTINGS = 'administracion';
 const lines = (output) => output.split('\n').filter(Boolean);
+// The local media bucket (fake-gcs-server in docker compose); the same address flota uses in local.
+const MEDIA_API = `${process.env.MEDIA_EMULATOR_URL ?? 'http://localhost:4443'}/storage/v1/b/${process.env.MEDIA_BUCKET ?? 'debus-media-local'}/o`;
 
-function clean({ name, run: sql }, settingsVersionIds) {
+// Photos are not in the database: their keys are read before the rows are deleted.
+async function removePhotos(sql) {
+  for (const key of lines(sql(photoKeysQuery(run)))) {
+    const response = await fetch(`${MEDIA_API}/${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    }).catch(() => null);
+    if (!response || (!response.ok && response.status !== 404)) {
+      console.warn(`could not remove the photo ${key} from the local bucket`);
+    }
+  }
+}
+
+async function clean({ name, run: sql }, settingsVersionIds) {
+  if (sql("SELECT to_regclass('public.buses') IS NOT NULL").trim() === 't') await removePhotos(sql);
   sql(cleanupStatements({ run, settingsVersionIds }).join('\n'));
   console.log(`test data removed from ${name}`);
   if (sql("SELECT to_regclass('public.branches') IS NOT NULL").trim() !== 't') return;
@@ -41,9 +56,9 @@ const databases = localDatabases() ?? [];
 const source = databases.find(({ name }) => name === SOURCE_OF_SETTINGS);
 let settingsVersionIds = null;
 if (source) {
-  clean(source, null);
+  await clean(source, null);
   settingsVersionIds = lines(source.run('SELECT id FROM settings_versions ORDER BY id'));
 }
 for (const database of databases) {
-  if (database !== source) clean(database, settingsVersionIds);
+  if (database !== source) await clean(database, settingsVersionIds);
 }

@@ -1,5 +1,5 @@
+import { REQUEST_FLUSH } from '@debus/messaging';
 import { AdminEvents } from './admin-events';
-import { REQUEST_FLUSH } from './request-flush';
 
 describe('AdminEvents', () => {
   const setup = () => {

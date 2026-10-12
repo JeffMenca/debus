@@ -16,3 +16,4 @@ export * from './provisioning/apply-pubsub-plan';
 export * from './outbox/sql-outbox-store';
 export * from './outbox/outbox';
 export * from './testing/capture-logs';
+export * from './outbox/request-flush';

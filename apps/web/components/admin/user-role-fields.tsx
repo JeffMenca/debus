@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { type BranchOption, branchLabel, branchesFor } from '@/lib/admin/branch-options';
-import { ROLE_LABELS, STAFF_ROLES } from '@/lib/roles';
+import { INVITABLE_STAFF_ROLES, type InvitableStaffRole, ROLE_LABELS } from '@/lib/roles';
 
 interface UserRoleFieldsProps {
   idPrefix: string;
@@ -19,7 +19,7 @@ interface UserRoleFieldsProps {
   // Every branch; the ones this role may be placed in are picked here.
   branches: BranchOption[];
   // Without it the role is fixed and only the branch can change (editing).
-  onRoleChange?: (role: UserRole) => void;
+  onRoleChange?: (role: InvitableStaffRole) => void;
   onBranchChange: (branchId: string) => void;
   roleError?: string;
   branchError?: string;
@@ -40,12 +40,15 @@ export function UserRoleFields({
     <>
       {onRoleChange && (
         <Field id={`${idPrefix}-role`} label="Rol" error={roleError}>
-          <Select value={role ?? ''} onValueChange={(value) => onRoleChange(value as UserRole)}>
+          <Select
+            value={role ?? ''}
+            onValueChange={(value) => onRoleChange(value as InvitableStaffRole)}
+          >
             <SelectTrigger id={`${idPrefix}-role`} aria-invalid={roleError ? true : undefined}>
               <SelectValue placeholder="Elige un rol" />
             </SelectTrigger>
             <SelectContent>
-              {STAFF_ROLES.map((staffRole) => (
+              {INVITABLE_STAFF_ROLES.map((staffRole) => (
                 <SelectItem key={staffRole} value={staffRole}>
                   {ROLE_LABELS[staffRole]}
                 </SelectItem>
