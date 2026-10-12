@@ -10,7 +10,7 @@ import {
   sampleDriver,
   sampleRoute,
 } from './support/fleet-gateway';
-import { expectNoHorizontalScroll, openMenuOnPhone, signInAs } from './support/session';
+import { expectNoHorizontalScroll, openMenuOnPhone, sessionFor, signInAs } from './support/session';
 
 const GUATEMALA_ID = '5d1f3a20-2222-4d4d-9999-123456789abc';
 const FLORES_ID = '6e2a4b31-3333-4e4e-8888-123456789abc';
@@ -91,6 +91,38 @@ async function open(
 
 test.describe('fleet', () => {
   test.skip(Boolean(process.env.E2E_REAL_API), 'runs only without a real gateway');
+
+  test('never shows the drivers of one branch to the admin who signs in next on the same tab', async ({
+    page,
+    baseURL,
+  }) => {
+    await open(page, baseURL, '/sucursal/choferes');
+    await expect(page.getByRole('row', { name: /Julio Pérez/ })).toBeVisible();
+
+    // The next person belongs to another branch, and their list has not answered yet.
+    const nextAdmin = sessionFor('BRANCH_ADMIN', GUATEMALA_ID, 'Luis Ramírez');
+    nextAdmin.user.id = '11111111-2222-4333-8444-555555555555';
+    await page.route('**/api/session/logout', (route) => route.fulfill({ status: 204 }));
+    await page.route('**/api/session/refresh', (route) => route.fulfill({ status: 401, json: {} }));
+    await page.route('**/api/session/login', (route) => route.fulfill({ json: nextAdmin }));
+    await page.route('**/api/flota/drivers**', (route) =>
+      route.request().method() === 'OPTIONS' ? route.fallback() : undefined,
+    );
+    await openMenuOnPhone(page);
+    await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+    await expect(page).toHaveURL(/\/login/);
+    await page.getByLabel('Correo electrónico').fill('luis@correo.com');
+    await page.getByLabel('Contraseña', { exact: true }).fill('clave-segura-1');
+    await page.getByRole('button', { name: /Ingresar/ }).click();
+    await expect(page).toHaveURL(/\/sucursal$/);
+
+    await openMenuOnPhone(page);
+    // The panel also links to Choferes; the first one is the menu's.
+    await page.getByRole('link', { name: 'Choferes', exact: true }).first().click();
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Choferes' })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Julio Pérez/ })).toHaveCount(0);
+  });
 
   test('is reached from the menu of the branch admin', async ({ page, baseURL }) => {
     await open(page, baseURL, '/sucursal');

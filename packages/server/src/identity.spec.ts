@@ -1,7 +1,7 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { DECORATORS } from '@nestjs/swagger';
+import { ApiOperation, DECORATORS } from '@nestjs/swagger';
 import { Roles, RolesGuard, readIdentity, requireBranch, requireIdentity } from './identity';
 
 const userId = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
@@ -123,7 +123,32 @@ describe('Roles on a whole controller', () => {
       }) as unknown as ExecutionContext;
 
     expect(Object.keys(responses)).toEqual(['401', '403']);
+    const operation = Reflect.getMetadata(
+      DECORATORS.API_OPERATION,
+      Controller.prototype.handler,
+    ) as { description?: string } | undefined;
+    expect(operation?.description).toBe('Allowed roles: BRANCH_ADMIN.');
     expect(guard.canActivate(ctx('BRANCH_ADMIN'))).toBe(true);
     expect(() => guard.canActivate(ctx('CASHIER'))).toThrow(ForbiddenException);
+  });
+});
+
+describe('Roles on a controller whose routes describe themselves', () => {
+  @Roles('BRANCH_ADMIN')
+  class Controller {
+    @ApiOperation({ summary: 'Lists buses', description: 'Paged.' })
+    list() {}
+  }
+
+  it('adds the roles to what the route already says', () => {
+    const operation = Reflect.getMetadata(DECORATORS.API_OPERATION, Controller.prototype.list) as {
+      summary: string;
+      description: string;
+    };
+
+    expect(operation).toMatchObject({
+      summary: 'Lists buses',
+      description: 'Paged. Allowed roles: BRANCH_ADMIN.',
+    });
   });
 });

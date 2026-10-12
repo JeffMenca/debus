@@ -10,7 +10,7 @@ import {
   createParamDecorator,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ApiOperation } from '@nestjs/swagger';
+import { ApiOperation, DECORATORS } from '@nestjs/swagger';
 import { z } from 'zod';
 import { apiErrors } from './api-docs';
 import { SERVER_MESSAGES } from './messages';
@@ -59,17 +59,35 @@ export function requireBranch(identity: Identity): string {
   return identity.branchId;
 }
 
-// The same list feeds the guard and the Swagger description, so the docs cannot drift. On a whole
-// controller the description of each route is left alone: only the session errors are documented.
+const allowedRoles = (roles: UserRole[]) => `Allowed roles: ${roles.join(', ')}.`;
+
+// On a whole controller every route gets the roles in its description, after what it already says.
+// Method decorators run before the class one, so their descriptions are there to be kept.
+function describeRoutes(controller: { prototype: object }, roles: UserRole[]): void {
+  const { prototype } = controller;
+  for (const name of Object.getOwnPropertyNames(prototype)) {
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, name);
+    if (name === 'constructor' || typeof descriptor?.value !== 'function') continue;
+    const current = Reflect.getMetadata(DECORATORS.API_OPERATION, descriptor.value) as
+      { description?: string } | undefined;
+    const description = [current?.description, allowedRoles(roles)].filter(Boolean).join(' ');
+    ApiOperation({ ...current, description })(prototype, name, descriptor);
+  }
+}
+
+// The same list feeds the guard and the Swagger description, so the docs cannot drift.
 export const Roles = (...roles: UserRole[]) => {
   const onRoute = applyDecorators(
     SetMetadata(ROLES_KEY, roles),
-    ApiOperation({ description: `Allowed roles: ${roles.join(', ')}.` }),
+    ApiOperation({ description: allowedRoles(roles) }),
     apiErrors(401, 403),
   );
   const onClass = applyDecorators(SetMetadata(ROLES_KEY, roles), apiErrors(401, 403));
-  return (target: object, key?: string | symbol, descriptor?: PropertyDescriptor): void =>
-    (descriptor ? onRoute : onClass)(target, key, descriptor);
+  return (target: object, key?: string | symbol, descriptor?: PropertyDescriptor): void => {
+    if (descriptor) return onRoute(target, key, descriptor);
+    onClass(target);
+    describeRoutes(target as { prototype: object }, roles);
+  };
 };
 
 @Injectable()
