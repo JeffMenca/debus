@@ -1,12 +1,13 @@
 import { cn } from '@/lib/utils';
 
-export type StatusTone = 'mint' | 'rose' | 'mango' | 'sky' | 'muted';
+export type StatusTone = 'mint' | 'rose' | 'mango' | 'sky' | 'indigo' | 'muted';
 
 const DOT: Record<StatusTone, string> = {
   mint: 'bg-mint-300',
   rose: 'bg-rose-300',
   mango: 'bg-mango-300',
   sky: 'bg-sky-300',
+  indigo: 'bg-indigo-500',
   muted: 'bg-muted-foreground/50',
 };
 const TEXT: Record<StatusTone, string> = {
@@ -14,6 +15,7 @@ const TEXT: Record<StatusTone, string> = {
   rose: 'text-rose-700',
   mango: 'text-mango-700',
   sky: 'text-sky-700',
+  indigo: 'text-indigo-700',
   muted: 'text-muted-foreground',
 };
 

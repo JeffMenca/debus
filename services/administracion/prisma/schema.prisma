@@ -64,6 +64,8 @@ model User {
   lastNoticeAt     DateTime?      @map("last_notice_at") @db.Timestamptz(3)
   createdById      String?        @map("created_by_id") @db.Uuid
   activatedAt      DateTime?      @map("activated_at") @db.Timestamptz(3)
+  // Version of the last driver snapshot applied (drivers only): older snapshots never overwrite newer ones.
+  driverVersion    Int?           @map("driver_version")
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   branch           Branch?        @relation(fields: [branchId], references: [id])

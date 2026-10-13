@@ -1,3 +1,4 @@
+import { SYNC_CALLS } from './events/sync-calls';
 import {
   BACKEND_SERVICES,
   type BackendService,
@@ -92,12 +93,18 @@ export function cloudRunEnv(
     };
   }
 
+  // A service that calls others synchronously needs their URLs and the identity token to do it.
+  const peers = SYNC_CALLS.filter((call) => call.from === unit).map((call) => call.to);
   return {
     ...base,
     ...pubsub,
     PUBSUB_AUDIENCE: url(unit),
     PUBSUB_PUSH_SA: pushServiceAccount(settings.projectId),
     DB_POOL_MAX: '2',
+    ...(peers.length > 0 && {
+      SERVICE_AUTH: 'google',
+      ...Object.fromEntries(peers.map((peer) => [serviceUrlVariable(peer), url(peer)])),
+    }),
     ...(unit === 'flota' && { MEDIA_BUCKET: settings.mediaBucket }),
     ...(unit === 'administracion' && {
       WEB_URL: url('web'),

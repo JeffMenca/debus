@@ -1,6 +1,6 @@
+import type { Identity } from '@debus/server';
 import { type BranchListQuery, type BranchStatusCounts, escapeLikePattern } from '@debus/contracts';
 import type { Prisma } from '../generated/prisma/client';
-import type { Identity } from '../identity/identity';
 
 const STATUS_WHERE = { active: { active: true }, inactive: { active: false }, all: {} } as const;
 

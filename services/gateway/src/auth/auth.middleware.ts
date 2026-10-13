@@ -2,7 +2,8 @@ import { type AccessTokenClaims, IDENTITY_HEADERS } from '@debus/contracts';
 import { correlationIdFor } from '@debus/messaging';
 import { Injectable, type NestMiddleware } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
-import { MESSAGES, errorResponse } from '../errors/error-response';
+import { SERVER_MESSAGES, errorResponse } from '@debus/server';
+import { MESSAGES } from '../errors/messages';
 import { canonicalPath, isUnderPrefix } from '../routing/canonical-path';
 import { AccessTokenVerifier } from './access-token-verifier';
 import { isPublicRoute, requiredRoles } from './route-access';
@@ -51,12 +52,12 @@ export class AuthMiddleware implements NestMiddleware {
     const correlationId = correlationIdFor(req, res);
     const claims = this.verifyBearer(req.headers.authorization);
     if (!claims) {
-      sendError(res, 401, MESSAGES.sessionEnded, correlationId);
+      sendError(res, 401, SERVER_MESSAGES.sessionEnded, correlationId);
       return;
     }
     const roles = requiredRoles(req.originalUrl);
     if (roles && !roles.includes(claims.role)) {
-      sendError(res, 403, MESSAGES.forbidden, correlationId);
+      sendError(res, 403, SERVER_MESSAGES.forbidden, correlationId);
       return;
     }
 

@@ -1,7 +1,6 @@
 import type { BranchChangedPayload, SettingsUpdatedPayload } from '@debus/contracts';
-import { Outbox, type SqlClient } from '@debus/messaging';
+import { Outbox, REQUEST_FLUSH, type SqlClient } from '@debus/messaging';
 import { Injectable } from '@nestjs/common';
-import { REQUEST_FLUSH } from './request-flush';
 
 @Injectable()
 export class AdminEvents {

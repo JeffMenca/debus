@@ -9,6 +9,7 @@ import {
 import { HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import { MAX_FAILED_LOGINS, lockExpiry } from '../accounts/account-rules';
 import { generateOpaqueToken, hashOpaqueToken, verifyPassword } from '../accounts/crypto';
+import { SERVER_MESSAGES } from '@debus/server';
 import { MESSAGES } from '../accounts/messages';
 import type { Prisma, RefreshToken, User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,7 +21,7 @@ interface AttemptReservation {
   locked: boolean;
 }
 
-const sessionEnded = () => new UnauthorizedException(MESSAGES.sessionEnded);
+const sessionEnded = () => new UnauthorizedException(SERVER_MESSAGES.sessionEnded);
 const invalidCredentials = () => new UnauthorizedException(MESSAGES.invalidCredentials);
 const accountLocked = () =>
   new HttpException(

@@ -627,3 +627,27 @@ describe('resendInvitation', () => {
     await expect(service.resendInvitation(admin, id)).rejects.toThrow(NotFoundException);
   });
 });
+
+describe('accounts of drivers', () => {
+  const driver = { id, role: 'DRIVER', status: 'ACTIVE', branchId: branch, passwordHash: 'h' };
+  const managed = 'Los choferes se gestionan desde Flota › Choferes.';
+
+  it('are edited, deactivated, reactivated and invited again only from flota', async () => {
+    const { tx, prisma, links, service } = setup();
+    tx.user.findUnique.mockResolvedValue(driver);
+    prisma.user.findUnique.mockResolvedValue(driver);
+    prisma.user.findFirst.mockResolvedValue(driver);
+
+    await expect(service.update(id, { fullName: 'Nuevo' })).rejects.toThrow(
+      new ConflictException(managed),
+    );
+    await expect(service.deactivate(id)).rejects.toThrow(new ConflictException(managed));
+    await expect(service.reactivate(id)).rejects.toThrow(new ConflictException(managed));
+    await expect(service.resendInvitation(admin, id)).rejects.toThrow(
+      new ConflictException(managed),
+    );
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(links.issue).not.toHaveBeenCalled();
+  });
+});

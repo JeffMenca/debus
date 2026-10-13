@@ -1,3 +1,4 @@
+import type { Identity } from '@debus/server';
 import {
   type CreateSettingsRequest,
   type SettingsListQuery,
@@ -10,7 +11,6 @@ import {
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { MESSAGES } from '../accounts/messages';
 import { AdminEvents } from '../common/admin-events';
-import type { Identity } from '../identity/identity';
 import type { SettingsVersion as SettingsVersionRow } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { fromDateOnly, toSettingsPayload, toSettingsVersion } from './settings-mappers';

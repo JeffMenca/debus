@@ -3,6 +3,9 @@ import {
   formatDateTime,
   formatLongDate,
   formatPhone,
+  formatKm,
+  formatPlate,
+  formatShortDate,
   formatQuetzales,
   initialsOf,
 } from './format';
@@ -31,4 +34,21 @@ it('shows a moment in Guatemala time, six hours behind UTC', () => {
 it('groups the thousands of a count', () => {
   expect(formatCount(3000)).toBe('3,000');
   expect(formatCount(45)).toBe('45');
+});
+
+it('writes a plate with its hyphen and leaves anything else alone', () => {
+  expect(formatPlate('C482BTX')).toBe('C-482BTX');
+  expect(formatPlate('TC123ABC')).toBe('TC-123ABC');
+  expect(formatPlate('raro')).toBe('raro');
+});
+
+it('writes a day short, with the year only when asked', () => {
+  expect(formatShortDate('2026-11-04')).toBe('4 nov');
+  expect(formatShortDate('2027-03-04', true)).toBe('4 mar 2027');
+});
+
+it('writes a distance in kilometres with at most one decimal', () => {
+  expect(formatKm(206.5)).toBe('206.5 km');
+  expect(formatKm(150)).toBe('150 km');
+  expect(formatKm(1250.25)).toBe('1,250.3 km');
 });

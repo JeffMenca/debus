@@ -8,14 +8,14 @@ import {
 } from './registry';
 
 describe('event registry', () => {
-  it('declares the 20 business event types plus the diagnostic probe', () => {
+  it('declares the 21 business event types plus the diagnostic probe', () => {
     const business = EVENT_TYPES.filter((type) => !EVENT_REGISTRY[type].diagnostic);
 
-    expect(business).toHaveLength(20);
+    expect(business).toHaveLength(21);
     expect(EVENT_REGISTRY.ProbeSent.diagnostic).toBe(true);
   });
 
-  it('declares exactly the 21 agreed event names, in registry order', () => {
+  it('declares exactly the 22 agreed event names, in registry order', () => {
     expect(EVENT_TYPES).toEqual([
       'BranchCreated',
       'BranchUpdated',
@@ -29,6 +29,7 @@ describe('event registry', () => {
       'DriverAdded',
       'DriverUpdated',
       'RouteCreated',
+      'RouteUpdated',
       'RouteDeleted',
       'TripScheduled',
       'TripDeleted',

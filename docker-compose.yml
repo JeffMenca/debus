@@ -43,5 +43,19 @@ services:
       - '1025:1025'
       - '8025:8025'
 
+  gcs:
+    logging: *logging
+    image: fsouza/fake-gcs-server:1.56.1
+    command: -scheme http -port 4443 -external-url http://localhost:4443 -backend memory
+    entrypoint:
+      [
+        '/bin/sh',
+        '-c',
+        'mkdir -p /data/debus-media-local && exec /bin/fake-gcs-server -data /data "$$@"',
+        '--',
+      ]
+    ports:
+      - '4443:4443'
+
 volumes:
   postgres-data:

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { clearSession, getSession, setSession } from '@/lib/auth/session-store';
-import { ApiError, FRIENDLY_NETWORK_MESSAGE, apiRequest, noContent } from './client';
+import { ApiError, FRIENDLY_NETWORK_MESSAGE, apiBlob, apiRequest, noContent } from './client';
 
 const schema = z.object({ ok: z.boolean() });
 
@@ -165,5 +165,99 @@ describe('noContent', () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
 
     await expect(apiRequest('/x', noContent, { method: 'POST' })).resolves.toBeNull();
+  });
+});
+
+describe('apiRequest with a FormData body', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('leaves the content type to the browser so it adds the multipart boundary', async () => {
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const form = new FormData();
+    form.append('photo', new Blob(['x']), 'bus.jpg');
+
+    await apiRequest('/api/flota/buses/1/photo', noContent, { method: 'PUT', body: form });
+
+    const init = fetchMock.mock.calls.at(-1)?.[1] as RequestInit;
+    expect(init.body).toBe(form);
+    expect(init.headers).not.toHaveProperty('content-type');
+  });
+
+  it('still sends JSON bodies as JSON', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json({ ok: true }));
+
+    await apiRequest('/x', schema, { method: 'POST', body: '{}' });
+
+    expect((fetchMock.mock.calls.at(-1)?.[1] as RequestInit).headers).toHaveProperty(
+      'content-type',
+      'application/json',
+    );
+  });
+});
+
+describe('apiBlob', () => {
+  const session = {
+    accessToken: 'old',
+    accessExpiresIn: 900,
+    user: {
+      id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+      fullName: 'Ana',
+      email: 'a@b.com',
+      role: 'BRANCH_ADMIN' as const,
+      branchId: '9b2c7a10-1111-4c4c-8888-123456789abc',
+    },
+  };
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    setSession(session);
+  });
+  afterEach(() => clearSession());
+
+  it('reads an image with the session token', async () => {
+    fetchMock.mockResolvedValue(new Response('img', { headers: { 'content-type': 'image/jpeg' } }));
+
+    const blob = await apiBlob('/api/flota/buses/1/photo');
+
+    expect(blob.type).toBe('image/jpeg');
+    expect(fetchMock.mock.calls[0][1].headers.authorization).toBe('Bearer old');
+  });
+
+  it('renews the session once on 401, like any other request', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        Response.json({ statusCode: 401, error: 'Unauthorized', message: 'x' }, { status: 401 }),
+      )
+      .mockResolvedValueOnce(Response.json({ ...session, accessToken: 'new' }))
+      .mockResolvedValueOnce(new Response('img', { headers: { 'content-type': 'image/png' } }));
+
+    const blob = await apiBlob('/api/flota/buses/1/photo');
+
+    expect(blob.type).toBe('image/png');
+    expect(fetchMock.mock.calls[2][1].headers.authorization).toBe('Bearer new');
+  });
+
+  it('fails with the service message when there is no photo', async () => {
+    fetchMock.mockResolvedValue(
+      Response.json(
+        { statusCode: 404, error: 'Not Found', message: 'Aún no tiene foto.' },
+        { status: 404 },
+      ),
+    );
+
+    await expect(apiBlob('/api/flota/buses/1/photo')).rejects.toMatchObject({
+      status: 404,
+      message: 'Aún no tiene foto.',
+    });
+  });
+
+  it('reports a connection problem when the server cannot be reached', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(apiBlob('/x')).rejects.toEqual(new ApiError(0, FRIENDLY_NETWORK_MESSAGE));
   });
 });

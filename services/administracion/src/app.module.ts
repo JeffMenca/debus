@@ -1,9 +1,12 @@
 import { MessagingModule, SqlInboxStore, httpLoggerOptions } from '@debus/messaging';
+import { HttpExceptionFilter, RolesGuard } from '@debus/server';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { AccountsModule } from './accounts/accounts.module';
 import { BranchesModule } from './branches/branches.module';
+import { DriversModule } from './drivers/drivers.module';
 import { HealthModule } from './health/health.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { SettingsModule } from './settings/settings.module';
@@ -18,6 +21,7 @@ import { PrismaService } from './prisma/prisma.service';
     HealthModule,
     AccountsModule,
     BranchesModule,
+    DriversModule,
     SessionsModule,
     SettingsModule,
     UsersModule,
@@ -30,6 +34,10 @@ import { PrismaService } from './prisma/prisma.service';
       },
       outbox: { inject: [PrismaService], useFactory: (prisma: PrismaService) => prisma },
     }),
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],
 })
 export class AppModule {}

@@ -50,7 +50,7 @@ const files = {
           'prisma:deploy': 'prisma migrate deploy',
         }),
       },
-      dependencies: {},
+      dependencies: { '@debus/server': 'workspace:^' },
       devDependencies: { '@debus/config': 'workspace:*', typescript: '^5.9.3' },
     },
     null,
@@ -124,8 +124,10 @@ async function bootstrap(): Promise<void> {
 void bootstrap();
 `,
   'src/app.module.ts': `import { MessagingModule, ${withDb ? 'SqlInboxStore, ' : ''}httpLoggerOptions } from '@debus/messaging';
+import { HttpExceptionFilter, RolesGuard } from '@debus/server';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
 ${withDb ? "import { PrismaModule } from './prisma/prisma.module';\nimport { PrismaService } from './prisma/prisma.service';\n" : ''}
@@ -148,6 +150,10 @@ ${withDb ? "import { PrismaModule } from './prisma/prisma.module';\nimport { Pri
         : `
     MessagingModule.forRoot({ service: '${name}' }),`
     }
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],
 })
 export class AppModule {}
@@ -211,6 +217,19 @@ describe('GET /health', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'ok', service: '${name}' });
+  });
+
+  it('answers unknown routes with the shared error shape and the correlation id', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/nope')
+      .set('x-correlation-id', 'c1')
+      .expect(404);
+
+    expect(response.body).toMatchObject({
+      statusCode: 404,
+      error: 'Not Found',
+      correlationId: 'c1',
+    });
   });
 });
 `,
@@ -479,6 +498,11 @@ describe('Outbox with the service database client', () => {
 if (update) {
   const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
   manifest.scripts['test:integration'] = integrationScript;
+  // Template dependencies are added without touching the ones the service already has.
+  manifest.dependencies = {
+    ...JSON.parse(files['package.json']).dependencies,
+    ...manifest.dependencies,
+  };
   files['package.json'] = JSON.stringify(manifest, null, 2);
 }
 

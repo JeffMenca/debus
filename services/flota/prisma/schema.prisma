@@ -17,13 +17,13 @@ model ProcessedEvent {
 }
 
 model OutboxEvent {
-  eventId     String    @id @map("event_id")
-  type        String
-  envelope    Json
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
-  attempts    Int       @default(0)
-  lastError   String?   @map("last_error")
+  eventId      String    @id @map("event_id")
+  type         String
+  envelope     Json
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt  DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts     Int       @default(0)
+  lastError    String?   @map("last_error")
   claimedUntil DateTime? @map("claimed_until") @db.Timestamptz(3)
 
   @@map("outbox")
@@ -31,12 +31,127 @@ model OutboxEvent {
 
 // Local copy fed by BranchCreated/BranchUpdated from administracion.
 model BranchCopy {
-  id        String   @id @db.Uuid
-  code      String
-  name      String
-  active    Boolean
-  version   Int
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  id         String   @id @db.Uuid
+  code       String
+  name       String
+  active     Boolean
+  version    Int
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+  buses      Bus[]
+  drivers    Driver[]
+  routesFrom Route[]  @relation("RouteOrigin")
+  routesTo   Route[]  @relation("RouteDestination")
 
   @@map("branches")
+}
+
+enum BusOperationalStatus {
+  AVAILABLE
+  IN_WORKSHOP
+}
+
+enum LicenseType {
+  A
+  B
+  C
+  M
+  E
+}
+
+enum TripCopyStatus {
+  SCHEDULED
+  IN_TRANSIT
+  COMPLETED
+}
+
+model Bus {
+  id                String               @id @default(uuid()) @db.Uuid
+  branchId          String               @map("branch_id") @db.Uuid
+  branch            BranchCopy           @relation(fields: [branchId], references: [id])
+  plate             String               @unique
+  brand             String
+  model             String
+  year              Int
+  capacity          Int
+  mileageKm         Int                  @map("mileage_km")
+  operationalStatus BusOperationalStatus @default(AVAILABLE) @map("operational_status")
+  active            Boolean              @default(true)
+  // Kept by TripDeparted and TripCompleted so lists can filter and count without joins.
+  inTransit         Boolean              @default(false) @map("in_transit")
+  completedTrips    Int                  @default(0) @map("completed_trips")
+  assignedDriverId  String?              @unique @map("assigned_driver_id") @db.Uuid
+  assignedDriver    Driver?              @relation(fields: [assignedDriverId], references: [id])
+  photoKey          String?              @map("photo_key")
+  searchText        String               @default("") @map("search_text")
+  version           Int                  @default(1)
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  trips             TripCopy[]
+
+  @@index([branchId, active, inTransit, operationalStatus])
+  @@map("buses")
+}
+
+model Driver {
+  id               String      @id @default(uuid()) @db.Uuid
+  branchId         String      @map("branch_id") @db.Uuid
+  branch           BranchCopy  @relation(fields: [branchId], references: [id])
+  fullName         String      @map("full_name")
+  email            String      @unique
+  phone            String
+  licenseNumber    String      @unique @map("license_number")
+  licenseType      LicenseType @map("license_type")
+  licenseExpiresOn DateTime    @map("license_expires_on") @db.Date
+  baseSalary       Decimal     @map("base_salary") @db.Decimal(10, 2)
+  active           Boolean     @default(true)
+  completedTrips   Int         @default(0) @map("completed_trips")
+  photoKey         String?     @map("photo_key")
+  searchText       String      @default("") @map("search_text")
+  version          Int         @default(1)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  assignedBus      Bus?
+  trips            TripCopy[]
+
+  @@index([branchId, active])
+  @@index([branchId, licenseExpiresOn])
+  @@map("drivers")
+}
+
+model Route {
+  id                  String     @id @default(uuid()) @db.Uuid
+  originBranchId      String     @map("origin_branch_id") @db.Uuid
+  origin              BranchCopy @relation("RouteOrigin", fields: [originBranchId], references: [id])
+  destinationBranchId String     @map("destination_branch_id") @db.Uuid
+  destination         BranchCopy @relation("RouteDestination", fields: [destinationBranchId], references: [id])
+  distanceKm          Decimal    @map("distance_km") @db.Decimal(7, 1)
+  ticketPrice         Decimal    @map("ticket_price") @db.Decimal(10, 2)
+  active              Boolean    @default(true)
+  // Set by the first TripScheduled: from then on the route can only be retired.
+  hasTrips            Boolean    @default(false) @map("has_trips")
+  searchText          String     @default("") @map("search_text")
+  version             Int        @default(1)
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([originBranchId, destinationBranchId])
+  @@map("routes")
+}
+
+// Copy of the trips of this service's buses, fed by the Trip* events of viajes.
+model TripCopy {
+  tripId             String         @id @map("trip_id") @db.Uuid
+  busId              String         @map("bus_id") @db.Uuid
+  bus                Bus            @relation(fields: [busId], references: [id])
+  driverId           String         @map("driver_id") @db.Uuid
+  driver             Driver         @relation(fields: [driverId], references: [id])
+  routeId            String?        @map("route_id") @db.Uuid
+  departureAt        DateTime       @map("departure_at") @db.Timestamptz(3)
+  estimatedArrivalAt DateTime       @map("estimated_arrival_at") @db.Timestamptz(3)
+  status             TripCopyStatus
+  updatedAt          DateTime       @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@index([busId, status])
+  @@index([driverId, status])
+  @@map("trip_copies")
 }

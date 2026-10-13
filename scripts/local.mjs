@@ -2,7 +2,7 @@
 // Brings up the whole stack on this machine in one step: env files, docker compose, Pub/Sub topics and
 // subscriptions, database migrations and every app in watch mode (web :3000, gateway :4000, services :4001-4007).
 // Usage: node scripts/local.mjs [--setup-only]
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -47,8 +47,21 @@ async function waitForPubSubEmulator() {
   process.exit(1);
 }
 
+// Cloud Scheduler flushes every outbox each minute in GCP; locally this does it every 30 s. Without
+// it, events written inside a handler (such as the email of a driver's account) would never leave.
+async function startOutboxFlusher() {
+  const { BACKEND_SERVICES, LOCAL_PORTS } = await import('@debus/contracts');
+  setInterval(() => {
+    for (const service of BACKEND_SERVICES) {
+      fetch(`http://localhost:${LOCAL_PORTS[service]}/outbox/flush`, { method: 'POST' }).catch(
+        () => undefined,
+      );
+    }
+  }, 30_000);
+}
+
 copyMissingEnvFiles();
-run('Starting PostgreSQL, the Pub/Sub emulator and Mailpit', 'docker', [
+run('Starting PostgreSQL, the Pub/Sub emulator, the media bucket and Mailpit', 'docker', [
   'compose',
   'up',
   '-d',
@@ -70,5 +83,8 @@ if (setupOnly) {
   console.log(
     '\nWeb http://localhost:3000 · API http://localhost:4000 · Mailpit http://localhost:8025\n',
   );
-  run('Starting web, gateway and services', 'pnpm', ['dev']);
+  await startOutboxFlusher();
+  console.log('\n> Starting web, gateway and services');
+  const dev = spawn('pnpm', ['dev'], { cwd: root, stdio: 'inherit' });
+  dev.on('exit', (code) => process.exit(code ?? 1));
 }

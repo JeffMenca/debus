@@ -362,7 +362,7 @@ test.describe('rest of the home page', () => {
     const bus = (await page
       .locator('section')
       .first()
-      .locator('svg[aria-label="Bus"]')
+      .locator('svg[viewBox="0 0 284 134"]')
       .boundingBox())!;
     expect(box.y).toBeGreaterThan(bus.y + bus.height - 1);
 

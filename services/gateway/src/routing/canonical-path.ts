@@ -9,3 +9,10 @@ export function canonicalPath(urlOrPath: string): string {
 export function isUnderPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
+
+// Pub/Sub push, scheduler and service-to-service endpoints are reachable only inside GCP: neither
+// the proxy nor the public documentation may expose them.
+export const INTERNAL_PREFIXES = ['/events', '/outbox', '/internal'] as const;
+
+export const isInternalPath = (pathname: string): boolean =>
+  INTERNAL_PREFIXES.some((prefix) => isUnderPrefix(pathname, prefix));

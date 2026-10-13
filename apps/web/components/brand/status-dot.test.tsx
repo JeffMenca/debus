@@ -20,6 +20,7 @@ describe('StatusDot', () => {
 
   it.each([
     ['sky', 'bg-sky-300', 'text-sky-700'],
+    ['indigo', 'bg-indigo-500', 'text-indigo-700'],
     ['muted', 'bg-muted-foreground/50', 'text-muted-foreground'],
   ] as const)('paints the %s tone with tokens', (tone, dot, text) => {
     render(<StatusDot tone={tone} label="Programado" />);

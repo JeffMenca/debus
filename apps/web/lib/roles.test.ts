@@ -1,5 +1,5 @@
 import { USER_ROLES } from '@debus/contracts';
-import { ROLE_LABELS, STAFF_ROLES } from './roles';
+import { INVITABLE_STAFF_ROLES, ROLE_LABELS, STAFF_ROLES } from './roles';
 
 describe('roles', () => {
   it('has a friendly label for every role', () => {
@@ -9,5 +9,9 @@ describe('roles', () => {
 
   it('lists the staff roles without clients', () => {
     expect(STAFF_ROLES).toEqual(['SYSTEM_ADMIN', 'BRANCH_ADMIN', 'CASHIER', 'DRIVER']);
+  });
+
+  it('lists the staff roles that can be invited: no clients and no drivers', () => {
+    expect(INVITABLE_STAFF_ROLES).toEqual(['SYSTEM_ADMIN', 'BRANCH_ADMIN', 'CASHIER']);
   });
 });

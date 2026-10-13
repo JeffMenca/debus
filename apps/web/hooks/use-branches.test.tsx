@@ -25,6 +25,10 @@ const branch = {
   admins: [],
 };
 const API = 'http://localhost:4000/api/administracion/branches';
+// What staff and clients receive: the branch without its administrators.
+const branchWithoutAdmins = Object.fromEntries(
+  Object.entries(branch).filter(([key]) => key !== 'admins'),
+);
 
 afterEach(() => jest.restoreAllMocks());
 
@@ -68,8 +72,18 @@ describe('paged branch hooks', () => {
     const { wrapper } = queryWrapper();
     const { result } = renderHook(() => useBranchOptions({ status: 'active' }), { wrapper });
 
-    await waitFor(() => expect(result.current.data).toEqual([branch]));
+    await waitFor(() => expect(result.current.data).toEqual([branchWithoutAdmins]));
     expect(fetchMock).toHaveBeenCalledWith(`${API}?pageSize=100&status=active`, expect.anything());
+  });
+
+  it('reads the options the way a branch admin receives them, without admins', async () => {
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(Response.json({ ...branchPage, items: [branchWithoutAdmins] }));
+    const { wrapper } = queryWrapper();
+    const { result } = renderHook(() => useBranchOptions({ status: 'active' }), { wrapper });
+
+    await waitFor(() => expect(result.current.data).toEqual([branchWithoutAdmins]));
   });
 
   it('counts active and inactive branches with a single row', async () => {

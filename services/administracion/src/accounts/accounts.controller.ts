@@ -1,3 +1,4 @@
+import { apiErrors, apiSuccess, ZodBody, apiBody } from '@debus/server';
 import {
   ACCEPTED_MESSAGE,
   CORRELATION_HEADER,
@@ -11,9 +12,7 @@ import {
 } from '@debus/contracts';
 import { Body, Controller, Headers, Post, UseInterceptors } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { apiErrors, apiSuccess } from '../common/api-errors';
 import { MinimumDurationInterceptor } from '../common/minimum-duration.interceptor';
-import { ZodBody, apiBody } from '../common/zod-body.pipe';
 import { RegistrationService } from './registration.service';
 
 // The slowest case (sending the link) takes tens of milliseconds; this hides the difference.

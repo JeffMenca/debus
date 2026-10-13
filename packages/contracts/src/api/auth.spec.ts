@@ -1,4 +1,6 @@
 import {
+  INVITABLE_ROLES,
+  USER_ROLES,
   createUserRequestSchema,
   dpiSchema,
   emailSchema,
@@ -80,5 +82,20 @@ describe('admin creates a user', () => {
       createUserRequestSchema.safeParse({ ...base, dpi: '2345678901234', phone: '55554444' })
         .success,
     ).toBe(true);
+  });
+});
+
+describe('invitable roles', () => {
+  it('leaves the driver out: drivers are registered in flota and get their account from it', () => {
+    expect(INVITABLE_ROLES).toEqual(['SYSTEM_ADMIN', 'BRANCH_ADMIN', 'CASHIER', 'CLIENT']);
+    expect(USER_ROLES).toContain('DRIVER');
+    expect(
+      createUserRequestSchema.safeParse({
+        fullName: 'Luis',
+        email: 'luis@correo.com',
+        role: 'DRIVER',
+        branchId,
+      }).success,
+    ).toBe(false);
   });
 });

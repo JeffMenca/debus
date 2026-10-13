@@ -1,5 +1,16 @@
 import type { UserRole } from '@debus/contracts';
-import { Activity, Building2, LayoutGrid, type LucideIcon, Settings2, Users } from 'lucide-react';
+import {
+  Activity,
+  Building2,
+  Bus,
+  CalendarDays,
+  IdCard,
+  LayoutGrid,
+  type LucideIcon,
+  Route,
+  Settings2,
+  Users,
+} from 'lucide-react';
 
 export interface NavItem {
   label: string;
@@ -29,13 +40,28 @@ const SYSTEM_ADMIN: NavGroup[] = [
   },
 ];
 
-const BRANCH_STAFF: NavGroup[] = [
-  { label: 'Operación', items: [{ label: 'Panel', href: '/sucursal', icon: LayoutGrid }] },
+const BRANCH_PANEL: NavItem = { label: 'Panel', href: '/sucursal', icon: LayoutGrid };
+
+const BRANCH_STAFF: NavGroup[] = [{ label: 'Operación', items: [BRANCH_PANEL] }];
+
+const BRANCH_ADMIN: NavGroup[] = [
+  {
+    label: 'Operación',
+    items: [BRANCH_PANEL, { label: 'Viajes', href: '/sucursal/viajes', icon: CalendarDays }],
+  },
+  {
+    label: 'Flota',
+    items: [
+      { label: 'Buses', href: '/sucursal/buses', icon: Bus },
+      { label: 'Choferes', href: '/sucursal/choferes', icon: IdCard },
+      { label: 'Rutas', href: '/sucursal/rutas', icon: Route },
+    ],
+  },
 ];
 
 const NAVIGATION: Record<UserRole, NavGroup[]> = {
   SYSTEM_ADMIN,
-  BRANCH_ADMIN: BRANCH_STAFF,
+  BRANCH_ADMIN,
   CASHIER: BRANCH_STAFF,
   DRIVER: BRANCH_STAFF,
   CLIENT: [],

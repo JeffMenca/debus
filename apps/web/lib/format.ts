@@ -38,3 +38,27 @@ const DATE_TIME = new Intl.DateTimeFormat('es-GT', {
 
 export const formatDateTime = (isoInstant: string): string =>
   DATE_TIME.format(new Date(isoInstant));
+
+// Plates are stored without separators; people read them with the hyphen after the letter prefix.
+export const formatPlate = (plate: string): string =>
+  plate.replace(/^([A-Z]{1,2})(\d{3}[A-Z]{3})$/, '$1-$2');
+
+const SHORT_DATE = new Intl.DateTimeFormat('es-GT', {
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'UTC',
+});
+const SHORT_DATE_WITH_YEAR = new Intl.DateTimeFormat('es-GT', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+// "4 nov"; with the year when the day is not in the current one ("4 mar 2027").
+export const formatShortDate = (isoDate: string, withYear = false): string =>
+  (withYear ? SHORT_DATE_WITH_YEAR : SHORT_DATE).format(new Date(`${isoDate}T00:00:00.000Z`));
+
+const KILOMETRES = new Intl.NumberFormat('es-GT', { maximumFractionDigits: 1 });
+
+export const formatKm = (km: number): string => `${KILOMETRES.format(km)} km`;

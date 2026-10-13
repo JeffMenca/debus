@@ -25,6 +25,7 @@ const administracion: OpenAPIObject = {
     '/': { get: { responses: {} } },
     '/events/pubsub': { post: { responses: {} } },
     '/outbox/flush': { post: { responses: {} } },
+    '/internal/availability': { get: { responses: {} } },
   },
   components: { schemas: { Branch: { type: 'object' } } },
 };
@@ -55,10 +56,11 @@ describe('mergeOpenApi', () => {
     expect(merged.components?.securitySchemes?.bearer).toBeDefined();
   });
 
-  it('hides the internal Pub/Sub and scheduler endpoints', () => {
+  it('hides the internal Pub/Sub, scheduler and service-to-service endpoints', () => {
     expect(
       Object.keys(merged.paths).some(
-        (path) => path.includes('/events') || path.includes('/outbox'),
+        (path) =>
+          path.includes('/events') || path.includes('/outbox') || path.includes('/internal'),
       ),
     ).toBe(false);
   });

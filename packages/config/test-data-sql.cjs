@@ -40,6 +40,37 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     'ALTER TABLE settings_versions ENABLE TRIGGER settings_versions_immutable',
   ].join('; ');
 
+  const testBranches = `SELECT id FROM branches WHERE name LIKE ${branches}`;
+  const inTestBranches = (table, column = 'branch_id') =>
+    whenTablesExist(
+      [table, 'branches'],
+      `DELETE FROM ${table} WHERE ${column} IN (${testBranches})`,
+    );
+  // flota and viajes rows point at the branch copies, so they go first.
+  const fleetAndTrips = [
+    whenTablesExist(
+      ['trip_copies', 'buses', 'branches'],
+      `DELETE FROM trip_copies WHERE bus_id IN (SELECT id FROM buses WHERE branch_id IN (${testBranches}))`,
+    ),
+    whenTablesExist(
+      ['trip_copies', 'drivers', 'branches'],
+      `DELETE FROM trip_copies WHERE driver_id IN (SELECT id FROM drivers WHERE branch_id IN (${testBranches}))`,
+    ),
+    whenTablesExist(
+      ['buses', 'branches'],
+      `UPDATE buses SET assigned_driver_id = NULL WHERE branch_id IN (${testBranches})`,
+    ),
+    inTestBranches('buses'),
+    inTestBranches('drivers'),
+    inTestBranches('routes', 'origin_branch_id'),
+    inTestBranches('routes', 'destination_branch_id'),
+    inTestBranches('trips'),
+    inTestBranches('bus_copies'),
+    inTestBranches('driver_copies'),
+    inTestBranches('route_copies', 'origin_branch_id'),
+    inTestBranches('route_copies', 'destination_branch_id'),
+  ];
+
   return [
     whenTablesExist(['settings_versions', 'users'], deleteVersions),
     whenTablesExist(
@@ -52,6 +83,7 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     ),
     whenTablesExist(['users'], `DELETE FROM users WHERE email LIKE ${emails}`),
     whenTablesExist(['sent_emails'], `DELETE FROM sent_emails WHERE recipient LIKE ${emails}`),
+    ...fleetAndTrips,
     // A test branch goes unless accounts that are not test data belong to it.
     whenTablesExist(
       ['branches', 'users'],
@@ -82,4 +114,14 @@ function keptBranchesQuery(run = null) {
   return `SELECT name FROM branches WHERE name LIKE ${patterns(run).branches}`;
 }
 
-module.exports = { cleanupStatements, keptBranchesQuery, whenTablesExist };
+// The keys of the photos that the buses and drivers of the test branches point at. Only a database
+// with `buses` and `drivers` (flota) can run it; the objects must go from the bucket before the rows do.
+function photoKeysQuery(run = null) {
+  checkRun(run);
+  const testBranches = `SELECT id FROM branches WHERE name LIKE ${patterns(run).branches}`;
+  const keysOf = (table) =>
+    `SELECT photo_key FROM ${table} WHERE photo_key IS NOT NULL AND branch_id IN (${testBranches})`;
+  return `${keysOf('buses')} UNION ${keysOf('drivers')}`;
+}
+
+module.exports = { cleanupStatements, keptBranchesQuery, photoKeysQuery, whenTablesExist };

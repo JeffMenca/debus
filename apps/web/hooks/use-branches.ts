@@ -5,6 +5,7 @@ import {
   type UpdateBranchRequest,
   MAX_PAGE_SIZE,
   branchSchema,
+  branchPageSchema,
   branchWithAdminsPageSchema,
   branchWithAdminsSchema,
 } from '@debus/contracts';
@@ -26,13 +27,14 @@ export function useBranchesPage(query: BranchListView) {
 }
 
 // For the selects: the same list with the largest page. Guatemala has far fewer than 100 branches.
+// The page schema without admins also reads the answer a system admin gets, which only adds them.
 export function useBranchOptions({ status }: { status: BranchListStatus }) {
   return useQuery({
     queryKey: ['branches', 'options', status],
     queryFn: () =>
       apiRequest(
         `${BRANCHES_PATH}?${toQueryString({ pageSize: MAX_PAGE_SIZE, status })}`,
-        branchWithAdminsPageSchema,
+        branchPageSchema,
       ),
     select: (page) => page.items,
   });

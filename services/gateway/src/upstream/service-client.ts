@@ -1,7 +1,7 @@
 import { type BackendService, CORRELATION_HEADER } from '@debus/contracts';
 import { Injectable } from '@nestjs/common';
 import { GatewayConfig } from '../config/gateway-config';
-import { IdentityTokens } from './identity-tokens';
+import { IdentityTokens } from '@debus/server';
 
 export const UPSTREAM_TIMEOUT_MS = 10_000;
 

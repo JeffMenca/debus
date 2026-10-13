@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { RoleHome } from '@/components/auth/role-home';
+import { BranchHome } from '@/components/branch/branch-home';
 
 export const metadata: Metadata = { title: 'Sucursal · debus' };
 
 export default function BranchPage() {
-  return <RoleHome />;
+  return <BranchHome />;
 }

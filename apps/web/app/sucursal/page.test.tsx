@@ -1,11 +1,15 @@
 import { render, screen } from '@testing-library/react';
 import { act } from 'react';
 import { clearSession, setSession } from '@/lib/auth/session-store';
-import BranchPage from './page';
+import BranchPage, { metadata } from './page';
+
+jest.mock('../../components/branch/branch-dashboard', () => ({
+  BranchDashboard: () => <p>panel de sucursal</p>,
+}));
 
 afterEach(() => act(() => clearSession()));
 
-it.each(['BRANCH_ADMIN', 'CASHIER', 'DRIVER'] as const)('welcomes the %s', (role) => {
+const signIn = (role: 'BRANCH_ADMIN' | 'CASHIER' | 'DRIVER') =>
   act(() =>
     setSession({
       accessToken: 'a',
@@ -19,6 +23,17 @@ it.each(['BRANCH_ADMIN', 'CASHIER', 'DRIVER'] as const)('welcomes the %s', (role
       },
     }),
   );
+
+it('shows the panel to the branch admin', () => {
+  signIn('BRANCH_ADMIN');
+  render(<BranchPage />);
+
+  expect(screen.getByText('panel de sucursal')).toBeInTheDocument();
+  expect(metadata.title).toBe('Sucursal · debus');
+});
+
+it.each(['CASHIER', 'DRIVER'] as const)('welcomes the %s', (role) => {
+  signIn(role);
   render(<BranchPage />);
 
   expect(screen.getByRole('heading', { name: 'Hola, Marta Ruiz' })).toBeInTheDocument();

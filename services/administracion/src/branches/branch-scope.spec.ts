@@ -1,5 +1,5 @@
+import type { Identity } from '@debus/server';
 import type { BranchListQuery } from '@debus/contracts';
-import type { Identity } from '../identity/identity';
 import { branchCountWhere, branchListWhere, toBranchStatusCounts } from './branch-scope';
 
 const system = { userId: 'u', role: 'SYSTEM_ADMIN', branchId: null } as Identity;

@@ -113,8 +113,17 @@ describe('InviteUserDialog', () => {
 
     await userEvent.click(screen.getByRole('combobox', { name: 'Rol' }));
 
-    expect(await screen.findByRole('option', { name: 'Chofer' })).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: 'Cajero' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Cliente' })).not.toBeInTheDocument();
+  });
+
+  it('does not offer drivers, who are registered from the fleet screens', async () => {
+    setup();
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Rol' }));
+
+    expect(await screen.findByRole('option', { name: 'Cajero' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Chofer' })).not.toBeInTheDocument();
   });
 
   it('sends the invitation, announces it and closes', async () => {
