@@ -55,6 +55,12 @@ jobs:
             gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators \
             gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=debus-local
           timeout 60 sh -c 'until curl -s localhost:8085 >/dev/null; do sleep 2; done'
+      - name: Start media bucket emulator
+        run: |
+          docker run -d -p 4443:4443 --entrypoint /bin/sh fsouza/fake-gcs-server:1.56.1 \
+            -c 'mkdir -p /data/debus-media-local && exec /bin/fake-gcs-server -data /data "$@"' -- \
+            -scheme http -port 4443 -external-url http://localhost:4443 -backend memory
+          timeout 60 sh -c 'until curl -sf localhost:4443/storage/v1/b/debus-media-local >/dev/null; do sleep 2; done'
       - name: Create service databases
         run: ./infra/postgres/init-databases.sh
         env:
