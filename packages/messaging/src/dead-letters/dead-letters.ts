@@ -6,12 +6,15 @@ import { DeadLetterQueue, type PulledMessage } from './dead-letter-queue';
 import { DEAD_LETTER_MESSAGES } from './messages';
 import { parseEnvelope, toDeadLetter } from './to-dead-letter';
 
-// Pub/Sub returns at most this many messages per pull; a dead-letter queue is expected to be small.
+// Messages read per pull; a dead-letter queue is expected to stay well below this.
 const SEARCH_WINDOW = 100;
 
 /**
  * Lets the system admin review the events this service could not process. A replay runs the event
  * through this service's own inbox and handlers, so other consumers never receive it twice.
+ *
+ * A synchronous pull may return fewer messages than asked, and messages leased by a concurrent
+ * request are hidden until released: `hasMore` is a hint, and a lookup pulls twice before a 404.
  */
 @Injectable()
 export class DeadLetters {
@@ -55,11 +58,7 @@ export class DeadLetters {
     messageId: string,
     work: (message: PulledMessage) => Promise<T>,
   ): Promise<T> {
-    const messages = await this.queue.pull(SEARCH_WINDOW);
-    const target = messages.find((message) => message.messageId === messageId);
-    await this.queue.release(
-      messages.filter((message) => message !== target).map((message) => message.ackId),
-    );
+    const target = (await this.find(messageId)) ?? (await this.find(messageId));
     if (!target) throw new NotFoundException(SERVER_MESSAGES.notFound);
     try {
       const result = await work(target);
@@ -69,5 +68,14 @@ export class DeadLetters {
       await this.queue.release([target.ackId]);
       throw error;
     }
+  }
+
+  private async find(messageId: string): Promise<PulledMessage | undefined> {
+    const messages = await this.queue.pull(SEARCH_WINDOW);
+    const target = messages.find((message) => message.messageId === messageId);
+    await this.queue.release(
+      messages.filter((message) => message !== target).map((message) => message.ackId),
+    );
+    return target;
   }
 }

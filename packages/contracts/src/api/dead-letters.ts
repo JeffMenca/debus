@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 /**
  * Events a consumer could not process after every Pub/Sub attempt, read from <service>-dlq-sub.
- * Pub/Sub has no offset nor total, so the list is the oldest `limit` messages and `hasMore`.
+ * Pub/Sub has no offset nor total, so the list is the oldest `limit` messages and `hasMore`, a
+ * hint: a pull may return fewer messages than are waiting.
  */
 export const deadLetterListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),

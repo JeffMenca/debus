@@ -43,6 +43,19 @@ describe('sales events', () => {
     );
   });
 
+  it('validates the buyer the same way the purchase request does', () => {
+    expect(
+      ticketSoldPayloadSchema.safeParse({ ...exampleTicketSold, buyerName: 'A' }).success,
+    ).toBe(false);
+    expect(
+      ticketSoldPayloadSchema.parse({
+        ...exampleTicketSold,
+        buyerName: ' Ana López ',
+        email: ' ANA.LOPEZ@debus.test ',
+      }),
+    ).toMatchObject({ buyerName: 'Ana López', email: 'ana.lopez@debus.test' });
+  });
+
   it('sells at the counter to the final consumer without account or email', () => {
     expect(ticketSoldPayloadSchema.parse(exampleCounterTicketSold)).toMatchObject({
       channel: 'COUNTER',

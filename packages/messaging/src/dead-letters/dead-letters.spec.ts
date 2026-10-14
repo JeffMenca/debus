@@ -91,11 +91,22 @@ describe('DeadLetters', () => {
     expect(queue.release).toHaveBeenCalledWith(['ack-2']);
   });
 
+  it('looks once more before answering 404, since a pull may return fewer messages', async () => {
+    const { queue, handle, deadLetters } = setup([]);
+    queue.pull.mockResolvedValueOnce([message('1')]).mockResolvedValueOnce([message('2')]);
+
+    await expect(deadLetters.replay('2')).resolves.toEqual({ outcome: 'processed' });
+    expect(handle).toHaveBeenCalledTimes(1);
+    expect(queue.ack).toHaveBeenCalledWith(['ack-2']);
+    expect(queue.release).toHaveBeenCalledWith(['ack-1']);
+  });
+
   it('answers 404 for a message that is no longer in the queue', async () => {
     const { queue, deadLetters } = setup([message('1')]);
 
     await expect(deadLetters.replay('9')).rejects.toThrow(NotFoundException);
     await expect(deadLetters.discard('9')).rejects.toThrow(NotFoundException);
+    expect(queue.pull).toHaveBeenCalledTimes(4);
     expect(queue.pull).toHaveBeenCalledWith(100);
     expect(queue.release).toHaveBeenCalledWith(['ack-1']);
   });

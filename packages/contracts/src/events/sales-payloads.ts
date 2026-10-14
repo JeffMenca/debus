@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isoDateSchema } from '../dates';
+import { emailSchema, fullNameSchema } from '../api/auth';
 import { moneySchema } from '../api/settings';
 import { SALE_CHANNELS, seatSelectionSchema } from '../api/tickets';
 
@@ -21,8 +22,8 @@ export const ticketSoldPayloadSchema = z
     channel: z.enum(SALE_CHANNELS),
     clientId: z.uuid().nullable(),
     nit,
-    buyerName: z.string().min(1).max(120),
-    email: z.email().nullable(),
+    buyerName: fullNameSchema,
+    email: emailSchema.nullable(),
     seats: seatSelectionSchema,
     unitPrice: moneySchema,
     total: moneySchema,

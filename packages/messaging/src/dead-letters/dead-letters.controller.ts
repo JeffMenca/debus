@@ -5,7 +5,7 @@ import {
   deadLetterListQuerySchema,
 } from '@debus/contracts';
 import { Roles, ZodBody, apiErrors, apiQuery, apiSuccess } from '@debus/server';
-import { Controller, Delete, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DeadLetters } from './dead-letters';
 
@@ -28,7 +28,6 @@ export class DeadLettersController {
   }
 
   @Post(':messageId/replay')
-  @HttpCode(200)
   @apiSuccess(200)
   @apiErrors(404, 502, 503)
   replay(@Param('messageId') messageId: string): Promise<ReplayResult> {
@@ -36,7 +35,6 @@ export class DeadLettersController {
   }
 
   @Delete(':messageId')
-  @HttpCode(204)
   @apiSuccess(204)
   @apiErrors(404, 503)
   discard(@Param('messageId') messageId: string): Promise<void> {
