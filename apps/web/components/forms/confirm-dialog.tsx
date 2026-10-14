@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { FormAlert } from '@/components/auth/form-alert';
 import {
   AlertDialog,
@@ -25,6 +25,8 @@ interface ConfirmDialogProps {
   tone?: 'default' | 'danger';
   // When given, the person must tick it before confirming (departure, arrival, deleting a trip).
   checkLabel?: string;
+  // What is being confirmed, such as the figures about to be saved.
+  details?: ReactNode;
   onConfirm: () => Promise<void>;
 }
 
@@ -36,6 +38,7 @@ export function ConfirmDialog({
   confirmLabel,
   tone = 'default',
   checkLabel,
+  details,
   onConfirm,
 }: ConfirmDialogProps) {
   const [checked, setChecked] = useState(false);
@@ -72,6 +75,7 @@ export function ConfirmDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
+        {details}
         {checkLabel && (
           <div className="flex items-center gap-3">
             <Checkbox

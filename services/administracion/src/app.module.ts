@@ -7,6 +7,8 @@ import { LoggerModule } from 'nestjs-pino';
 import { AccountsModule } from './accounts/accounts.module';
 import { BranchesModule } from './branches/branches.module';
 import { DriversModule } from './drivers/drivers.module';
+import { ExpensesModule } from './expenses/expenses.module';
+import { FleetModule } from './fleet/fleet.module';
 import { HealthModule } from './health/health.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { SettingsModule } from './settings/settings.module';
@@ -22,6 +24,8 @@ import { PrismaService } from './prisma/prisma.service';
     AccountsModule,
     BranchesModule,
     DriversModule,
+    ExpensesModule,
+    FleetModule,
     SessionsModule,
     SettingsModule,
     UsersModule,

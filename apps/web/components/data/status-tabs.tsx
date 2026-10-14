@@ -24,7 +24,11 @@ export function StatusTabs<V extends string>({
       <Tabs value={value} onValueChange={(next) => onChange(next as V)}>
         <TabsList
           aria-label={label}
-          className="relative flex w-max gap-0 rounded-2xl bg-muted-2 p-1 group-data-horizontal/tabs:h-auto"
+          // Equal columns that never get narrower than their longest word and count: the bar takes the
+          // width it needs up to the screen, wraps a long label when that is enough and scrolls
+          // inside its frame when even that does not fit.
+          className="relative grid w-fit min-w-full items-stretch gap-0 rounded-2xl bg-muted-2 p-1 group-data-horizontal/tabs:h-auto sm:min-w-0"
+          style={{ gridTemplateColumns: `repeat(${options.length}, minmax(min-content, 1fr))` }}
         >
           <span
             aria-hidden
@@ -38,11 +42,13 @@ export function StatusTabs<V extends string>({
             <TabsTrigger
               key={option.value}
               value={option.value}
-              className="relative z-10 h-10 min-w-[112px] flex-1 gap-2 rounded-xl border-0 bg-transparent px-4 text-sm font-semibold data-active:bg-transparent group-data-[variant=default]/tabs-list:data-active:shadow-none"
+              className="relative z-10 h-auto min-h-10 min-w-0 gap-2 rounded-xl border-0 bg-transparent px-3 py-1.5 text-center text-sm leading-tight font-semibold whitespace-normal data-active:bg-transparent group-data-[variant=default]/tabs-list:data-active:shadow-none sm:min-w-[112px] sm:px-4"
             >
               {option.label}
               {option.count !== undefined && (
-                <span className="text-xs font-medium text-muted-foreground">{option.count}</span>
+                <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                  {option.count}
+                </span>
               )}
             </TabsTrigger>
           ))}

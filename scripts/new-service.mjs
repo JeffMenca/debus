@@ -453,7 +453,7 @@ describe('Outbox with the service database client', () => {
     const added = await prisma.$transaction(async (tx) => {
       const ids: string[] = [];
       for (const correlationId of ['first', 'second', 'rejected']) {
-        ids.push((await outbox.add(tx, 'ProbeSent', {}, correlationId)).eventId);
+        ids.push((await outbox.add(tx, 'ProbeSent', { requestedAt: new Date().toISOString() }, correlationId)).eventId);
       }
       return ids;
     });
@@ -479,7 +479,7 @@ describe('Outbox with the service database client', () => {
     const outbox = app.get(Outbox);
     await prisma.$transaction(async (tx) => {
       for (const correlationId of ['first', 'second', 'third']) {
-        await outbox.add(tx, 'ProbeSent', {}, correlationId);
+        await outbox.add(tx, 'ProbeSent', { requestedAt: new Date().toISOString() }, correlationId);
       }
     });
 

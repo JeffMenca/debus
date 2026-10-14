@@ -36,6 +36,9 @@ const hasAtMostOneDecimal = (value: number) => Math.abs(value * 10 - Math.round(
 export const distanceKmSchema = z.number().positive().max(2000).refine(hasAtMostOneDecimal, {
   message: 'at most one decimal',
 });
+// One limit for the bus form and for every trip event, so a valid bus never breaks a consumer.
+export const MILEAGE_MAX_KM = 5_000_000;
+export const mileageKmSchema = z.number().int().min(0).max(MILEAGE_MAX_KM);
 const nameText = z.string().trim().min(1).max(40);
 const listStatus = z.enum(['active', 'inactive', 'all']);
 
@@ -50,7 +53,7 @@ export const busFieldsSchema = z.object({
     .min(BUS_MIN_YEAR)
     .refine((year) => year <= new Date().getFullYear() + 1, { message: 'year is too far ahead' }),
   capacity: z.number().int().min(10).max(80),
-  mileageKm: z.number().int().min(0).max(5_000_000),
+  mileageKm: mileageKmSchema,
   operationalStatus: z.enum(BUS_OPERATIONAL_STATUSES),
   assignedDriverId: z.uuid().nullable(),
 });
@@ -187,6 +190,12 @@ export const availabilityQuerySchema = z
     message: 'arrival must be after departure',
   });
 export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;
+
+// Sends the buses again to the services that keep a copy of them, all of them or those of a branch.
+export const republishBusesQuerySchema = z.object({ branchId: z.uuid().optional() });
+export type RepublishBusesQuery = z.infer<typeof republishBusesQuerySchema>;
+export const republishBusesResultSchema = z.object({ republished: z.number().int().nonnegative() });
+export type RepublishBusesResult = z.infer<typeof republishBusesResultSchema>;
 
 const verdict = z.object({
   available: z.boolean(),

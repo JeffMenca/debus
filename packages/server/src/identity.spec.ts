@@ -152,3 +152,25 @@ describe('Roles on a controller whose routes describe themselves', () => {
     });
   });
 });
+
+describe('Roles on a controller with a route that declares its own', () => {
+  @Roles('BRANCH_ADMIN')
+  class Controller {
+    list() {}
+
+    @Roles('BRANCH_ADMIN', 'DRIVER')
+    mine() {}
+  }
+
+  const description = (handler: () => void) =>
+    (
+      Reflect.getMetadata(DECORATORS.API_OPERATION, handler) as {
+        description?: string;
+      }
+    ).description;
+
+  it('keeps the roles of the route over the class ones', () => {
+    expect(description(Controller.prototype.list)).toBe('Allowed roles: BRANCH_ADMIN.');
+    expect(description(Controller.prototype.mine)).toBe('Allowed roles: BRANCH_ADMIN, DRIVER.');
+  });
+});

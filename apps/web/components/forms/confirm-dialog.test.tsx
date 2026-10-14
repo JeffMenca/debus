@@ -30,6 +30,22 @@ describe('ConfirmDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it('shows the details the person is about to confirm', () => {
+    render(
+      <ConfirmDialog
+        open
+        onOpenChange={jest.fn()}
+        title="¿Registrar la salida?"
+        description="No se podrá cambiar después."
+        confirmLabel="Registrar salida"
+        details={<dl aria-label="Resumen">resumen de la salida</dl>}
+        onConfirm={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Resumen')).toHaveTextContent('resumen de la salida');
+  });
+
   it('keeps the dialog open with a friendly message when it fails', async () => {
     const onConfirm = jest
       .fn()

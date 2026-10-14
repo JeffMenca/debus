@@ -1,6 +1,6 @@
 'use client';
 
-import { MAX_PAGE_SIZE, guatemalaDateTime, todayInGuatemala } from '@debus/contracts';
+import { guatemalaDateTime, todayInGuatemala } from '@debus/contracts';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { FormAlert } from '@/components/auth/form-alert';
@@ -14,7 +14,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useBusesPage } from '@/hooks/use-buses';
-import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useDriverOptions } from '@/hooks/use-drivers';
 import { useRoutesPage } from '@/hooks/use-routes';
 import { useScheduleTrip } from '@/hooks/use-trips';
@@ -29,17 +28,9 @@ import {
   splitGuatemala,
   suggestedArrival,
 } from '@/lib/trips/schedule';
+import { OPTIONS_PAGE, useOptionSearch } from './option-search';
 import { OptionSelect } from './option-select';
 import { TimeField } from './time-field';
-
-// The server pages its lists; a select asks for the largest page and, when needed, a search.
-const OPTIONS_PAGE = { page: 1, pageSize: MAX_PAGE_SIZE } as const;
-
-function useSearch() {
-  const [search, setSearch] = useState('');
-  const term = useDebouncedValue(search.trim());
-  return [search, setSearch, term || undefined] as const;
-}
 
 interface ScheduleTripFormProps {
   defaultDay: string;
@@ -48,9 +39,9 @@ interface ScheduleTripFormProps {
 
 function ScheduleTripForm({ defaultDay, onDone }: ScheduleTripFormProps) {
   const schedule = useScheduleTrip();
-  const [routeSearch, setRouteSearch, routeTerm] = useSearch();
-  const [busSearch, setBusSearch, busTerm] = useSearch();
-  const [driverSearch, setDriverSearch, driverTerm] = useSearch();
+  const [routeSearch, setRouteSearch, routeTerm] = useOptionSearch();
+  const [busSearch, setBusSearch, busTerm] = useOptionSearch();
+  const [driverSearch, setDriverSearch, driverTerm] = useOptionSearch();
   const routes = useRoutesPage({
     status: 'active',
     ...(routeTerm && { q: routeTerm }),

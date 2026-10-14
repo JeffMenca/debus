@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { createEnvelope, eventEnvelopeSchema } from '@debus/contracts';
+import { createEnvelope, eventEnvelopeSchema, exampleBus } from '@debus/contracts';
 import { PubSub } from '@google-cloud/pubsub';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -176,7 +176,7 @@ describe('MessagingModule outbox', () => {
 
   it('publishes an event added in a transaction when the flush endpoint is called', async () => {
     const envelope = await db.$transaction((tx) =>
-      app.get(Outbox).add(tx, 'BusAdded', { busId: 'b-1' }, 'c-outbox'),
+      app.get(Outbox).add(tx, 'BusAdded', exampleBus, 'c-outbox'),
     );
 
     const response = await request(app.getHttpServer()).post('/outbox/flush').expect(200);

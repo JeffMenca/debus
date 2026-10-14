@@ -82,3 +82,14 @@ it('shows a friendly error with a retry', async () => {
 
   expect(refetch).toHaveBeenCalled();
 });
+
+it('lets the admin register the departure of each trip from the list', () => {
+  setup();
+
+  const links = screen.getAllByRole('link', { name: /Registrar salida/ });
+  expect(links.map((link) => link.getAttribute('href'))).toEqual([
+    '/sucursal/viajes/a',
+    '/sucursal/viajes/b',
+  ]);
+  expect(screen.getByRole('link', { name: 'Registrar salida de C-482BTX' })).toBeInTheDocument();
+});

@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { createEnvelope, type EventEnvelope, type EventType } from '@debus/contracts';
+import {
+  createEnvelope,
+  type EventEnvelope,
+  type EventType,
+  validateEventPayload,
+} from '@debus/contracts';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { SqlClient } from '../inbox/sql-inbox-store';
 import { EventPublisher } from '../publishing/event-publisher';
@@ -34,6 +39,14 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }
 
+/** A producer tried to queue a payload its own contract rejects: a bug, never bad user input. */
+export class InvalidEventPayloadError extends Error {
+  constructor(type: EventType, reason: string) {
+    super(`${type} payload breaks its contract: ${reason}`);
+    this.name = 'InvalidEventPayloadError';
+  }
+}
+
 @Injectable()
 export class Outbox {
   private readonly logger = new Logger(Outbox.name);
@@ -49,6 +62,9 @@ export class Outbox {
     payload: unknown,
     correlationId?: string,
   ): Promise<EventEnvelope> {
+    // Checked here, once, so no producer can queue an event that would only end in a dead-letter.
+    const check = validateEventPayload(type, payload);
+    if (!check.valid) throw new InvalidEventPayloadError(type, check.reason);
     const envelope = createEnvelope(type, payload, correlationId ?? randomUUID());
     await this.store.enqueue(tx, envelope);
     return envelope;

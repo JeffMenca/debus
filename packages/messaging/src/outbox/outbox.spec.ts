@@ -1,9 +1,10 @@
-import type { EventEnvelope } from '@debus/contracts';
+import { exampleTripCompleted, type EventEnvelope } from '@debus/contracts';
 import type { SqlClient } from '../inbox/sql-inbox-store';
 import type { EventPublisher } from '../publishing/event-publisher';
-import { Outbox } from './outbox';
+import { InvalidEventPayloadError, Outbox } from './outbox';
 import type { SqlOutboxStore } from './sql-outbox-store';
 
+const NOW = '2026-10-13T10:00:00.000Z';
 const event = (id: string) => ({ eventId: id, envelope: { eventId: id } as EventEnvelope });
 
 function setup(claimed: ReturnType<typeof event>[] = []) {
@@ -27,7 +28,7 @@ describe('Outbox.add', () => {
     const { store, outbox } = setup();
     const tx = {} as SqlClient;
 
-    const envelope = await outbox.add(tx, 'ProbeSent', { requestedAt: 'x' }, 'c-1');
+    const envelope = await outbox.add(tx, 'ProbeSent', { requestedAt: NOW }, 'c-1');
 
     expect(store.enqueue).toHaveBeenCalledWith(tx, envelope);
     expect(envelope).toMatchObject({ type: 'ProbeSent', correlationId: 'c-1' });
@@ -36,10 +37,32 @@ describe('Outbox.add', () => {
   it('creates a correlation id when none arrives', async () => {
     const { outbox } = setup();
 
-    const envelope = await outbox.add({} as SqlClient, 'ProbeSent', {});
+    const envelope = await outbox.add({} as SqlClient, 'ProbeSent', { requestedAt: NOW });
 
     expect(envelope.correlationId).toEqual(expect.any(String));
     expect(envelope.correlationId).not.toBe('');
+  });
+});
+
+describe('Outbox.add payload contract', () => {
+  it('queues a payload that fits its schema as it came', async () => {
+    const { store, outbox } = setup();
+
+    const envelope = await outbox.add({} as SqlClient, 'TripCompleted', exampleTripCompleted);
+
+    expect(envelope.payload).toBe(exampleTripCompleted);
+    expect(store.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a payload that breaks its schema and queues nothing', async () => {
+    const { store, outbox } = setup();
+    const tooBig = { ...exampleTripCompleted, depreciationAmount: 1_134_000 };
+
+    const attempt = outbox.add({} as SqlClient, 'TripCompleted', tooBig);
+
+    await expect(attempt).rejects.toBeInstanceOf(InvalidEventPayloadError);
+    await expect(attempt).rejects.toThrow(/TripCompleted.*depreciationAmount/);
+    expect(store.enqueue).not.toHaveBeenCalled();
   });
 });
 

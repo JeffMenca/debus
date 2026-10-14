@@ -9,7 +9,9 @@ import {
   type LucideIcon,
   Route,
   Settings2,
+  Tags,
   Users,
+  Wrench,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -32,6 +34,7 @@ const SYSTEM_ADMIN: NavGroup[] = [
       { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
       { label: 'Sucursales', href: '/admin/sucursales', icon: Building2 },
       { label: 'Configuración', href: '/admin/configuracion', icon: Settings2 },
+      { label: 'Categorías de gasto', href: '/admin/categorias', icon: Tags },
     ],
   },
   {
@@ -57,13 +60,24 @@ const BRANCH_ADMIN: NavGroup[] = [
       { label: 'Rutas', href: '/sucursal/rutas', icon: Route },
     ],
   },
+  {
+    label: 'Finanzas',
+    items: [{ label: 'Gastos de taller', href: '/sucursal/gastos', icon: Wrench }],
+  },
+];
+
+const DRIVER: NavGroup[] = [
+  {
+    label: 'Mi trabajo',
+    items: [{ label: 'Mis viajes', href: '/chofer', icon: CalendarDays }],
+  },
 ];
 
 const NAVIGATION: Record<UserRole, NavGroup[]> = {
   SYSTEM_ADMIN,
   BRANCH_ADMIN,
   CASHIER: BRANCH_STAFF,
-  DRIVER: BRANCH_STAFF,
+  DRIVER,
   CLIENT: [],
 };
 

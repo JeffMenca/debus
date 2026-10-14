@@ -18,6 +18,15 @@ describe('AdminEvents', () => {
     expect(outbox.add).toHaveBeenNthCalledWith(2, tx, 'SettingsUpdated', { versionId: 'v' }, 'c');
   });
 
+  it('writes a repair expense event in the caller transaction', async () => {
+    const { outbox, events } = setup();
+    const tx = {};
+
+    await events.repairExpenseAdded(tx as never, { expenseId: 'e' } as never, 'c');
+
+    expect(outbox.add).toHaveBeenCalledWith(tx, 'RepairExpenseAdded', { expenseId: 'e' }, 'c');
+  });
+
   it('flushes with the short request budget', async () => {
     const { outbox, events } = setup();
     await events.flush();

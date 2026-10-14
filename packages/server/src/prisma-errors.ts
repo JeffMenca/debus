@@ -1,8 +1,19 @@
 // Structural checks: each service has its own generated Prisma client, so no class is shared.
+const hasPrismaCode = (error: unknown, code: string): boolean =>
+  typeof error === 'object' && error !== null && (error as { code?: unknown }).code === code;
+
 export function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'P2002'
-  );
+  return hasPrismaCode(error, 'P2002');
+}
+
+// A row still points at the one being deleted (or at one that does not exist).
+export function isForeignKeyViolation(error: unknown): boolean {
+  return hasPrismaCode(error, 'P2003');
+}
+
+// An update or delete found no row to act on.
+export function isRecordMissing(error: unknown): boolean {
+  return hasPrismaCode(error, 'P2025');
 }
 
 export function isConstraintViolation(error: unknown, constraint: string): boolean {

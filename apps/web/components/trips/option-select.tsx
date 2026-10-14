@@ -14,6 +14,8 @@ import {
 export interface Option {
   value: string;
   label: string;
+  // Shown but not choosable, such as a bus too small for the group.
+  disabled?: boolean;
 }
 
 interface OptionSelectProps {
@@ -32,7 +34,11 @@ interface OptionSelectProps {
   error?: string;
   // An option the list may not carry, such as the plant driver of a bus when the search leaves them out.
   pinned?: Option;
+  // For a filter: an option on top that stands for "no choice" and reports an empty value.
+  noneLabel?: string;
 }
+
+const NONE = '__none__';
 
 // The options with the selected one on top when the page the server sent leaves it out.
 function withSelected(
@@ -60,6 +66,7 @@ export function OptionSelect({
   emptyMessage,
   error,
   pinned,
+  noneLabel,
 }: OptionSelectProps) {
   // The one picked stays on the list while the search narrows it to others.
   const [picked, setPicked] = useState<Option | null>(null);
@@ -78,10 +85,15 @@ export function OptionSelect({
         />
       )}
       <Select
-        value={value}
+        value={value === '' && noneLabel ? NONE : value}
         onValueChange={(next) => {
-          // There is no empty option: Radix reports '' when an option appears as its value is set.
+          // Radix reports '' when an option appears as its value is set, which is no choice at all.
           if (!next) return;
+          if (next === NONE) {
+            setPicked(null);
+            onChange('');
+            return;
+          }
           setPicked(shown.find((option) => option.value === next) ?? null);
           onChange(next);
         }}
@@ -90,8 +102,9 @@ export function OptionSelect({
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
+          {noneLabel && <SelectItem value={NONE}>{noneLabel}</SelectItem>}
           {shown.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
+            <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
               {option.label}
             </SelectItem>
           ))}

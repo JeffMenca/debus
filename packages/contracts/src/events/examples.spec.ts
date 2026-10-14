@@ -8,6 +8,9 @@ import { busChangedPayloadSchema } from './fleet-payloads';
 import { exampleTripCompleted } from './trip-examples';
 import { tripCompletedPayloadSchema } from './trip-payloads';
 import { repairExpenseAddedPayloadSchema } from './expense-payloads';
+import { CLIENT_EXAMPLES, CLIENT_PAYLOAD_SCHEMAS } from './client-examples';
+import { EXAMPLE_IDS } from './fleet-examples';
+import { routeDeletedPayloadSchema } from './fleet-payloads';
 
 describe('event examples', () => {
   it.each(Object.entries(FLEET_EXAMPLES))('the %s example fits its schema', (type, payload) => {
@@ -20,6 +23,12 @@ describe('event examples', () => {
     expect(TRIP_PAYLOAD_SCHEMAS[type as keyof typeof TRIP_PAYLOAD_SCHEMAS].parse(payload)).toEqual(
       payload,
     );
+  });
+
+  it.each(Object.entries(CLIENT_EXAMPLES))('the %s example fits its schema', (type, payload) => {
+    expect(
+      CLIENT_PAYLOAD_SCHEMAS[type as keyof typeof CLIENT_PAYLOAD_SCHEMAS].parse(payload),
+    ).toEqual(payload);
   });
 
   it('the repair expense example fits and its total is the sum of its lines', () => {
@@ -76,6 +85,20 @@ describe('registry after the fleet pack', () => {
   });
 
   it('keeps more than half of the communication event driven', () => {
-    expect(eventDrivenShare()).toBeCloseTo(21 / 25);
+    expect(eventDrivenShare()).toBeCloseTo(21 / 24);
+  });
+});
+
+describe('route tombstone', () => {
+  it('stays valid without branches and accepts them when the producer sends them', () => {
+    expect(routeDeletedPayloadSchema.parse({ routeId: EXAMPLE_IDS.route })).toEqual({
+      routeId: EXAMPLE_IDS.route,
+    });
+    const withBranches = {
+      routeId: EXAMPLE_IDS.route,
+      originBranchId: EXAMPLE_IDS.branch,
+      destinationBranchId: EXAMPLE_IDS.destination,
+    };
+    expect(routeDeletedPayloadSchema.parse(withBranches)).toEqual(withBranches);
   });
 });

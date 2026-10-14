@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { mileageKmSchema } from '../api/fleet';
 import { moneySchema } from '../api/settings';
 import { TRIP_TYPES } from '../api/trips';
+import { EVENT_AMOUNT_MAX } from './limits';
 
-const money = z.number().nonnegative().max(1_000_000);
-const mileage = z.number().int().nonnegative();
+const money = z.number().nonnegative().max(EVENT_AMOUNT_MAX);
 
 export const tripScheduledPayloadSchema = z.object({
   tripId: z.uuid(),
@@ -40,7 +41,7 @@ export const tripDepartedPayloadSchema = z.object({
   busId: z.uuid(),
   driverId: z.uuid(),
   departedAt: z.iso.datetime(),
-  startMileageKm: mileage,
+  startMileageKm: mileageKmSchema,
 });
 export type TripDepartedPayload = z.infer<typeof tripDepartedPayloadSchema>;
 
@@ -55,8 +56,8 @@ export const tripCompletedPayloadSchema = z
     driverId: z.uuid(),
     departedAt: z.iso.datetime(),
     arrivedAt: z.iso.datetime(),
-    startMileageKm: mileage,
-    endMileageKm: mileage,
+    startMileageKm: mileageKmSchema,
+    endMileageKm: mileageKmSchema,
     fuelCost: money,
     depreciationPerKm: money,
     depreciationAmount: money,

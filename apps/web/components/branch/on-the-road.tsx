@@ -83,7 +83,7 @@ function Lane({ trip, now }: { trip: Trip; now: number }) {
 }
 
 export function OnTheRoad() {
-  const trips = useTripsPage(ON_THE_ROAD);
+  const trips = useTripsPage(ON_THE_ROAD, { refetchInterval: REFRESH_MS });
   const now = useNow(REFRESH_MS);
 
   return (

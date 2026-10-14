@@ -1,10 +1,12 @@
 import {
   availabilityQuerySchema,
+  republishBusesQuerySchema,
   busFieldsSchema,
   busListQuerySchema,
   createRouteRequestSchema,
   driverFieldsSchema,
   driverListQuerySchema,
+  MILEAGE_MAX_KM,
   normalizePlate,
   plateSchema,
 } from './fleet';
@@ -102,5 +104,23 @@ describe('fleet contracts', () => {
     expect(query('2026-10-20T10:00:00.500Z', '2026-10-20T10:00:00Z')).toBe(false);
     expect(query('2026-10-20T10:00:00Z', '2026-10-20T10:00:00.000Z')).toBe(false);
     expect(query('2026-10-20T10:00:00Z', '2026-10-20T10:00:00.500Z')).toBe(true);
+  });
+});
+
+describe('mileage limit', () => {
+  it('refuses a bus mileage above the one every trip event accepts', () => {
+    expect(busFieldsSchema.shape.mileageKm.safeParse(MILEAGE_MAX_KM + 1).success).toBe(false);
+    expect(busFieldsSchema.shape.mileageKm.safeParse(MILEAGE_MAX_KM).success).toBe(true);
+  });
+});
+
+describe('republishBusesQuerySchema', () => {
+  it('takes no filter or the id of a branch, and nothing else as the branch', () => {
+    expect(republishBusesQuerySchema.parse({})).toEqual({});
+    expect(
+      republishBusesQuerySchema.safeParse({ branchId: '9b2c7a10-1111-4c4c-8888-123456789abc' })
+        .success,
+    ).toBe(true);
+    expect(republishBusesQuerySchema.safeParse({ branchId: 'x' }).success).toBe(false);
   });
 });

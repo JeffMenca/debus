@@ -2,12 +2,17 @@ import { todayInGuatemala } from '@debus/contracts';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useOwnBranch } from '../../hooks/use-own-branch';
+import { useRentalRequestsPage } from '../../hooks/use-rental-requests';
 import { useTripsPage } from '../../hooks/use-trips';
 import { trip, tripPage } from '../../test-support/trips';
 import { TripsScreen } from './trips-screen';
 
 jest.mock('../../hooks/use-own-branch');
 jest.mock('../../hooks/use-trips');
+jest.mock('../../hooks/use-rental-requests');
+jest.mock('./rental-requests-tab', () => ({
+  RentalRequestsTab: () => <p>alquileres por asignar</p>,
+}));
 jest.mock('./schedule-trip-dialog', () => ({
   ScheduleTripDialog: ({ open, defaultDay }: { open: boolean; defaultDay: string }) =>
     open ? <div role="dialog" aria-label="Programar viaje" data-day={defaultDay} /> : null,
@@ -44,7 +49,14 @@ function setup({
   items = trips,
   address = '',
   total = items.length,
-}: { error?: boolean; items?: unknown[]; address?: string; total?: number } = {}) {
+  pendingRentals = 0,
+}: {
+  error?: boolean;
+  items?: unknown[];
+  address?: string;
+  total?: number;
+  pendingRentals?: number;
+} = {}) {
   search = address;
   const refetch = jest.fn();
   jest.mocked(useTripsPage).mockReturnValue(
@@ -59,6 +71,9 @@ function setup({
         }) as never,
   );
   jest.mocked(useOwnBranch).mockReturnValue({ id: 'br', name: 'Quetzaltenango' } as never);
+  jest
+    .mocked(useRentalRequestsPage)
+    .mockReturnValue({ data: { items: [], total: pendingRentals, page: 1, pageSize: 1 } } as never);
   render(<TripsScreen />);
   return { refetch };
 }
@@ -72,6 +87,57 @@ const lastAddress = () => {
 beforeEach(() => replace.mockReset());
 
 describe('TripsScreen', () => {
+  it('links each trip to its screen', () => {
+    setup();
+
+    expect(screen.getByRole('link', { name: /Quetzaltenango.*Guatemala/ })).toHaveAttribute(
+      'href',
+      '/sucursal/viajes/t1',
+    );
+  });
+
+  it('offers the trips and the rentals to assign as two tabs, with how many are waiting', () => {
+    setup({ pendingRentals: 3 });
+
+    expect(screen.getByRole('tab', { name: 'Viajes' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Alquileres por asignar 3' })).toBeInTheDocument();
+    expect(useRentalRequestsPage).toHaveBeenCalledWith({
+      status: 'PENDING',
+      page: 1,
+      pageSize: 1,
+    });
+  });
+
+  it('opens the rentals tab in the address and leaves the trip filters behind', async () => {
+    setup({ address: 'estado=en-camino&pagina=2' });
+
+    await userEvent.click(screen.getByRole('tab', { name: /Alquileres por asignar/ }));
+
+    expect(replace).toHaveBeenCalledWith('/sucursal/viajes?pestana=alquileres', {
+      scroll: false,
+    });
+  });
+
+  it('shows the rentals instead of the trips when the address asks for them', () => {
+    setup({ address: 'pestana=alquileres' });
+
+    expect(screen.getByText('alquileres por asignar')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Alquileres por asignar/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.queryByRole('table', { name: 'Viajes' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Programar viaje' })).toBeInTheDocument();
+  });
+
+  it('goes back to the trips from the rentals tab', async () => {
+    setup({ address: 'pestana=alquileres&buscar=colegio' });
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Viajes' }));
+
+    expect(replace).toHaveBeenCalledWith('/sucursal/viajes', { scroll: false });
+  });
+
   it('names the branch and has a single primary action', () => {
     setup();
 
@@ -103,6 +169,13 @@ describe('TripsScreen', () => {
     expect(flores).toHaveTextContent('20 oct');
     expect(flores).toHaveTextContent('En camino');
     expect(screen.getByRole('row', { name: /Cobán/ })).toHaveTextContent('Completado');
+  });
+
+  it('calls a rental by its name under its route', () => {
+    setup();
+
+    expect(screen.getByRole('row', { name: /Antigua/ })).toHaveTextContent('Alquiler');
+    expect(screen.getByRole('row', { name: /Cobán/ })).not.toHaveTextContent('Alquiler');
   });
 
   it('shows a dash where a rental has no ticket price', () => {
