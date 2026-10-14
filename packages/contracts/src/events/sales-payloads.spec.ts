@@ -8,9 +8,10 @@ import {
 import { refundRequestedPayloadSchema, ticketSoldPayloadSchema } from './sales-payloads';
 
 describe('sales events', () => {
-  it.each(Object.entries(SALES_EXAMPLES))('the %s example fits its schema', (name, payload) => {
-    const type = name.startsWith('TicketSold') ? 'TicketSold' : 'RefundRequested';
-    expect(SALES_PAYLOAD_SCHEMAS[type].parse(payload)).toEqual(payload);
+  it.each(Object.entries(SALES_EXAMPLES))('the %s example fits its schema', (type, payload) => {
+    expect(
+      SALES_PAYLOAD_SCHEMAS[type as keyof typeof SALES_PAYLOAD_SCHEMAS].parse(payload),
+    ).toEqual(payload);
   });
 
   it('charges exactly the unit price for every seat', () => {
@@ -43,7 +44,7 @@ describe('sales events', () => {
   });
 
   it('sells at the counter to the final consumer without account or email', () => {
-    expect(exampleCounterTicketSold).toMatchObject({
+    expect(ticketSoldPayloadSchema.parse(exampleCounterTicketSold)).toMatchObject({
       channel: 'COUNTER',
       clientId: null,
       email: null,

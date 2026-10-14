@@ -2,16 +2,14 @@ import { z } from 'zod';
 import { isLaterInstant, isoDateSchema } from '../dates';
 import { searchTermSchema } from '../text';
 import { fullNameSchema } from './auth';
-import { dayRangeInOrder, dayRangeShape } from './day-range';
+import { pagedDayRangeQuery } from './day-range';
 import { distanceKmSchema } from './fleet';
-import { pageQuerySchema, pageSchema } from './pagination';
+import { pageSchema } from './pagination';
 import { moneySchema } from './settings';
-import { TICKET_CHANNELS, saleNitSchema } from './tickets';
+import { SALE_CHANNELS, saleNitSchema } from './tickets';
 
 export const RENTAL_STATUSES = ['REQUESTED', 'CONFIRMED', 'PAID', 'CANCELLED'] as const;
 export type RentalStatus = (typeof RENTAL_STATUSES)[number];
-export const RENTAL_CHANNELS = TICKET_CHANNELS;
-export type RentalChannel = (typeof RENTAL_CHANNELS)[number];
 
 const label = z.string().trim().min(1).max(120);
 type Trip = { departureAt: string; returnAt: string | null };
@@ -51,7 +49,7 @@ export type PayRentalRequest = z.infer<typeof payRentalRequestSchema>;
 export const rentalSchema = rentalTripSchema.extend({
   id: z.uuid(),
   status: z.enum(RENTAL_STATUSES),
-  channel: z.enum(RENTAL_CHANNELS),
+  channel: z.enum(SALE_CHANNELS),
   clientId: z.uuid().nullable(),
   nit: z.string(),
   clientName: z.string(),
@@ -63,15 +61,10 @@ export const rentalSchema = rentalTripSchema.extend({
 });
 export type Rental = z.infer<typeof rentalSchema>;
 
-export const rentalListQuerySchema = dayRangeInOrder(
-  z
-    .object({
-      ...dayRangeShape,
-      status: z.enum(['all', ...RENTAL_STATUSES]).default('all'),
-      q: searchTermSchema.optional(),
-    })
-    .extend(pageQuerySchema.shape),
-);
+export const rentalListQuerySchema = pagedDayRangeQuery({
+  status: z.enum(['all', ...RENTAL_STATUSES]).default('all'),
+  q: searchTermSchema.optional(),
+});
 export type RentalListQuery = z.infer<typeof rentalListQuerySchema>;
 export const rentalPageSchema = pageSchema(rentalSchema);
 export type RentalPage = z.infer<typeof rentalPageSchema>;

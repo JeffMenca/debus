@@ -1,7 +1,6 @@
 import { createEnvelope, exampleTicketSold } from '@debus/contracts';
 import { BadGatewayException, NotFoundException } from '@nestjs/common';
 import type { InboundEvents } from '../inbound/inbound-events';
-import { decodePushMessage } from '../inbound/push-message';
 import type { DeadLetterQueue, PulledMessage } from './dead-letter-queue';
 import { DeadLetters } from './dead-letters';
 
@@ -14,7 +13,7 @@ const message = (id: string, data = JSON.stringify(envelope)): PulledMessage => 
   publishedAt: new Date('2026-10-13T15:00:00.000Z'),
 });
 
-function setup(messages: PulledMessage[], receive = jest.fn().mockResolvedValue('processed')) {
+function setup(messages: PulledMessage[], handle = jest.fn().mockResolvedValue('processed')) {
   const queue = {
     pull: jest.fn().mockResolvedValue(messages),
     ack: jest.fn().mockResolvedValue(undefined),
@@ -22,9 +21,9 @@ function setup(messages: PulledMessage[], receive = jest.fn().mockResolvedValue(
   };
   const deadLetters = new DeadLetters(
     queue as unknown as DeadLetterQueue,
-    { receive } as unknown as InboundEvents,
+    { handle } as unknown as InboundEvents,
   );
-  return { queue, receive, deadLetters };
+  return { queue, handle, deadLetters };
 }
 
 describe('DeadLetters', () => {
@@ -46,11 +45,11 @@ describe('DeadLetters', () => {
   });
 
   it('replays a message through the inbox and removes it when it succeeds', async () => {
-    const { queue, receive, deadLetters } = setup([message('1'), message('2')]);
+    const { queue, handle, deadLetters } = setup([message('1'), message('2')]);
 
     await expect(deadLetters.replay('2')).resolves.toEqual({ outcome: 'processed' });
 
-    expect(decodePushMessage(receive.mock.calls[0][0])).toEqual(envelope);
+    expect(handle).toHaveBeenCalledWith(envelope);
     expect(queue.ack).toHaveBeenCalledWith(['ack-2']);
     expect(queue.release).toHaveBeenCalledWith(['ack-1']);
   });
@@ -70,15 +69,24 @@ describe('DeadLetters', () => {
 
     await expect(deadLetters.replay('1')).rejects.toThrow(BadGatewayException);
     expect(queue.ack).not.toHaveBeenCalled();
-    expect(queue.release).toHaveBeenCalledWith(['ack-1', 'ack-2']);
+    expect(queue.release).toHaveBeenNthCalledWith(1, ['ack-2']);
+    expect(queue.release).toHaveBeenNthCalledWith(2, ['ack-1']);
+  });
+
+  it('cannot replay a message that is not an event, which stays to be discarded', async () => {
+    const { queue, handle, deadLetters } = setup([message('1', 'not json')]);
+
+    await expect(deadLetters.replay('1')).rejects.toThrow(BadGatewayException);
+    expect(handle).not.toHaveBeenCalled();
+    expect(queue.release).toHaveBeenLastCalledWith(['ack-1']);
   });
 
   it('discards a message without processing it', async () => {
-    const { queue, receive, deadLetters } = setup([message('1', 'not json'), message('2')]);
+    const { queue, handle, deadLetters } = setup([message('1', 'not json'), message('2')]);
 
     await deadLetters.discard('1');
 
-    expect(receive).not.toHaveBeenCalled();
+    expect(handle).not.toHaveBeenCalled();
     expect(queue.ack).toHaveBeenCalledWith(['ack-1']);
     expect(queue.release).toHaveBeenCalledWith(['ack-2']);
   });

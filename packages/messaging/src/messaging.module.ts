@@ -107,20 +107,16 @@ function deadLetterProviders(service: BackendService): Provider[] {
   return [
     {
       provide: DeadLetterQueue,
-      inject: [PUBSUB_CLIENT],
-      useFactory: (pubsub: PubSub) =>
+      inject: [PUBSUB_CLIENT, MESSAGING_SETTINGS],
+      useFactory: (pubsub: PubSub, settings: MessagingSettings) =>
         new DeadLetterQueue(
           // The library's own pattern for GAPIC clients (getClientConfig returns these options); only
           // the declared type of `port` differs. It carries the emulator host when there is one.
           new v1.SubscriberClient(pubsub.options as SubscriberOptions),
           pubsub.subscription(deadLetterSubscriptionName(service)).name,
+          settings.emulator,
         ),
     },
-    {
-      provide: DeadLetters,
-      inject: [DeadLetterQueue, InboundEvents],
-      useFactory: (queue: DeadLetterQueue, inbound: InboundEvents) =>
-        new DeadLetters(queue, inbound),
-    },
+    DeadLetters,
   ];
 }

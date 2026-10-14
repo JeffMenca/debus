@@ -49,8 +49,10 @@ export class InMemoryEventBus {
     options: DeliverOptions = {},
   ): Promise<EventEnvelope> {
     if (!this.inbound) throw new Error('attach the bus to an application to deliver events');
-    const envelope = createEnvelope(type, payload, options.correlationId ?? 'in-memory');
-    if (options.eventId) envelope.eventId = options.eventId;
+    const envelope = {
+      ...createEnvelope(type, payload, options.correlationId ?? 'in-memory'),
+      ...(options.eventId && { eventId: options.eventId }),
+    };
     await this.inbound.receive(pushBody(envelope));
     return envelope;
   }

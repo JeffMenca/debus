@@ -72,8 +72,7 @@ export const SALES_PAYLOAD_SCHEMAS = {
   RefundRequested: refundRequestedPayloadSchema,
 } as const;
 
-export const SALES_EXAMPLES: Record<string, unknown> = {
+export const SALES_EXAMPLES: Record<keyof typeof SALES_PAYLOAD_SCHEMAS, unknown> = {
   TicketSold: exampleTicketSold,
-  'TicketSold at the counter': exampleCounterTicketSold,
   RefundRequested: exampleRefundRequested,
 };

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { isoDateSchema } from '../dates';
-import { dayRangeInOrder, dayRangeShape } from './day-range';
-import { pageQuerySchema, pageSchema } from './pagination';
+import { pagedDayRangeQuery } from './day-range';
+import { pageSchema } from './pagination';
 import { moneySchema } from './settings';
 
 export const WALLET_MOVEMENT_KINDS = ['TOP_UP', 'TICKET', 'RENTAL', 'REFUND'] as const;
@@ -30,11 +30,9 @@ export const walletMovementSchema = z.object({
 });
 export type WalletMovement = z.infer<typeof walletMovementSchema>;
 
-export const walletMovementListQuerySchema = dayRangeInOrder(
-  z
-    .object({ ...dayRangeShape, kind: z.enum(['all', ...WALLET_MOVEMENT_KINDS]).default('all') })
-    .extend(pageQuerySchema.shape),
-);
+export const walletMovementListQuerySchema = pagedDayRangeQuery({
+  kind: z.enum(['all', ...WALLET_MOVEMENT_KINDS]).default('all'),
+});
 export type WalletMovementListQuery = z.infer<typeof walletMovementListQuerySchema>;
 export const walletMovementPageSchema = pageSchema(walletMovementSchema);
 export type WalletMovementPage = z.infer<typeof walletMovementPageSchema>;

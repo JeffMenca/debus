@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import { isoDateSchema } from '../dates';
 import { searchTermSchema } from '../text';
-import { dayRangeInOrder, dayRangeShape } from './day-range';
+import { pagedDayRangeQuery } from './day-range';
 import { emailSchema, fullNameSchema, nitSchema, normalizeNit } from './auth';
-import { pageQuerySchema, pageSchema } from './pagination';
+import { pageSchema } from './pagination';
 
-export const TICKET_CHANNELS = ['ONLINE', 'COUNTER'] as const;
-export type TicketChannel = (typeof TICKET_CHANNELS)[number];
+// Where a ticket or a rental was sold: online with the wallet, or at a branch counter.
+export const SALE_CHANNELS = ['ONLINE', 'COUNTER'] as const;
+export type SaleChannel = (typeof SALE_CHANNELS)[number];
 // A purchase whose wallet debit fails is deleted with its seats, so no ticket stays failed.
 export const TICKET_STATUSES = ['PENDING', 'CONFIRMED'] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
@@ -30,9 +31,7 @@ export const seatSelectionSchema = z
   .refine((seats) => new Set(seats).size === seats.length, { message: 'repeated seat' });
 
 // Day range and accent-free search, shared by the trips on sale and the ticket history.
-const datedSearchQuerySchema = dayRangeInOrder(
-  z.object({ ...dayRangeShape, q: searchTermSchema.optional() }).extend(pageQuerySchema.shape),
-);
+const datedSearchQuerySchema = pagedDayRangeQuery({ q: searchTermSchema.optional() });
 
 export const availableTripSchema = z.object({
   tripId: z.uuid(),
@@ -81,7 +80,7 @@ export type CounterSaleRequest = z.infer<typeof counterSaleRequestSchema>;
 export const ticketSchema = z.object({
   id: z.uuid(),
   status: z.enum(TICKET_STATUSES),
-  channel: z.enum(TICKET_CHANNELS),
+  channel: z.enum(SALE_CHANNELS),
   tripId: z.uuid(),
   originLabel: z.string(),
   destinationLabel: z.string(),

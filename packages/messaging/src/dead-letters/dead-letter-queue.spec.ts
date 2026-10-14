@@ -4,14 +4,19 @@ import { DeadLetterQueue, type SubscriberApi } from './dead-letter-queue';
 const SUBSCRIPTION = 'projects/p/subscriptions/clientes-dlq-sub';
 const grpcError = (code: number) => Object.assign(new Error(`code ${code}`), { code });
 
-function setup(pull: jest.Mock = jest.fn()) {
+function setup(pull: jest.Mock = jest.fn(), missingIsEmpty = true) {
   const client = {
     pull,
     acknowledge: jest.fn().mockResolvedValue([{}]),
     modifyAckDeadline: jest.fn().mockResolvedValue([{}]),
     close: jest.fn().mockResolvedValue(undefined),
   };
-  return { client, queue: new DeadLetterQueue(client as unknown as SubscriberApi, SUBSCRIPTION) };
+  const queue = new DeadLetterQueue(
+    client as unknown as SubscriberApi,
+    SUBSCRIPTION,
+    missingIsEmpty,
+  );
+  return { client, queue };
 }
 
 describe('DeadLetterQueue', () => {
@@ -59,23 +64,22 @@ describe('DeadLetterQueue', () => {
     ]);
   });
 
-  it('reads an empty queue when nothing arrives, or when it does not exist (local)', async () => {
+  const failedPull = (code: number, missingIsEmpty = true) =>
+    setup(jest.fn().mockRejectedValue(grpcError(code)), missingIsEmpty).queue.pull(5);
+
+  it('reads an empty queue when nothing arrives', async () => {
     await expect(setup(jest.fn().mockResolvedValue([{}])).queue.pull(5)).resolves.toEqual([]);
-    await expect(setup(jest.fn().mockRejectedValue(grpcError(4))).queue.pull(5)).resolves.toEqual(
-      [],
-    );
-    await expect(setup(jest.fn().mockRejectedValue(grpcError(5))).queue.pull(5)).resolves.toEqual(
-      [],
-    );
+    await expect(failedPull(4)).resolves.toEqual([]);
+  });
+
+  it('reads a missing queue as empty only on the emulator, which has no dead-letters', async () => {
+    await expect(failedPull(5)).resolves.toEqual([]);
+    await expect(failedPull(5, false)).rejects.toThrow('code 5');
   });
 
   it('answers 503 when the service may not read its queue, and rethrows anything else', async () => {
-    await expect(setup(jest.fn().mockRejectedValue(grpcError(7))).queue.pull(5)).rejects.toThrow(
-      ServiceUnavailableException,
-    );
-    await expect(setup(jest.fn().mockRejectedValue(grpcError(13))).queue.pull(5)).rejects.toThrow(
-      'code 13',
-    );
+    await expect(failedPull(7)).rejects.toThrow(ServiceUnavailableException);
+    await expect(failedPull(13)).rejects.toThrow('code 13');
   });
 
   it('acknowledges to remove and releases at once to keep the message', async () => {

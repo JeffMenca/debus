@@ -36,11 +36,13 @@ function toPulled({ ackId, message }: protos.google.pubsub.v1.IReceivedMessage):
   };
 }
 
-// The <service>-dlq-sub pull subscription. Locally it does not exist: the emulator has no dead-letters.
+// The <service>-dlq-sub pull subscription. The emulator has no dead-letters, so there a missing
+// subscription reads as empty; in the cloud it means provisioning did not run and must surface.
 export class DeadLetterQueue implements OnApplicationShutdown {
   constructor(
     private readonly client: SubscriberApi,
     private readonly subscription: string,
+    private readonly missingIsEmpty: boolean,
   ) {}
 
   async pull(maxMessages: number): Promise<PulledMessage[]> {
@@ -52,7 +54,7 @@ export class DeadLetterQueue implements OnApplicationShutdown {
       return (response.receivedMessages ?? []).map(toPulled);
     } catch (error) {
       const code = codeOf(error);
-      if (code === DEADLINE_EXCEEDED || code === NOT_FOUND) return [];
+      if (code === DEADLINE_EXCEEDED || (code === NOT_FOUND && this.missingIsEmpty)) return [];
       if (code === PERMISSION_DENIED) {
         throw new ServiceUnavailableException(DEAD_LETTER_MESSAGES.unreadable);
       }

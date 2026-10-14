@@ -1,12 +1,18 @@
-import type { z } from 'zod';
+import { z } from 'zod';
 import { isoDateSchema } from '../dates';
-
-// Optional from/to filter of a list: spread into the query, then wrap it with dayRangeInOrder.
-export const dayRangeShape = { from: isoDateSchema.optional(), to: isoDateSchema.optional() };
+import { pageQuerySchema } from './pagination';
 
 type DayRange = { from?: string | undefined; to?: string | undefined };
-export const dayRangeInOrder = <T extends z.ZodType<DayRange>>(schema: T) =>
-  schema.refine((value) => !value.from || !value.to || value.from <= value.to, {
-    path: ['to'],
-    message: 'to must not be before from',
-  });
+const inOrder = ({ from, to }: DayRange): boolean => !from || !to || from <= to;
+
+// A paged list query with an optional from/to day range that never goes backwards.
+export const pagedDayRangeQuery = <S extends z.ZodRawShape>(shape: S) =>
+  z
+    .object({ from: isoDateSchema.optional(), to: isoDateSchema.optional() })
+    .extend(shape)
+    .extend(pageQuerySchema.shape)
+    // The generic shape hides from/to from the inferred type, though both are always there.
+    .refine((value) => inOrder(value as DayRange), {
+      path: ['to'],
+      message: 'to must not be before from',
+    });

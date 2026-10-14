@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { isoDateSchema } from '../dates';
 import { moneySchema } from '../api/settings';
-import { TICKET_CHANNELS, seatSelectionSchema } from '../api/tickets';
+import { SALE_CHANNELS, seatSelectionSchema } from '../api/tickets';
 
 const cents = (amount: number): number => Math.round(amount * 100);
 const label = z.string().min(1);
@@ -18,7 +18,7 @@ export const ticketSoldPayloadSchema = z
     originLabel: label,
     destinationLabel: label,
     departureAt: z.iso.datetime(),
-    channel: z.enum(TICKET_CHANNELS),
+    channel: z.enum(SALE_CHANNELS),
     clientId: z.uuid().nullable(),
     nit,
     buyerName: z.string().min(1).max(120),

@@ -4,11 +4,8 @@ import { InMemoryInboxStore } from '../inbox/in-memory-inbox-store';
 import type { InboxStore } from '../inbox/inbox-store';
 import type { SqlClient } from '../inbox/sql-inbox-store';
 import type { EventDispatcher } from './event-dispatcher';
+import { pushBody } from '../testing/in-memory-event-bus';
 import { InboundEvents } from './inbound-events';
-
-const push = (value: unknown) => ({
-  message: { data: Buffer.from(JSON.stringify(value)).toString('base64') },
-});
 
 function setup(handled = 1) {
   const dispatch = jest.fn().mockResolvedValue(handled);
@@ -23,8 +20,8 @@ describe('InboundEvents', () => {
     const { events, dispatch } = setup();
     const envelope = createEnvelope('ProbeSent', {}, 'c');
 
-    await expect(events.receive(push(envelope))).resolves.toBe('processed');
-    await expect(events.receive(push(envelope))).resolves.toBe('duplicate');
+    await expect(events.receive(pushBody(envelope))).resolves.toBe('processed');
+    await expect(events.receive(pushBody(envelope))).resolves.toBe('duplicate');
 
     expect(dispatch).toHaveBeenCalledTimes(1);
     await expect(events.processed(envelope.eventId)).resolves.toMatchObject({
@@ -42,7 +39,7 @@ describe('InboundEvents', () => {
     const envelope = createEnvelope('ProbeSent', {}, 'c');
 
     await new InboundEvents(inbox, { dispatch } as unknown as EventDispatcher).receive(
-      push(envelope),
+      pushBody(envelope),
     );
 
     expect(dispatch).toHaveBeenCalledWith(envelope, tx);
@@ -51,7 +48,7 @@ describe('InboundEvents', () => {
   it('still acknowledges events without handlers', async () => {
     const { events } = setup(0);
 
-    await expect(events.receive(push(createEnvelope('TicketSold', {}, 'c')))).resolves.toBe(
+    await expect(events.receive(pushBody(createEnvelope('TicketSold', {}, 'c')))).resolves.toBe(
       'processed',
     );
   });
