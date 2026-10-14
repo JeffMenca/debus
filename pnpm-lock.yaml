@@ -193,6 +193,9 @@ importers:
       '@debus/contracts':
         specifier: workspace:^
         version: link:../contracts
+      '@debus/server':
+        specifier: workspace:^
+        version: link:../server
       '@google-cloud/pubsub':
         specifier: ^6.1.0
         version: 6.1.0

@@ -10,6 +10,7 @@ import {
   eventsConsumedBy,
   publisherOf,
   pushServiceAccount,
+  serviceAccountEmail,
   serviceUrl,
   subscriptionName,
   topicName,
@@ -35,7 +36,8 @@ export interface SubscriptionSpec {
 export interface PubSubPlan {
   topics: string[];
   subscriptions: SubscriptionSpec[];
-  deadLetterSubscriptions: { name: string; topic: string }[];
+  // reader is the service account of the consumer, the only one allowed to pull its dead-letters.
+  deadLetterSubscriptions: { name: string; topic: string; reader: string }[];
 }
 
 export function typeFilter(types: readonly string[]): string {
@@ -85,6 +87,7 @@ export function buildPubSubPlan(input: PlanInput): PubSubPlan {
       ? BACKEND_SERVICES.map((consumer) => ({
           name: deadLetterSubscriptionName(consumer),
           topic: deadLetterTopicName(consumer),
+          reader: serviceAccountEmail(consumer, input.projectId),
         }))
       : [],
   };

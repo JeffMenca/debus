@@ -68,6 +68,11 @@ export function pushServiceAccount(projectId: string): string {
   return `pubsub-invoker@${projectId}.iam.gserviceaccount.com`;
 }
 
+// The identity each unit runs as on Cloud Run (bootstrap.sh creates it, release.yml assigns it).
+export function serviceAccountEmail(unit: DeployUnit, projectId: string): string {
+  return `debus-${unit}@${projectId}.iam.gserviceaccount.com`;
+}
+
 export function cloudRunEnv(
   unit: DeployUnit,
   env: CloudEnv,

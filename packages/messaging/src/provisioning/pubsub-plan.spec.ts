@@ -12,6 +12,7 @@ describe('buildPubSubPlan', () => {
     expect(plan.deadLetterSubscriptions).toContainEqual({
       name: 'ventas-dlq-sub',
       topic: 'ventas-dlq',
+      reader: 'debus-ventas@p.iam.gserviceaccount.com',
     });
   });
 

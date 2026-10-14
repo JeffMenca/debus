@@ -3,7 +3,7 @@ import { DocumentBuilder, type OpenAPIObject, SwaggerModule } from '@nestjs/swag
 import { createTestApp } from './support/app';
 
 // Every route lists its success code and every error code it can answer, so the API stays documented.
-const ROUTES: [method: 'get' | 'post' | 'patch', path: string, codes: string[]][] = [
+const ROUTES: [method: 'get' | 'post' | 'patch' | 'delete', path: string, codes: string[]][] = [
   ['post', '/auth/signup', ['202', '400']],
   ['post', '/auth/password/forgot', ['202', '400']],
   ['post', '/auth/links/status', ['200', '400']],
@@ -28,6 +28,10 @@ const ROUTES: [method: 'get' | 'post' | 'patch', path: string, codes: string[]][
   ['post', '/users/{id}/invitation', ['202', '400', '401', '403', '404', '409', '429']],
   ['post', '/users/{id}/deactivate', ['204', '400', '401', '403', '404', '409']],
   ['post', '/users/{id}/reactivate', ['204', '400', '401', '403', '404', '409']],
+  // Every consumer mounts the dead-letter review of @debus/messaging.
+  ['get', '/dead-letters', ['200', '400', '401', '403', '503']],
+  ['post', '/dead-letters/{messageId}/replay', ['200', '401', '403', '404', '502', '503']],
+  ['delete', '/dead-letters/{messageId}', ['204', '401', '403', '404', '503']],
 ];
 
 describe('API documentation', () => {
