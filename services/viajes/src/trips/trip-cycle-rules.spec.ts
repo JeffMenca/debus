@@ -17,6 +17,8 @@ const departure = {
   status: 'SCHEDULED' as const,
   busActive: true,
   driverActive: true,
+  busOnAnotherTrip: false,
+  driverOnAnotherTrip: false,
   busMileageKm: 148000,
   startMileageKm: 148410,
   departedAt: '2026-10-20T11:34:00.000Z',
@@ -34,6 +36,15 @@ describe('departureProblem', () => {
     [{ status: 'COMPLETED' as const }, 'alreadyDeparted'],
     [{ busActive: false }, 'departureBusInactive'],
     [{ driverActive: false }, 'departureDriverInactive'],
+    [{ busOnAnotherTrip: true }, 'busOnAnotherTrip'],
+    [{ driverOnAnotherTrip: true }, 'driverOnAnotherTrip'],
+    // a deactivated bus is explained before the other trip
+    [{ busActive: false, busOnAnotherTrip: true }, 'departureBusInactive'],
+    [{ driverActive: false, driverOnAnotherTrip: true }, 'departureDriverInactive'],
+    // the other trip is explained before the mileage
+    [{ busOnAnotherTrip: true, startMileageKm: 1 }, 'busOnAnotherTrip'],
+    [{ driverOnAnotherTrip: true, startMileageKm: 1 }, 'driverOnAnotherTrip'],
+    [{ busOnAnotherTrip: true, driverOnAnotherTrip: true }, 'busOnAnotherTrip'],
     [{ startMileageKm: 147999 }, 'startMileageBelowBus'],
     [{ departedAt: '2026-10-20T12:06:00.000Z' }, 'departureInFuture'],
   ])('refuses %o with %s', (change, problem) => {

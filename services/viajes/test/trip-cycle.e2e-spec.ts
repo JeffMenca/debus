@@ -19,6 +19,8 @@ import { type SeededFleet, seedBus, seedDriver, seedFleet } from './support/flee
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 const hoursAhead = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
 const SIMULTANEOUS = 10;
+// Waiting for each other must be quick: nobody sits on a connection for tens of seconds.
+const MAX_RESPONSE_MS = 15_000;
 
 describe('trip cycle', () => {
   let app: INestApplication;
@@ -303,6 +305,135 @@ describe('trip cycle', () => {
       .send({ arrivedAt: '1999-12-31T12:00:00.000Z', endMileageKm: 1100, fuelCost: 10 });
 
     expect(response.status).toBe(404);
+  });
+
+  const depart = (tripId: string, { departedAt = minutesAgo(1), startMileageKm = 1000 } = {}) =>
+    http().post(`/trips/${tripId}/departure`).set(admin()).send({ departedAt, startMileageKm });
+  // The bus or the driver that a second trip takes from the first one.
+  const sharedWith = (shared: 'bus' | 'driver', trip: { busId: string; driverId: string }) =>
+    shared === 'bus' ? { busId: trip.busId } : { driverId: trip.driverId };
+
+  describe('the hours of a trip that arrived', () => {
+    // A trip inside the hours of the first one, with a bus and a driver of its own unless shared.
+    const scheduleInside = async (shared: { busId?: string; driverId?: string }) =>
+      http()
+        .post('/trips')
+        .set(admin())
+        .send({
+          routeId: fleet.routeId,
+          busId: shared.busId ?? (await seedBus(prisma, fleet.branchId)),
+          driverId: shared.driverId ?? (await seedDriver(prisma, fleet.branchId)),
+          departureAt: hoursAhead(1),
+          estimatedArrivalAt: hoursAhead(3),
+        });
+
+    it.each([
+      ['bus', 'Ese bus ya tiene un viaje en ese horario.'],
+      ['driver', 'Ese chofer ya tiene un viaje en ese horario.'],
+    ] as const)(
+      'keep the %s while the trip is on the road, and free it once the trip arrives',
+      async (shared, text) => {
+        const first = await scheduleTrip({
+          departureAt: hoursAhead(0.2),
+          estimatedArrivalAt: hoursAhead(6),
+        });
+        await depart(first.tripId, { departedAt: minutesAgo(60) }).expect(201);
+
+        const onTheRoad = await scheduleInside(sharedWith(shared, first));
+        expect(onTheRoad.status).toBe(409);
+        expect(onTheRoad.body.message).toBe(text);
+
+        await http()
+          .post(`/trips/${first.tripId}/arrival`)
+          .set(driver(first.driverId))
+          .send({ arrivedAt: minutesAgo(5), endMileageKm: 1204, fuelCost: 1180 })
+          .expect(201);
+
+        expect((await scheduleInside(sharedWith(shared, first))).status).toBe(201);
+      },
+    );
+  });
+
+  describe('a bus or a driver that is still on another trip', () => {
+    const BUS_ON_ROAD = 'Ese bus sigue en otro viaje. Registra primero la llegada de ese viaje.';
+    const DRIVER_ON_ROAD =
+      'Ese chofer sigue en otro viaje. Registra primero la llegada de ese viaje.';
+    // Back-to-back trips that all may leave now: a departure is allowed up to 12 hours early.
+    const followUps = async (shared: { busId?: string; driverId?: string }) => {
+      const trips = [];
+      for (let i = 0; i < SIMULTANEOUS; i++) {
+        trips.push(
+          await scheduleTrip({
+            ...shared,
+            departureAt: hoursAhead(0.2 + i * 0.5),
+            estimatedArrivalAt: hoursAhead(0.7 + i * 0.5),
+          }),
+        );
+      }
+      return trips;
+    };
+
+    it.each([
+      ['bus', BUS_ON_ROAD],
+      ['driver', DRIVER_ON_ROAD],
+    ] as const)(
+      'refuses the departure while the %s is on another trip, and lets it go once that trip arrives',
+      async (shared, text) => {
+        const first = await scheduleTrip({
+          departureAt: hoursAhead(0.2),
+          estimatedArrivalAt: hoursAhead(1),
+        });
+        const second = await scheduleTrip({
+          ...sharedWith(shared, first),
+          departureAt: hoursAhead(1),
+          estimatedArrivalAt: hoursAhead(2),
+        });
+        await depart(first.tripId, { departedAt: minutesAgo(30) }).expect(201);
+
+        const refused = await depart(second.tripId).expect(409);
+        expect(refused.body.message).toBe(text);
+        expect(await prisma.tripDeparture.count({ where: { tripId: second.tripId } })).toBe(0);
+        expect((await getDetail(second.tripId)).status).toBe('SCHEDULED');
+
+        await http()
+          .post(`/trips/${first.tripId}/arrival`)
+          .set(admin())
+          .send({ arrivedAt: minutesAgo(2), endMileageKm: 1100, fuelCost: 300 })
+          .expect(201);
+        await depart(second.tripId, { startMileageKm: 1100 }).expect(201);
+      },
+    );
+
+    it('lets a bus leave while other buses and other drivers are on the road', async () => {
+      const [first, other] = [await scheduleTrip(), await scheduleTrip()];
+
+      await depart(first.tripId).expect(201);
+      await depart(other.tripId).expect(201);
+    });
+
+    it.each([
+      ['bus', BUS_ON_ROAD],
+      ['driver', DRIVER_ON_ROAD],
+    ] as const)(
+      'lets exactly one of ten departures of the same %s on different trips win',
+      async (shared, text) => {
+        const owner =
+          shared === 'bus'
+            ? { busId: await seedBus(prisma, fleet.branchId) }
+            : { driverId: await seedDriver(prisma, fleet.branchId) };
+        const trips = await followUps(owner);
+
+        const startedAt = Date.now();
+        const results = await Promise.all(trips.map(({ tripId }) => depart(tripId)));
+
+        expect(Date.now() - startedAt).toBeLessThan(MAX_RESPONSE_MS);
+        expect(results.filter((result) => result.status === 201)).toHaveLength(1);
+        expect(
+          results.filter((result) => result.status === 409).map((result) => result.body.message),
+        ).toEqual(Array.from({ length: SIMULTANEOUS - 1 }, () => text));
+        expect(await prisma.trip.count({ where: { ...owner, status: 'IN_TRANSIT' } })).toBe(1);
+      },
+    );
   });
 
   describe('the mileage of a bus that already made a trip', () => {

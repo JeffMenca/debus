@@ -14,6 +14,7 @@ import { createTestApp } from './support/app';
 import { cleanTripTestData } from './support/cleanup';
 import { captureEvents } from './support/events';
 import { type SeededFleet, seedBus, seedDriver, seedFleet } from './support/fleet';
+import { arrivalOf, departureOf } from './support/trip-records';
 
 const push = (value: unknown) => ({
   message: { data: Buffer.from(JSON.stringify(value)).toString('base64'), messageId: '1' },
@@ -284,6 +285,49 @@ describe('rentals waiting for a bus and a driver', () => {
 
     expect(tripSchema.parse(again.body)).toMatchObject({ type: 'RENTAL', status: 'SCHEDULED' });
     expect(await prisma.trip.count({ where: { rentalId: payload.rentalId } })).toBe(1);
+  });
+
+  it('assigns a late rental to a bus and a driver whose trip at those hours already arrived', async () => {
+    const hour = 3_600_000;
+    const payload = paid({
+      departureAt: new Date(Date.now() - 6 * hour).toISOString(),
+      returnAt: new Date(Date.now() - 2 * hour).toISOString(),
+    });
+    await sendPaid(payload);
+    const { busId, driverId } = await assignment();
+    // It was scheduled for the hours the rental needs, but left earlier and is back already.
+    await prisma.trip.create({
+      data: {
+        type: 'REGULAR',
+        status: 'COMPLETED',
+        branchId: fleet.branchId,
+        busId,
+        busPlate: 'Z100BCD',
+        capacity: 40,
+        driverId,
+        driverName: 'Ana Sic',
+        originLabel: 'Prueba A',
+        destinationLabel: 'Prueba B',
+        departureAt: new Date(Date.now() + 10 * 60_000),
+        estimatedArrivalAt: new Date(Date.now() + 5 * hour),
+        ticketPrice: 85,
+        createdById: randomUUID(),
+        departure: { create: departureOf() },
+        arrival: { create: arrivalOf() },
+      },
+    });
+
+    const response = await http()
+      .post(`/rental-requests/${payload.rentalId}/assignment`)
+      .set(admin())
+      .send({
+        busId,
+        driverId,
+        estimatedArrivalAt: new Date(Date.now() + 4 * hour).toISOString(),
+      })
+      .expect(201);
+
+    expect(response.body).toMatchObject({ busId, driverId, type: 'RENTAL' });
   });
 
   it('sends a rental assigned late on its way now, so a bus busy at the old hour can take it', async () => {
