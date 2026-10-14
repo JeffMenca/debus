@@ -1,5 +1,10 @@
-import type { EventProducer } from '@debus/contracts';
-import { PubSub } from '@google-cloud/pubsub';
+import {
+  type BackendService,
+  type EventProducer,
+  deadLetterSubscriptionName,
+  isBackendService,
+} from '@debus/contracts';
+import { PubSub, v1 } from '@google-cloud/pubsub';
 import {
   type DynamicModule,
   type InjectionToken,
@@ -9,6 +14,9 @@ import {
 } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 import { OAuth2Client } from 'google-auth-library';
+import { DeadLetterQueue } from './dead-letters/dead-letter-queue';
+import { DeadLetters } from './dead-letters/dead-letters';
+import { DeadLettersController } from './dead-letters/dead-letters.controller';
 import type { InboxStore } from './inbox/inbox-store';
 import type { SqlTransactional } from './inbox/sql-inbox-store';
 import { EventDispatcher } from './inbound/event-dispatcher';
@@ -69,6 +77,10 @@ export class MessagingModule {
         InboundEvents,
         ProbeEventHandler,
       );
+      if (isBackendService(options.service)) {
+        controllers.push(DeadLettersController);
+        providers.push(...deadLetterProviders(options.service));
+      }
     }
 
     if (outbox) {
@@ -86,4 +98,25 @@ export class MessagingModule {
 
     return { module: MessagingModule, global: true, imports, controllers, exports, providers };
   }
+}
+
+type SubscriberOptions = ConstructorParameters<typeof v1.SubscriberClient>[0];
+
+// Every consumer can review its own <service>-dlq-sub through /dead-letters.
+function deadLetterProviders(service: BackendService): Provider[] {
+  return [
+    {
+      provide: DeadLetterQueue,
+      inject: [PUBSUB_CLIENT, MESSAGING_SETTINGS],
+      useFactory: (pubsub: PubSub, settings: MessagingSettings) =>
+        new DeadLetterQueue(
+          // The library's own pattern for GAPIC clients (getClientConfig returns these options); only
+          // the declared type of `port` differs. It carries the emulator host when there is one.
+          new v1.SubscriberClient(pubsub.options as SubscriberOptions),
+          pubsub.subscription(deadLetterSubscriptionName(service)).name,
+          settings.emulator,
+        ),
+    },
+    DeadLetters,
+  ];
 }

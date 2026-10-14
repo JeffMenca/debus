@@ -1,6 +1,6 @@
 'use client';
 
-import { type RentalRequest, SEARCH_MAX_LENGTH } from '@debus/contracts';
+import { type RentalToAssign, SEARCH_MAX_LENGTH } from '@debus/contracts';
 import { Search } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { DataTable, tablePagination } from '@/components/data/data-table';
@@ -17,12 +17,12 @@ import { useRentalColumns } from './rental-columns';
 export function RentalRequestsTab() {
   const [query, update] = useUrlQuery(readRentalListParams, writeRentalListParams);
   const rentals = useRentalRequestsPage(query);
-  const [assigning, setAssigning] = useState<RentalRequest | null>(null);
+  const [assigning, setAssigning] = useState<RentalToAssign | null>(null);
   const [search, setSearch] = useUrlSearch(query.q, update);
   usePageInRange(rentals.data, update);
 
   const columns = useRentalColumns(
-    useCallback((rental: RentalRequest) => setAssigning(rental), []),
+    useCallback((rental: RentalToAssign) => setAssigning(rental), []),
   );
 
   return (

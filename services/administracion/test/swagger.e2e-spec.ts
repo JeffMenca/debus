@@ -35,6 +35,10 @@ const ROUTES: [method: 'get' | 'post' | 'patch' | 'delete', path: string, codes:
   ['get', '/repair-expenses', ['200', '400', '401', '403']],
   ['get', '/repair-expenses/{id}', ['200', '400', '401', '403', '404']],
   ['post', '/repair-expenses', ['200', '201', '400', '401', '403', '404', '409']],
+  // Every consumer mounts the dead-letter review of @debus/messaging.
+  ['get', '/dead-letters', ['200', '400', '401', '403', '503']],
+  ['post', '/dead-letters/{messageId}/replay', ['200', '401', '403', '404', '502', '503']],
+  ['delete', '/dead-letters/{messageId}', ['204', '401', '403', '404', '503']],
 ];
 
 describe('API documentation', () => {

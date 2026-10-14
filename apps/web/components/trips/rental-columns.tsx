@@ -1,6 +1,6 @@
 'use client';
 
-import type { RentalRequest } from '@debus/contracts';
+import type { RentalToAssign } from '@debus/contracts';
 import { ArrowRight } from 'lucide-react';
 import { useMemo } from 'react';
 import { columnHelperFor } from '@/components/data/data-table';
@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { formatQuetzales } from '@/lib/format';
 import { Moment } from './trip-columns';
 
-const helper = columnHelperFor<RentalRequest>();
+const helper = columnHelperFor<RentalToAssign>();
 
 // Columns must be stable between renders, so they are rebuilt only when their inputs change.
-export function useRentalColumns(onAssign: (rental: RentalRequest) => void) {
+export function useRentalColumns(onAssign: (rental: RentalToAssign) => void) {
   return useMemo(
     () =>
       helper.columns([

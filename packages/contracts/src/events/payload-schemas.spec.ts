@@ -4,20 +4,18 @@ import { EVENT_PAYLOAD_SCHEMAS, validateEventPayload } from './payload-schemas';
 import { FLEET_EXAMPLES } from './fleet-examples';
 import { TRIP_EXAMPLES } from './trip-examples';
 import { CLIENT_EXAMPLES } from './client-examples';
+import { SALES_EXAMPLES } from './sales-examples';
 import { EVENT_AMOUNT_MAX } from './limits';
 
-// TicketSold and RefundRequested get their schemas with the sales pack.
-const WITHOUT_SCHEMA_YET: EventType[] = ['TicketSold', 'RefundRequested'];
-
 describe('event payload schemas', () => {
-  it('cover every event type except the ones whose contract is still to come', () => {
+  it('cover every event type', () => {
     const missing = EVENT_TYPES.filter((type) => !(type in EVENT_PAYLOAD_SCHEMAS));
 
-    expect(missing).toEqual(WITHOUT_SCHEMA_YET);
+    expect(missing).toEqual([]);
   });
 
   it('accept the examples of the contract', () => {
-    const examples = { ...FLEET_EXAMPLES, ...TRIP_EXAMPLES, ...CLIENT_EXAMPLES };
+    const examples = { ...FLEET_EXAMPLES, ...TRIP_EXAMPLES, ...CLIENT_EXAMPLES, ...SALES_EXAMPLES };
 
     for (const [type, payload] of Object.entries(examples)) {
       expect(validateEventPayload(type as EventType, payload)).toEqual({ valid: true });
@@ -34,9 +32,5 @@ describe('event payload schemas', () => {
       valid: false,
       reason: expect.stringContaining('depreciationAmount'),
     });
-  });
-
-  it('lets a type without a schema through', () => {
-    expect(validateEventPayload('TicketSold', { anything: true })).toEqual({ valid: true });
   });
 });

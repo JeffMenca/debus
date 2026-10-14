@@ -1,6 +1,6 @@
 'use client';
 
-import type { RentalRequest } from '@debus/contracts';
+import type { RentalToAssign } from '@debus/contracts';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { FormAlert } from '@/components/auth/form-alert';
@@ -37,7 +37,7 @@ const CLASH_FIELD_ID: Record<AssignClashField, string> = {
   arrival: 'assign-arrival-day',
 };
 
-function AssignRentalForm({ request, onDone }: { request: RentalRequest; onDone: () => void }) {
+function AssignRentalForm({ request, onDone }: { request: RentalToAssign; onDone: () => void }) {
   const assign = useAssignRental(request.id);
   const [busSearch, setBusSearch, busTerm] = useOptionSearch();
   const [driverSearch, setDriverSearch, driverTerm] = useOptionSearch();
@@ -162,7 +162,7 @@ function AssignRentalForm({ request, onDone }: { request: RentalRequest; onDone:
 
 interface AssignRentalDialogProps {
   // The rental waiting for a bus and a driver; null keeps the dialog closed.
-  request: RentalRequest | null;
+  request: RentalToAssign | null;
   onOpenChange: (open: boolean) => void;
 }
 

@@ -1,6 +1,6 @@
 import {
   type AssignRentalRequest,
-  type RentalRequest,
+  type RentalToAssign,
   guatemalaDateTime,
   isLaterInstant,
 } from '@debus/contracts';
@@ -11,7 +11,7 @@ const HOUR_MS = 3_600_000;
 
 // A first guess for the estimated arrival that the person can change: the return of the client, or
 // a few hours after leaving when the rental is one way.
-export function defaultRentalArrival(request: RentalRequest): DayTime {
+export function defaultRentalArrival(request: RentalToAssign): DayTime {
   const fromRental =
     request.returnAt ??
     new Date(Date.parse(request.departureAt) + RENTAL_TRIP_HOURS * HOUR_MS).toISOString();
@@ -42,7 +42,7 @@ export interface AssignValues {
 
 export function assignRequestFrom(
   values: AssignValues,
-  rental: Pick<RentalRequest, 'departureAt' | 'returnAt'>,
+  rental: Pick<RentalToAssign, 'departureAt' | 'returnAt'>,
 ):
   | { request: AssignRentalRequest; problems?: undefined }
   | { request?: undefined; problems: AssignProblems } {

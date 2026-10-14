@@ -1,4 +1,4 @@
-import type { RentalRequest, Trip, TripDetail } from '@debus/contracts';
+import type { RentalToAssign, Trip, TripDetail } from '@debus/contracts';
 import { BRANCH_ID } from './fleet';
 
 export const trip = (over: Partial<Trip> = {}): Trip => ({
@@ -66,7 +66,7 @@ export const arrivalRecord = (
   ...over,
 });
 
-export const rentalRequest = (over: Partial<RentalRequest> = {}): RentalRequest => ({
+export const rentalRequest = (over: Partial<RentalToAssign> = {}): RentalToAssign => ({
   id: '5a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d',
   branchId: BRANCH_ID,
   clientName: 'Colegio San José',

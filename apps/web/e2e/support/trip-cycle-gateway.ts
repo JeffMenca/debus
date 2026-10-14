@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
-  type RentalRequest,
+  type RentalToAssign,
   type Trip,
   type TripDetail,
   RENTAL_DRIVER_BONUS,
@@ -28,7 +28,7 @@ type Arrival = NonNullable<TripDetail['arrival']>;
 
 export interface TripCycleSeed {
   // The rentals already paid that wait for a bus and a driver.
-  rentals?: RentalRequest[];
+  rentals?: RentalToAssign[];
   // Trips that already left, or arrived, when the test starts.
   records?: { tripId: string; departure: Departure; arrival?: Arrival }[];
   // Quetzales per km the system admin configured; null means none is configured.
@@ -281,7 +281,7 @@ export function createTripCycle(fleet: TripsFleet, trips: Trip[], seed: TripCycl
 }
 
 // A paid rental, six days from today at 06:00 and back at 16:00, for 38 people.
-export const sampleRental = (overrides: Partial<RentalRequest> = {}): RentalRequest => ({
+export const sampleRental = (overrides: Partial<RentalToAssign> = {}): RentalToAssign => ({
   id: randomUUID(),
   branchId: FLEET_BRANCH_ID,
   clientName: 'Colegio San José',

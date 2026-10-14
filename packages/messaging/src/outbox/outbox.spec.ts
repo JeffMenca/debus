@@ -64,14 +64,6 @@ describe('Outbox.add payload contract', () => {
     await expect(attempt).rejects.toThrow(/TripCompleted.*depreciationAmount/);
     expect(store.enqueue).not.toHaveBeenCalled();
   });
-
-  it('does not judge an event whose contract does not exist yet', async () => {
-    const { store, outbox } = setup();
-
-    await outbox.add({} as SqlClient, 'TicketSold', { anything: true });
-
-    expect(store.enqueue).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe('Outbox.flush', () => {

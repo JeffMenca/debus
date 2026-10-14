@@ -1,9 +1,9 @@
-import type { RentalRequest } from '@debus/contracts';
+import type { RentalToAssign } from '@debus/contracts';
 import type { Prisma } from '../generated/prisma/client';
 
 type RentalRequestRow = Prisma.RentalRequestGetPayload<object>;
 
-export const toRentalRequest = (row: RentalRequestRow): RentalRequest => ({
+export const toRentalRequest = (row: RentalRequestRow): RentalToAssign => ({
   id: row.id,
   branchId: row.branchId,
   clientName: row.clientName,

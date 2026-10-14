@@ -1,4 +1,4 @@
-import { exampleRentalPaid, rentalRequestSchema } from '@debus/contracts';
+import { exampleRentalPaid, rentalToAssignSchema } from '@debus/contracts';
 import { Prisma } from '../generated/prisma/client';
 import { toRentalRequest } from './rental-mappers';
 
@@ -23,7 +23,7 @@ const row = {
 
 describe('toRentalRequest', () => {
   it('shows a rental with plain numbers and ISO instants', () => {
-    expect(rentalRequestSchema.parse(toRentalRequest(row))).toEqual({
+    expect(rentalToAssignSchema.parse(toRentalRequest(row))).toEqual({
       id: row.id,
       branchId: row.branchId,
       clientName: 'Colegio San José',

@@ -127,7 +127,7 @@ export type TripDetail = z.infer<typeof tripDetailSchema>;
 export const RENTAL_REQUEST_STATUSES = ['PENDING', 'ASSIGNED'] as const;
 export type RentalRequestStatus = (typeof RENTAL_REQUEST_STATUSES)[number];
 
-export const rentalRequestSchema = z.object({
+export const rentalToAssignSchema = z.object({
   id: z.uuid(),
   branchId: z.uuid(),
   clientName: z.string(),
@@ -142,7 +142,7 @@ export const rentalRequestSchema = z.object({
   status: z.enum(RENTAL_REQUEST_STATUSES),
   tripId: z.uuid().nullable(),
 });
-export type RentalRequest = z.infer<typeof rentalRequestSchema>;
+export type RentalToAssign = z.infer<typeof rentalToAssignSchema>;
 
 export const rentalRequestListQuerySchema = z
   .object({
@@ -151,7 +151,7 @@ export const rentalRequestListQuerySchema = z
   })
   .extend(pageQuerySchema.shape);
 export type RentalRequestListQuery = z.infer<typeof rentalRequestListQuerySchema>;
-export const rentalRequestPageSchema = pageSchema(rentalRequestSchema);
+export const rentalRequestPageSchema = pageSchema(rentalToAssignSchema);
 export type RentalRequestPage = z.infer<typeof rentalRequestPageSchema>;
 
 export const assignRentalRequestSchema = z.object({

@@ -2,8 +2,12 @@ import type { PubSub } from '@google-cloud/pubsub';
 import { applyPubSubPlan } from './apply-pubsub-plan';
 import type { PubSubPlan } from './pubsub-plan';
 
-function fakePubSub(existing: Record<string, { filter?: string }>) {
+type Binding = { role: string; members: string[] };
+
+function fakePubSub(existing: Record<string, { filter?: string }>, bindings: Binding[] = []) {
   const created: string[] = [];
+  const getPolicy = jest.fn().mockResolvedValue([{ bindings, etag: 'e1' }]);
+  const setPolicy = jest.fn().mockResolvedValue([{}]);
   const createSubscription = jest.fn((name: string) => {
     created.push(name);
     return Promise.resolve();
@@ -25,9 +29,10 @@ function fakePubSub(existing: Record<string, { filter?: string }>) {
       getMetadata: () => Promise.resolve([existing[name]]),
       setMetadata,
       delete: remove,
+      iam: { getPolicy, setPolicy },
     }),
   } as unknown as PubSub;
-  return { pubsub, created, createSubscription, setMetadata, remove };
+  return { pubsub, created, createSubscription, setMetadata, remove, setPolicy };
 }
 
 const plan: PubSubPlan = {
@@ -42,10 +47,47 @@ const plan: PubSubPlan = {
       deadLetterTopic: 'ventas-dlq',
     },
   ],
-  deadLetterSubscriptions: [{ name: 'ventas-dlq-sub', topic: 'ventas-dlq' }],
+  deadLetterSubscriptions: [
+    {
+      name: 'ventas-dlq-sub',
+      topic: 'ventas-dlq',
+      reader: 'debus-ventas@p.iam.gserviceaccount.com',
+    },
+  ],
 };
+const SUBSCRIBER = 'roles/pubsub.subscriber';
+const READER = 'serviceAccount:debus-ventas@p.iam.gserviceaccount.com';
 
 describe('applyPubSubPlan', () => {
+  it('lets each service read its own dead-letter subscription', async () => {
+    const others = { role: SUBSCRIBER, members: ['user:ops@debus.test'] };
+    const { pubsub, setPolicy } = fakePubSub({}, [others]);
+    const log = jest.fn();
+
+    await applyPubSubPlan(pubsub, plan, log);
+
+    expect(setPolicy).toHaveBeenCalledWith({
+      bindings: [{ role: SUBSCRIBER, members: ['user:ops@debus.test', READER] }],
+      etag: 'e1',
+    });
+    expect(log).toHaveBeenCalledWith(
+      'ventas-dlq-sub readable by debus-ventas@p.iam.gserviceaccount.com',
+    );
+  });
+
+  it('adds the subscriber binding when there is none and never twice', async () => {
+    const empty = fakePubSub({});
+    await applyPubSubPlan(empty.pubsub, plan, () => undefined);
+    expect(empty.setPolicy).toHaveBeenCalledWith({
+      bindings: [{ role: SUBSCRIBER, members: [READER] }],
+      etag: 'e1',
+    });
+
+    const granted = fakePubSub({}, [{ role: SUBSCRIBER, members: [READER] }]);
+    await applyPubSubPlan(granted.pubsub, plan, () => undefined);
+    expect(granted.setPolicy).not.toHaveBeenCalled();
+  });
+
   it('creates missing topics and subscriptions with dead-letter and retry policies', async () => {
     const { pubsub, created, createSubscription } = fakePubSub({});
 
