@@ -4,7 +4,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import { CommonModule } from './common/common.module';
 import { HealthModule } from './health/health.module';
+import { BranchBusesModule } from './reports/branch-buses/branch-buses.module';
+import { BranchReadModelModule } from './reports/branch-read-model/branch-read-model.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 
@@ -14,6 +17,9 @@ import { PrismaService } from './prisma/prisma.service';
     LoggerModule.forRoot({ pinoHttp: httpLoggerOptions() }),
     HealthModule,
     PrismaModule,
+    CommonModule,
+    BranchReadModelModule,
+    BranchBusesModule,
     MessagingModule.forRoot({
       service: 'reportes',
       inbox: {

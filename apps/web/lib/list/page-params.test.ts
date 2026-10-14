@@ -1,5 +1,13 @@
 import { SEARCH_MAX_LENGTH } from '@debus/contracts';
-import { enumParam, lastPageIfOutOfRange, readPage, readSearch, writePage } from './page-params';
+import {
+  enumParam,
+  lastPageIfOutOfRange,
+  readDay,
+  readId,
+  readPage,
+  readSearch,
+  writePage,
+} from './page-params';
 
 it('reads the page and size from the address, falling back one by one', () => {
   expect(readPage(new URLSearchParams(''))).toEqual({ page: 1, pageSize: 20 });
@@ -41,4 +49,19 @@ it('reads a search the API would accept and ignores the rest', () => {
   expect(readSearch(` ${'x'.repeat(SEARCH_MAX_LENGTH)} `)).toHaveLength(SEARCH_MAX_LENGTH + 2);
   expect(readSearch('')).toBeUndefined();
   expect(readSearch(null)).toBeUndefined();
+});
+
+it('reads a calendar day and ignores anything else', () => {
+  expect(readDay('2026-10-13')).toBe('2026-10-13');
+  expect(readDay('2026-13-45')).toBeUndefined();
+  expect(readDay('ayer')).toBeUndefined();
+  expect(readDay(null)).toBeUndefined();
+});
+
+it('reads an id and ignores anything else', () => {
+  expect(readId('7c9e6679-7425-40de-944b-e07fc1f90ae7')).toBe(
+    '7c9e6679-7425-40de-944b-e07fc1f90ae7',
+  );
+  expect(readId('7c9e6679')).toBeUndefined();
+  expect(readId(null)).toBeUndefined();
 });

@@ -1,0 +1,16 @@
+// Common copy fed by BranchCreated and BranchUpdated: both halves of reportes read it, only this
+// handler writes it.
+model BranchCopy {
+  id           String   @id @db.Uuid
+  code         String
+  name         String
+  department   String
+  municipality String
+  latitude     Decimal  @db.Decimal(9, 6)
+  longitude    Decimal  @db.Decimal(9, 6)
+  active       Boolean
+  version      Int
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("branches")
+}

@@ -4,7 +4,6 @@ import {
   formatLongDate,
   formatPhone,
   formatKm,
-  formatPlate,
   formatShortDate,
   formatQuetzales,
   initialsOf,
@@ -34,12 +33,6 @@ it('shows a moment in Guatemala time, six hours behind UTC', () => {
 it('groups the thousands of a count', () => {
   expect(formatCount(3000)).toBe('3,000');
   expect(formatCount(45)).toBe('45');
-});
-
-it('writes a plate with its hyphen and leaves anything else alone', () => {
-  expect(formatPlate('C482BTX')).toBe('C-482BTX');
-  expect(formatPlate('TC123ABC')).toBe('TC-123ABC');
-  expect(formatPlate('raro')).toBe('raro');
 });
 
 it('writes a day short, with the year only when asked', () => {

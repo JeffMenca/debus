@@ -103,7 +103,7 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
 
       - name: Run migrations
-        if: hashFiles(format('services/{0}/prisma/schema.prisma', matrix.unit)) != ''
+        if: hashFiles(format('services/{0}/prisma/migrations/migration_lock.toml', matrix.unit)) != ''
         run: |
           gcloud run jobs deploy "$UNIT-migrate" \
             --image "$REGISTRY/$UNIT-migrate:$TAG" \
@@ -125,7 +125,7 @@ jobs:
                  --service-account "debus-$UNIT@$GCP_PROJECT_ID.iam.gserviceaccount.com"
                  --min-instances 0 --max-instances "$MAX_INSTANCES"
                  --set-env-vars "$(node scripts/cloud-run-env.mjs "$UNIT" "$TARGET_ENV")")
-          if [ -f "services/$UNIT/prisma/schema.prisma" ]; then
+          if [ -f "services/$UNIT/prisma/migrations/migration_lock.toml" ]; then
             flags+=(--set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" --set-secrets "DATABASE_URL=$UNIT-database-url:latest")
           fi
           if [ "$UNIT" = "gateway" ] || [ "$UNIT" = "web" ]; then flags+=(--allow-unauthenticated); else flags+=(--no-allow-unauthenticated); fi
@@ -143,7 +143,7 @@ jobs:
           curl --fail --retry 5 --retry-delay 5 --retry-all-errors "${auth[@]}" "$url$path"
 
       - name: Schedule outbox flush
-        if: hashFiles(format('services/{0}/prisma/schema.prisma', matrix.unit)) != ''
+        if: hashFiles(format('services/{0}/prisma/migrations/migration_lock.toml', matrix.unit)) != ''
         run: |
           url="https://$UNIT-$GCP_PROJECT_NUMBER.$GCP_REGION.run.app"
           job="$UNIT-outbox-flush"

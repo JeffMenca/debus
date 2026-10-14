@@ -80,7 +80,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.unit }}
           cache-to: type=gha,mode=max,scope=${{ matrix.unit }}
       - name: Build and push migration image
-        if: hashFiles(format('services/{0}/prisma/schema.prisma', matrix.unit)) != ''
+        if: hashFiles(format('services/{0}/prisma/migrations/migration_lock.toml', matrix.unit)) != ''
         uses: docker/build-push-action@v6
         with:
           context: .

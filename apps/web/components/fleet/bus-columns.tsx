@@ -1,24 +1,17 @@
 'use client';
 
-import type { Bus, BusDisplayStatus } from '@debus/contracts';
+import type { Bus } from '@debus/contracts';
 import { useMemo } from 'react';
 import { Bus as BusIllustration } from '@/components/brand/bus';
-import { StatusDot, type StatusTone } from '@/components/brand/status-dot';
+import { StatusDot } from '@/components/brand/status-dot';
 import { columnHelperFor } from '@/components/data/data-table';
 import { KPI_TONE_SURFACES } from '@/components/data/kpi-card';
 import { RowActions } from '@/components/data/row-actions';
 import { BUSES_PATH } from '@/hooks/use-buses';
 import { photoPathOf } from '@/hooks/use-photo';
-import { BUS_ART_TONES, BUS_STATUS_LABELS } from '@/lib/fleet/bus-status';
+import { BUS_ART_TONES, BUS_DOT_TONES, BUS_STATUS_LABELS } from '@/lib/fleet/bus-status';
 import { formatCount, formatPlate } from '@/lib/format';
 import { FleetPhoto } from './fleet-photo';
-
-const DOT_TONES: Record<BusDisplayStatus, StatusTone> = {
-  IN_TRANSIT: 'mint',
-  AVAILABLE: 'indigo',
-  IN_WORKSHOP: 'mango',
-  INACTIVE: 'muted',
-};
 
 interface BusColumnActions {
   onEdit: (bus: Bus) => void;
@@ -95,7 +88,7 @@ export function useBusColumns({ onEdit, onWorkshop, onToggle }: BusColumnActions
             const status = info.getValue();
             return (
               <StatusDot
-                tone={DOT_TONES[status]}
+                tone={BUS_DOT_TONES[status]}
                 label={BUS_STATUS_LABELS[status].label}
                 live={status === 'IN_TRANSIT'}
               />

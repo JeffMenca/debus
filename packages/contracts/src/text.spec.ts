@@ -1,4 +1,10 @@
-import { SEARCH_MAX_LENGTH, escapeLikePattern, foldSearchText, searchTermSchema } from './text';
+import {
+  SEARCH_MAX_LENGTH,
+  escapeLikePattern,
+  foldSearchText,
+  formatPlate,
+  searchTermSchema,
+} from './text';
 
 describe('foldSearchText', () => {
   it('drops accents and case so "José" matches "jose"', () => {
@@ -27,5 +33,13 @@ describe('escapeLikePattern', () => {
 
   it('leaves plain text alone', () => {
     expect(escapeLikePattern('jose perez')).toBe('jose perez');
+  });
+});
+
+describe('formatPlate', () => {
+  it('writes a plate with its hyphen and leaves anything else alone', () => {
+    expect(formatPlate('C482BTX')).toBe('C-482BTX');
+    expect(formatPlate('TC123ABC')).toBe('TC-123ABC');
+    expect(formatPlate('raro')).toBe('raro');
   });
 });

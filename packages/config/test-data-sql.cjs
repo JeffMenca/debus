@@ -107,6 +107,10 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     inTestBranches('driver_copies'),
     inTestBranches('route_copies', 'origin_branch_id'),
     inTestBranches('route_copies', 'destination_branch_id'),
+    // reportes keeps its read models by branch id, with no foreign key to the branch copy.
+    inTestBranches('branch_report_trips'),
+    inTestBranches('branch_report_buses'),
+    inTestBranches('branch_report_drivers'),
   ];
 
   return [

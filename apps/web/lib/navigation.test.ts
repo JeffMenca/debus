@@ -39,7 +39,15 @@ describe('navigation', () => {
         ],
       ],
       ['Finanzas', [['Gastos de taller', '/sucursal/gastos']]],
+      ['Reportes', [['Listado de buses', '/sucursal/reportes/buses']]],
     ]);
+  });
+
+  it('keeps the reports from the cashier, the driver and the system admin', () => {
+    for (const role of ['CASHIER', 'DRIVER', 'SYSTEM_ADMIN'] as const) {
+      const labels = navigationFor(role).map((group) => group.label);
+      expect(labels).not.toContain('Reportes');
+    }
   });
 
   it('shows the cashier only the screens that exist', () => {
