@@ -159,12 +159,19 @@ describe('TripCycleService.recordDeparture', () => {
 
     await service.recordDeparture(admin, tripRow.id, input());
 
-    const lockRow = tx.$queryRawUnsafe.mock.invocationCallOrder[0] ?? 0;
-    const [queueBus = 0, queueDriver = 0] = tx.$executeRawUnsafe.mock.invocationCallOrder;
+    expect(tx.$queryRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('FOR UPDATE'),
+      tripRow.id,
+    );
     expect(tx.$executeRawUnsafe.mock.calls.map(([, key]) => key)).toEqual([
       `trip-bus:${busId}`,
       `trip-driver:${driverId}`,
     ]);
+    const [lockRow] = tx.$queryRawUnsafe.mock.invocationCallOrder as [number];
+    const [queueBus, queueDriver] = tx.$executeRawUnsafe.mock.invocationCallOrder as [
+      number,
+      number,
+    ];
     expect(lockRow).toBeLessThan(queueBus);
     expect(queueBus).toBeLessThan(queueDriver);
     expect(queueDriver).toBeLessThan(tx.tripDeparture.create.mock.invocationCallOrder[0] ?? 0);

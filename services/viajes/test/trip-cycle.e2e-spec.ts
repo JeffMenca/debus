@@ -60,18 +60,21 @@ describe('trip cycle', () => {
   };
   const getDetail = async (tripId: string) =>
     tripDetailSchema.parse((await http().get(`/trips/${tripId}`).set(admin()).expect(200)).body);
+  // The newest version of each day an arrival of the last hours can fall on, so the rate does not
+  // depend on how close to midnight the test runs.
   const addRate = async (depreciationPerKm: number, createdAt: string) => {
-    const id = randomUUID();
-    versionIds.push(id);
-    await prisma.settingsVersionCopy.create({
-      data: {
-        id,
-        depreciationPerKm,
-        rentalRatePerKm: 12,
-        effectiveFrom: new Date(`${todayInGuatemala()}T00:00:00.000Z`),
-        createdAt: new Date(createdAt),
-      },
-    });
+    const days = new Set([todayInGuatemala(), todayInGuatemala(new Date(minutesAgo(120)))]);
+    const rows = [...days].map((day) => ({
+      id: randomUUID(),
+      depreciationPerKm,
+      rentalRatePerKm: 12,
+      effectiveFrom: new Date(`${day}T00:00:00.000Z`),
+      createdAt: new Date(createdAt),
+    }));
+    const ids = rows.map((row) => row.id);
+    versionIds.push(...ids);
+    await prisma.settingsVersionCopy.createMany({ data: rows });
+    return ids;
   };
 
   beforeAll(async () => {
@@ -534,7 +537,7 @@ describe('trip cycle', () => {
 
     it('refuses an arrival whose depreciation would not fit TripCompleted, and records nothing', async () => {
       const { tripId } = await onTheRoad();
-      await addRate(100_000, '2099-01-01T00:00:00.000Z');
+      const hugeRate = await addRate(100_000, '2099-01-01T00:00:00.000Z');
 
       try {
         const response = await http()
@@ -546,7 +549,7 @@ describe('trip cycle', () => {
         expect(response.body.message).toMatch(/depreciación de este viaje sale demasiado alta/);
         expect(await prisma.tripArrival.count({ where: { tripId } })).toBe(0);
       } finally {
-        await prisma.settingsVersionCopy.deleteMany({ where: { id: versionIds.pop() } });
+        await prisma.settingsVersionCopy.deleteMany({ where: { id: { in: hugeRate } } });
       }
     });
 

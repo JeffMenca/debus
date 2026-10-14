@@ -26,6 +26,31 @@ describe('defaultRentalArrival', () => {
   });
 });
 
+describe('defaultRentalArrival when the return is not on an exact minute', () => {
+  beforeAll(() => jest.useFakeTimers({ now: new Date('2026-10-20T12:00:00.000Z') }));
+  afterAll(() => jest.useRealTimers());
+
+  it('rounds up to the next minute, so it never lands before the return', () => {
+    const request = rentalRequest({ returnAt: '2026-10-24T22:00:45.000Z' });
+
+    const arrival = defaultRentalArrival(request);
+
+    // 22:00:45Z is 16:00:45 in Guatemala
+    expect(arrival).toEqual({ day: '2026-10-24', time: '16:01' });
+    const assigned = assignRequestFrom(
+      { busId: 'bus-id', driverId: 'driver-id', arrival },
+      request,
+    );
+    expect(assigned.problems).toBeUndefined();
+  });
+
+  it('keeps a return that is on an exact minute', () => {
+    const request = rentalRequest({ returnAt: '2026-10-24T22:00:00.000Z' });
+
+    expect(defaultRentalArrival(request)).toEqual({ day: '2026-10-24', time: '16:00' });
+  });
+});
+
 describe('defaultRentalArrival of a late rental', () => {
   beforeAll(() => jest.useFakeTimers({ now: new Date('2026-10-25T12:00:00.000Z') }));
   afterAll(() => jest.useRealTimers());

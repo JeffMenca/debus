@@ -22,7 +22,8 @@ const session = {
 };
 
 describe('session store', () => {
-  afterEach(() => clearSession());
+  // The hooks of the test are still mounted when this runs, so the update goes inside act.
+  afterEach(() => act(() => clearSession()));
 
   it('keeps the session only in memory and notifies subscribers', () => {
     const { result } = renderHook(() => useSession());

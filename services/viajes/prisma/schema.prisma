@@ -115,27 +115,27 @@ enum TripStatus {
 
 // A trip of this branch. Until it arrives, the database refuses its bus or its driver in another trip that crosses it.
 model Trip {
-  id                 String     @id @default(uuid()) @db.Uuid
+  id                 String         @id @default(uuid()) @db.Uuid
   type               TripType
-  status             TripStatus @default(SCHEDULED)
-  branchId           String     @map("branch_id") @db.Uuid
-  routeId            String?    @map("route_id") @db.Uuid
-  busId              String     @map("bus_id") @db.Uuid
-  busPlate           String     @map("bus_plate")
+  status             TripStatus     @default(SCHEDULED)
+  branchId           String         @map("branch_id") @db.Uuid
+  routeId            String?        @map("route_id") @db.Uuid
+  busId              String         @map("bus_id") @db.Uuid
+  busPlate           String         @map("bus_plate")
   capacity           Int
-  driverId           String     @map("driver_id") @db.Uuid
-  driverName         String     @map("driver_name")
-  originLabel        String     @map("origin_label")
-  destinationLabel   String     @map("destination_label")
-  departureAt        DateTime   @map("departure_at") @db.Timestamptz(3)
-  estimatedArrivalAt DateTime   @map("estimated_arrival_at") @db.Timestamptz(3)
+  driverId           String         @map("driver_id") @db.Uuid
+  driverName         String         @map("driver_name")
+  originLabel        String         @map("origin_label")
+  destinationLabel   String         @map("destination_label")
+  departureAt        DateTime       @map("departure_at") @db.Timestamptz(3)
+  estimatedArrivalAt DateTime       @map("estimated_arrival_at") @db.Timestamptz(3)
   // Copied from the route when a regular trip is scheduled, so a later change of price never reaches it.
-  ticketPrice        Decimal?   @map("ticket_price") @db.Decimal(10, 2)
-  rentalId           String?    @map("rental_id") @db.Uuid
-  createdById        String     @map("created_by_id") @db.Uuid
-  searchText         String     @default("") @map("search_text")
-  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  ticketPrice        Decimal?       @map("ticket_price") @db.Decimal(10, 2)
+  rentalId           String?        @map("rental_id") @db.Uuid
+  createdById        String         @map("created_by_id") @db.Uuid
+  searchText         String         @default("") @map("search_text")
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   departure          TripDeparture?
   arrival            TripArrival?
 

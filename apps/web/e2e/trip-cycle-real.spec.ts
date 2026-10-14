@@ -8,6 +8,7 @@ import { queryLocal } from './support/local-sql';
 import { isReachable, mailpitUrl } from './support/mailpit';
 import { signInAsRealAdmin } from './support/real-admin';
 import {
+  ACTION_TIMEOUT,
   createBranch,
   createRoute,
   randomLetters,
@@ -31,6 +32,7 @@ async function deleteScheduledTrip(page: Page, day: string, plateTail: RegExp) {
   const scheduled = () =>
     page.getByRole('row', { name: plateTail }).filter({ hasText: 'Programado' });
   await page.goto(list);
+  await expect(scheduled()).toHaveCount(1, { timeout: ACTION_TIMEOUT });
   await scheduled().getByRole('link').click();
   await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
   await confirm(page, 'Eliminar viaje', 'Entiendo que se avisará a quienes compraron boletos.');
@@ -49,6 +51,7 @@ test.describe('real trip cycle and repair expenses', () => {
     'creates branches and accounts: runs only on the local stack',
   );
   test.setTimeout(420_000);
+  test.use({ actionTimeout: ACTION_TIMEOUT, navigationTimeout: ACTION_TIMEOUT });
   // Removes the rows of this run (including the immutable ones) and the photos of its branches.
   test.afterAll(() => cleanUpTestRun());
 
@@ -103,7 +106,9 @@ test.describe('real trip cycle and repair expenses', () => {
 
     // The first trip leaves two hours ago and arrives now.
     await branch.goto(`/sucursal/viajes?desde=${soon.day}&hasta=${soon.day}`);
-    await branch.getByRole('row', { name: plateTail }).getByRole('link').click();
+    const firstTrip = branch.getByRole('row', { name: plateTail });
+    await expect(firstTrip).toHaveCount(1, { timeout: ACTION_TIMEOUT });
+    await firstTrip.getByRole('link').click();
     await expect(branch).toHaveURL(/\/sucursal\/viajes\/[0-9a-f-]{36}$/);
     const tripId = branch.url().split('/').pop()!;
     const departure = guatemalaAgo(120);

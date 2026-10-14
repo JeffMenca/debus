@@ -7,6 +7,9 @@ import { submitWhileRegistering } from './registering';
 // Setup steps of the specs that run against the local stack: they follow the pages like a person
 // would, so the services and the events between them are part of what the spec proves.
 
+// A missing element fails in seconds with its locator instead of waiting for the whole test.
+export const ACTION_TIMEOUT = 30_000;
+
 export const randomLetters = (count: number) =>
   Array.from({ length: count }, () =>
     String.fromCharCode(65 + Math.floor(Math.random() * 26)),
@@ -37,6 +40,7 @@ export async function signInAsBranchAdmin(
   email: string,
 ) {
   const context = await browser.newContext({ baseURL });
+  context.setDefaultTimeout(ACTION_TIMEOUT);
   const page = await context.newPage();
   await page.goto(await latestLink(inbox, email, '/crear-contrasena'));
   await page.getByLabel('Contraseña', { exact: true }).fill(ADMIN_PASSWORD);

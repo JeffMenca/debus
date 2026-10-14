@@ -41,7 +41,8 @@ describe('StatusTabs', () => {
     const onChange = jest.fn();
     render(<StatusTabs label="Estado" value="all" options={[...options]} onChange={onChange} />);
 
-    screen.getByRole('tab', { name: /Todos/ }).focus();
+    await userEvent.tab();
+    expect(screen.getByRole('tab', { name: /Todos/ })).toHaveFocus();
     await userEvent.keyboard('{ArrowRight}');
 
     expect(screen.getByRole('tab', { name: /Activos/ })).toHaveFocus();

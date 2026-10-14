@@ -8,16 +8,20 @@ import { type DayTime, splitGuatemala } from './schedule';
 
 const RENTAL_TRIP_HOURS = 4;
 const HOUR_MS = 3_600_000;
+const MINUTE_MS = 60_000;
 
 // A first guess for the estimated arrival that the person can change: the return of the client, or
 // a few hours after leaving when the rental is one way.
 export function defaultRentalArrival(request: RentalToAssign): DayTime {
-  const fromRental =
-    request.returnAt ??
-    new Date(Date.parse(request.departureAt) + RENTAL_TRIP_HOURS * HOUR_MS).toISOString();
+  const now = Date.now();
+  const fromRental = request.returnAt
+    ? Date.parse(request.returnAt)
+    : Date.parse(request.departureAt) + RENTAL_TRIP_HOURS * HOUR_MS;
   // A rental assigned late cannot arrive in the past.
-  const soonest = new Date(Date.now() + RENTAL_TRIP_HOURS * HOUR_MS).toISOString();
-  return splitGuatemala(Date.parse(fromRental) > Date.now() ? fromRental : soonest);
+  const proposed = fromRental > now ? fromRental : now + RENTAL_TRIP_HOURS * HOUR_MS;
+  // The time field has no seconds: round up so the proposal never lands before the return.
+  const roundedUp = Math.ceil(proposed / MINUTE_MS) * MINUTE_MS;
+  return splitGuatemala(new Date(roundedUp).toISOString());
 }
 
 // A rental assigned after its hour does not leave in the past: the service sends it on its way now.
