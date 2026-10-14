@@ -1,4 +1,5 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { FLEET_MESSAGES } from '../common/messages';
 import { BusesService } from './buses.service';
 
 const branchId = '9b2c7a10-1111-4c4c-8888-123456789abc';
@@ -219,6 +220,26 @@ describe('BusesService.update', () => {
     );
     expect(events.flush).toHaveBeenCalledTimes(1);
     expect(bus.version).toBe(2);
+  });
+
+  it('rejects an edit that lowers the mileage, without queuing any event', async () => {
+    const { tx, events, service } = setup();
+    tx.bus.findFirst.mockResolvedValue({ ...busRow, mileageKm: 1200 });
+
+    await expect(service.update(branchId, busId, { ...fields, mileageKm: 1000 })).rejects.toThrow(
+      new ConflictException(FLEET_MESSAGES.mileageDecrease),
+    );
+
+    expect(tx.bus.update).not.toHaveBeenCalled();
+    expect(events.bus).not.toHaveBeenCalled();
+  });
+
+  it('locks the bus first, so a completed trip that raises the mileage is never overwritten', async () => {
+    const { tx, service } = setup();
+
+    await service.update(branchId, busId, fields);
+
+    expect(tx.$queryRaw).toHaveBeenCalled();
   });
 
   it('keeps the own driver assignable and answers not found for a bus of another branch', async () => {

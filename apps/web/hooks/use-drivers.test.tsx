@@ -62,7 +62,7 @@ it('offers the active drivers, searched on the server, up to 100', async () => {
   );
 });
 
-it('lists the active drivers whose licence expires within the given days', async () => {
+it('lists the five active drivers whose licence expires soonest within the given days', async () => {
   const page = driverPage([driver()]);
   const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(page));
   const { wrapper } = queryWrapper();
@@ -70,7 +70,7 @@ it('lists the active drivers whose licence expires within the given days', async
 
   await waitFor(() => expect(result.current.data).toEqual(page));
   expect(fetchMock).toHaveBeenCalledWith(
-    `${API}?expiringWithinDays=30&page=1&pageSize=100&status=active`,
+    `${API}?expiringWithinDays=30&page=1&pageSize=5&status=active`,
     expect.anything(),
   );
 });

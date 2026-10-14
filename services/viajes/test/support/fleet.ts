@@ -28,6 +28,7 @@ export async function seedBus(prisma: PrismaService, branchId: string): Promise<
       capacity: 40,
       operationalStatus: 'AVAILABLE',
       active: true,
+      mileageKm: 1000,
       version: 1,
     },
   });

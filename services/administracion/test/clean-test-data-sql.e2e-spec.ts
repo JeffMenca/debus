@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { TEST_RUN, testEmail } from '@debus/config/test-data';
+import {
+  STALE_SCHEMA_SECONDS,
+  TEST_RUN,
+  TEST_SCHEMA_PREFIX,
+  testEmail,
+  testSchema,
+} from '@debus/config/test-data';
 import { cleanupStatements } from '@debus/config/test-data-sql';
 import type { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -129,6 +135,37 @@ describe('the SQL of pnpm test:clean', () => {
 
       expect(await tx.branch.findUnique({ where: { id: branch.id } })).not.toBeNull();
       expect(await tx.user.findUnique({ where: { id: staff.id } })).not.toBeNull();
+    });
+  });
+
+  it('drops the throwaway schemas of tests: those of one run when it is given, else only the stale ones', async () => {
+    await inRolledBackTransaction(async (tx) => {
+      const oldEnough = Math.floor(Date.now() / 1000) - STALE_SCHEMA_SECONDS - 60;
+      const mine = testSchema('sample');
+      const staleOfOtherRun = `${TEST_SCHEMA_PREFIX}deadbeef_${oldEnough}_sample`;
+      const freshOfOtherRun = `${TEST_SCHEMA_PREFIX}deadbeef_${Math.floor(Date.now() / 1000)}_sample`;
+      const withoutTimestamp = `${TEST_SCHEMA_PREFIX}deadbeef_sample`;
+      const notATestSchema = 'real_schema_sample';
+      const names = [mine, staleOfOtherRun, freshOfOtherRun, withoutTimestamp, notATestSchema];
+      for (const name of names) await tx.$executeRawUnsafe(`CREATE SCHEMA ${name}`);
+      const left = async () =>
+        (
+          await tx.$queryRaw<{ nspname: string }[]>`
+            SELECT nspname FROM pg_namespace WHERE nspname = ANY(${names}) ORDER BY nspname`
+        ).map((row) => row.nspname);
+      const survivors = (...kept: string[]) => [...kept].sort();
+
+      for (const statement of cleanupStatements({ run: TEST_RUN })) {
+        await tx.$executeRawUnsafe(statement);
+      }
+      expect(await left()).toEqual(
+        survivors(staleOfOtherRun, freshOfOtherRun, withoutTimestamp, notATestSchema),
+      );
+
+      // Without a run, a schema a run in progress may be using is left alone.
+      await tx.$executeRawUnsafe(`CREATE SCHEMA ${mine}`);
+      for (const statement of cleanupStatements()) await tx.$executeRawUnsafe(statement);
+      expect(await left()).toEqual(survivors(mine, freshOfOtherRun, notATestSchema));
     });
   });
 

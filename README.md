@@ -67,6 +67,14 @@ En cada despliegue, el job `pubsub` de `release` crea los tópicos y las suscrip
 2. Con `smtp-check` en verde, abrir `/recuperar` en la web de producción e ingresar el correo del admin. Mientras la cuenta esté pendiente, reenvía el enlace de activación; si ya está activa, envía el de restablecimiento.
 3. Si sigue sin llegar, revisar los logs de Cloud Run de `notificaciones` (¿recibió `AccountLinkSent`?) y de `administracion` (¿publicó el evento?), y las suscripciones `notificaciones-from-administracion` y su dead-letter en Pub/Sub. Requiere acceso a GCP. En un entorno nuevo, si `notificaciones` tarda más de unos 2,5 minutos en estar en línea después de que arranque `administracion`, Pub/Sub agota sus 5 reintentos y deja la invitación del primer admin en `notificaciones-dlq-sub`; en ese caso basta con el paso 2.
 
+### Cuando un servicio empieza a guardar copias
+
+`administracion` y `viajes` guardan una copia de cada bus que se actualiza con los eventos de `flota`, y solo reemplazan una copia por una versión más alta. Los buses creados antes del primer despliegue que incluye esas copias no tienen copia (o la tienen sin kilometraje), así que después de ese despliegue se republican una vez.
+
+1. En GitHub, **Actions > republish > Run workflow**. El campo `targets` acepta pares `servicio/recurso` separados por coma (hoy `flota/buses`); vacío republica todo.
+2. El workflow llama a la ruta interna `POST /internal/<recurso>/republish` de cada servicio con el token de identidad de la cuenta de despliegue, y el log de cada destino termina con el resumen, por ejemplo `{"republished":N}`. Un destino que no está en la lista falla antes de llamar a ninguno.
+3. `flota` sube en uno la versión de cada bus y vuelve a publicar `BusUpdated` por el outbox. Repetirlo no hace daño: las copias solo aceptan una versión mayor. El gateway no publica esa ruta. El workflow republica todas las sucursales; la ruta de `flota` también acepta `?branchId=` para una sola sucursal, si alguna vez hace falta llamarla a mano con el mismo token.
+
 ## Convenciones
 
 Commits convencionales (validados en `commit-msg`), PR pequeños y `main` protegida con una aprobación. Todo el código en inglés (identificadores, eventos como `TicketSold` o `TripScheduled`, rutas de la API, Swagger y logs); en español solo los textos de la interfaz, los correos, las URL del navegador y la documentación.

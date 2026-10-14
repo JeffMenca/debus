@@ -3,7 +3,7 @@ import { DocumentBuilder, type OpenAPIObject, SwaggerModule } from '@nestjs/swag
 import { createTestApp } from './support/app';
 
 // Every route lists its success code and every error code it can answer, so the API stays documented.
-const ROUTES: [method: 'get' | 'post' | 'patch', path: string, codes: string[]][] = [
+const ROUTES: [method: 'get' | 'post' | 'patch' | 'delete', path: string, codes: string[]][] = [
   ['post', '/auth/signup', ['202', '400']],
   ['post', '/auth/password/forgot', ['202', '400']],
   ['post', '/auth/links/status', ['200', '400']],
@@ -28,6 +28,17 @@ const ROUTES: [method: 'get' | 'post' | 'patch', path: string, codes: string[]][
   ['post', '/users/{id}/invitation', ['202', '400', '401', '403', '404', '409', '429']],
   ['post', '/users/{id}/deactivate', ['204', '400', '401', '403', '404', '409']],
   ['post', '/users/{id}/reactivate', ['204', '400', '401', '403', '404', '409']],
+  ['get', '/expense-categories', ['200', '400', '401', '403']],
+  ['post', '/expense-categories', ['201', '400', '401', '403', '409']],
+  ['patch', '/expense-categories/{id}', ['200', '400', '401', '403', '404', '409']],
+  ['delete', '/expense-categories/{id}', ['204', '400', '401', '403', '404', '409']],
+  ['get', '/repair-expenses', ['200', '400', '401', '403']],
+  ['get', '/repair-expenses/{id}', ['200', '400', '401', '403', '404']],
+  ['post', '/repair-expenses', ['200', '201', '400', '401', '403', '404', '409']],
+  // Every consumer mounts the dead-letter review of @debus/messaging.
+  ['get', '/dead-letters', ['200', '400', '401', '403', '503']],
+  ['post', '/dead-letters/{messageId}/replay', ['200', '401', '403', '404', '502', '503']],
+  ['delete', '/dead-letters/{messageId}', ['204', '401', '403', '404', '503']],
 ];
 
 describe('API documentation', () => {
@@ -77,6 +88,38 @@ describe('API documentation', () => {
     );
   });
 
+  it('lists the roles of each route of the catalog, whose class-level role is narrower than the list', () => {
+    expect(document.paths['/expense-categories']?.get?.description).toBe(
+      'Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN.',
+    );
+    expect(document.paths['/expense-categories']?.post?.description).toBe(
+      'Allowed roles: SYSTEM_ADMIN.',
+    );
+    expect(document.paths['/repair-expenses']?.post?.description).toContain(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
+  });
+
+  it('documents the filters of the repair expense list as optional query parameters', () => {
+    expect(queryParameters('/repair-expenses')).toEqual(
+      expect.arrayContaining([
+        ['from', false],
+        ['to', false],
+        ['busId', false],
+        ['categoryId', false],
+        ['q', false],
+        ['page', false],
+        ['pageSize', false],
+      ]),
+    );
+    expect(queryParameters('/expense-categories')).toEqual(
+      expect.arrayContaining([
+        ['status', false],
+        ['q', false],
+      ]),
+    );
+  });
+
   it('documents the filters of the user list as optional query parameters', () => {
     expect(queryParameters('/users')).toEqual(
       expect.arrayContaining([
@@ -99,7 +142,7 @@ describe('API documentation', () => {
   });
 
   it('groups the routes under English tags', () => {
-    const tagOf = (path: string, method: 'get' | 'post' | 'patch') =>
+    const tagOf = (path: string, method: 'get' | 'post' | 'patch' | 'delete') =>
       document.paths[path]?.[method]?.tags;
 
     expect(tagOf('/auth/signup', 'post')).toEqual(['accounts']);
@@ -107,6 +150,8 @@ describe('API documentation', () => {
     expect(tagOf('/auth/login', 'post')).toEqual(['sessions']);
     expect(tagOf('/auth/me', 'get')).toEqual(['sessions']);
     expect(tagOf('/users', 'post')).toEqual(['users']);
+    expect(tagOf('/expense-categories', 'get')).toEqual(['expense-categories']);
+    expect(tagOf('/repair-expenses', 'post')).toEqual(['repair-expenses']);
   });
 
   it('describes every response in English', () => {

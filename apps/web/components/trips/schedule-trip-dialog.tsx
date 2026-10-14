@@ -1,10 +1,12 @@
 'use client';
 
-import { MAX_PAGE_SIZE, guatemalaDateTime, todayInGuatemala } from '@debus/contracts';
+import { guatemalaDateTime, todayInGuatemala } from '@debus/contracts';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { FormAlert } from '@/components/auth/form-alert';
 import { DateField } from '@/components/forms/date-field';
+import { OPTIONS_PAGE, useOptionSearch } from '@/components/forms/option-search';
+import { OptionSelect } from '@/components/forms/option-select';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,8 +16,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useBusesPage } from '@/hooks/use-buses';
-import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useDriverOptions } from '@/hooks/use-drivers';
+import { useFocusFirstProblem } from '@/hooks/use-focus-first-problem';
 import { useRoutesPage } from '@/hooks/use-routes';
 import { useScheduleTrip } from '@/hooks/use-trips';
 import { messageOf } from '@/lib/api/client';
@@ -29,17 +31,33 @@ import {
   splitGuatemala,
   suggestedArrival,
 } from '@/lib/trips/schedule';
-import { OptionSelect } from './option-select';
 import { TimeField } from './time-field';
 
-// The server pages its lists; a select asks for the largest page and, when needed, a search.
-const OPTIONS_PAGE = { page: 1, pageSize: MAX_PAGE_SIZE } as const;
-
-function useSearch() {
-  const [search, setSearch] = useState('');
-  const term = useDebouncedValue(search.trim());
-  return [search, setSearch, term || undefined] as const;
-}
+// Screen order, which decides what takes the focus after a failed submit.
+const FIELD_ORDER = [
+  'trip-route',
+  'trip-bus',
+  'trip-driver',
+  'trip-departure-day',
+  'trip-departure-time',
+  'trip-arrival-day',
+  'trip-arrival-time',
+] as const;
+const PROBLEM_FIELD_ID: Record<keyof ScheduleProblems, string> = {
+  routeId: 'trip-route',
+  busId: 'trip-bus',
+  driverId: 'trip-driver',
+  departureDay: 'trip-departure-day',
+  departureTime: 'trip-departure-time',
+  arrivalDay: 'trip-arrival-day',
+  arrivalTime: 'trip-arrival-time',
+};
+const CLASH_FIELD_ID: Record<ClashField, string> = {
+  route: 'trip-route',
+  bus: 'trip-bus',
+  driver: 'trip-driver',
+  departure: 'trip-departure-time',
+};
 
 interface ScheduleTripFormProps {
   defaultDay: string;
@@ -48,9 +66,10 @@ interface ScheduleTripFormProps {
 
 function ScheduleTripForm({ defaultDay, onDone }: ScheduleTripFormProps) {
   const schedule = useScheduleTrip();
-  const [routeSearch, setRouteSearch, routeTerm] = useSearch();
-  const [busSearch, setBusSearch, busTerm] = useSearch();
-  const [driverSearch, setDriverSearch, driverTerm] = useSearch();
+  const focusFirstProblem = useFocusFirstProblem(FIELD_ORDER);
+  const [routeSearch, setRouteSearch, routeTerm] = useOptionSearch();
+  const [busSearch, setBusSearch, busTerm] = useOptionSearch();
+  const [driverSearch, setDriverSearch, driverTerm] = useOptionSearch();
   const routes = useRoutesPage({
     status: 'active',
     ...(routeTerm && { q: routeTerm }),
@@ -90,12 +109,18 @@ function ScheduleTripForm({ defaultDay, onDone }: ScheduleTripFormProps) {
     event.preventDefault();
     setAttempted(true);
     setClash(null);
-    if (!result.request) return;
+    if (!result.request) {
+      const found = Object.keys(result.problems ?? {}) as (keyof ScheduleProblems)[];
+      focusFirstProblem(found.map((key) => PROBLEM_FIELD_ID[key]));
+      return;
+    }
     try {
       await schedule.mutateAsync(result.request);
     } catch (error) {
       const message = messageOf(error);
-      setClash({ field: clashFieldOf(message), message });
+      const field = clashFieldOf(message);
+      setClash({ field, message });
+      if (field) focusFirstProblem([CLASH_FIELD_ID[field]]);
       return;
     }
     toast.success(`Programamos el viaje a ${route?.destinationName ?? 'ese destino'}.`);

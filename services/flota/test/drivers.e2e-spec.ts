@@ -8,13 +8,13 @@ import {
 } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { seedTestBranch } from './support/branches';
 import { cleanFleetTestData } from './support/cleanup';
 import { captureEvents } from './support/events';
 import { busRow, driverRow, uniqueLicense, uniquePlate } from './support/fleet';
-import { identityHeaders } from './support/identity';
 
 const DAY_MS = 86_400_000;
 const inDays = (days: number) =>

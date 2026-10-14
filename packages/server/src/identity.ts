@@ -68,6 +68,8 @@ function describeRoutes(controller: { prototype: object }, roles: UserRole[]): v
   for (const name of Object.getOwnPropertyNames(prototype)) {
     const descriptor = Object.getOwnPropertyDescriptor(prototype, name);
     if (name === 'constructor' || typeof descriptor?.value !== 'function') continue;
+    // A route with its own @Roles already describes them, and the guard applies only those.
+    if (Reflect.getMetadata(ROLES_KEY, descriptor.value)) continue;
     const current = Reflect.getMetadata(DECORATORS.API_OPERATION, descriptor.value) as
       { description?: string } | undefined;
     const description = [current?.description, allowedRoles(roles)].filter(Boolean).join(' ');

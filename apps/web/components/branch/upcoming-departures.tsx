@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { BusAndDriver } from '@/components/trips/trip-columns';
 import { useTripsPage } from '@/hooks/use-trips';
+import { formatPlate } from '@/lib/format';
 import { splitGuatemala } from '@/lib/trips/schedule';
 import { Panel, PanelContent } from './panel';
 
@@ -18,6 +19,7 @@ export function UpcomingDepartures({ day }: { day: string }) {
   return (
     <Panel
       title="Próximas salidas"
+      refreshing={departures.isPlaceholderData}
       aside={
         <Link
           href={`/sucursal/viajes?desde=${day}&hasta=${day}`}
@@ -43,8 +45,11 @@ export function UpcomingDepartures({ day }: { day: string }) {
                   <th scope="col" className="px-3.5 py-2.5 font-medium">
                     Ruta
                   </th>
-                  <th scope="col" className="rounded-r-xl px-3.5 py-2.5 font-medium">
+                  <th scope="col" className="px-3.5 py-2.5 font-medium">
                     Bus y chofer
+                  </th>
+                  <th scope="col" className="relative rounded-r-xl px-3.5 py-2.5 font-medium">
+                    <span className="sr-only">Acciones</span>
                   </th>
                 </tr>
               </thead>
@@ -59,6 +64,15 @@ export function UpcomingDepartures({ day }: { day: string }) {
                     </td>
                     <td className="border-b border-muted px-3.5 py-3">
                       <BusAndDriver trip={trip} />
+                    </td>
+                    <td className="border-b border-muted px-3.5 py-3 text-right">
+                      <Link
+                        href={`/sucursal/viajes/${trip.id}`}
+                        aria-label={`Registrar salida de ${formatPlate(trip.busPlate)}`}
+                        className="font-semibold whitespace-nowrap text-primary hover:text-primary/80"
+                      >
+                        Registrar salida
+                      </Link>
                     </td>
                   </tr>
                 ))}

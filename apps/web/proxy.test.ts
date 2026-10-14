@@ -20,6 +20,11 @@ describe('proxy', () => {
   });
 
   it('only watches private areas', () => {
-    expect(config.matcher).toEqual(['/admin/:path*', '/sucursal/:path*', '/cuenta/:path*']);
+    expect(config.matcher).toEqual([
+      '/admin/:path*',
+      '/sucursal/:path*',
+      '/chofer/:path*',
+      '/cuenta/:path*',
+    ]);
   });
 });

@@ -6,7 +6,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "lint": "eslint src test",
+    "lint": "eslint src test --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "jest --coverage",
     "test:integration": "jest --config test/jest-integration.cjs --coverage"
@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@debus/contracts": "workspace:^",
+    "@debus/server": "workspace:^",
     "@google-cloud/pubsub": "^6.1.0",
     "google-auth-library": "^11.1.0",
     "zod": "^4.6.5"

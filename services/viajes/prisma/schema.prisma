@@ -62,6 +62,7 @@ model BusCopy {
   operationalStatus String   @map("operational_status")
   active            Boolean
   assignedDriverId  String?  @map("assigned_driver_id") @db.Uuid
+  mileageKm         Int      @default(0) @map("mileage_km")
   version           Int
   updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
 
@@ -112,32 +113,99 @@ enum TripStatus {
   COMPLETED
 }
 
-// A trip of this branch. The database itself refuses a bus or a driver in two trips that cross.
+// A trip of this branch. Until it arrives, the database refuses its bus or its driver in another trip that crosses it.
 model Trip {
-  id                 String     @id @default(uuid()) @db.Uuid
+  id                 String         @id @default(uuid()) @db.Uuid
   type               TripType
-  status             TripStatus @default(SCHEDULED)
-  branchId           String     @map("branch_id") @db.Uuid
-  routeId            String?    @map("route_id") @db.Uuid
-  busId              String     @map("bus_id") @db.Uuid
-  busPlate           String     @map("bus_plate")
+  status             TripStatus     @default(SCHEDULED)
+  branchId           String         @map("branch_id") @db.Uuid
+  routeId            String?        @map("route_id") @db.Uuid
+  busId              String         @map("bus_id") @db.Uuid
+  busPlate           String         @map("bus_plate")
   capacity           Int
-  driverId           String     @map("driver_id") @db.Uuid
-  driverName         String     @map("driver_name")
-  originLabel        String     @map("origin_label")
-  destinationLabel   String     @map("destination_label")
-  departureAt        DateTime   @map("departure_at") @db.Timestamptz(3)
-  estimatedArrivalAt DateTime   @map("estimated_arrival_at") @db.Timestamptz(3)
+  driverId           String         @map("driver_id") @db.Uuid
+  driverName         String         @map("driver_name")
+  originLabel        String         @map("origin_label")
+  destinationLabel   String         @map("destination_label")
+  departureAt        DateTime       @map("departure_at") @db.Timestamptz(3)
+  estimatedArrivalAt DateTime       @map("estimated_arrival_at") @db.Timestamptz(3)
   // Copied from the route when a regular trip is scheduled, so a later change of price never reaches it.
-  ticketPrice        Decimal?   @map("ticket_price") @db.Decimal(10, 2)
-  rentalId           String?    @map("rental_id") @db.Uuid
-  createdById        String     @map("created_by_id") @db.Uuid
-  searchText         String     @default("") @map("search_text")
-  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  ticketPrice        Decimal?       @map("ticket_price") @db.Decimal(10, 2)
+  rentalId           String?        @map("rental_id") @db.Uuid
+  createdById        String         @map("created_by_id") @db.Uuid
+  searchText         String         @default("") @map("search_text")
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  departure          TripDeparture?
+  arrival            TripArrival?
 
   @@index([branchId, departureAt])
   @@index([busId])
   @@index([driverId])
   @@map("trips")
+}
+
+enum RecordedByRole {
+  BRANCH_ADMIN
+  DRIVER
+}
+
+// Written once when the bus leaves; a trigger refuses any UPDATE or DELETE.
+model TripDeparture {
+  tripId         String         @id @map("trip_id") @db.Uuid
+  trip           Trip           @relation(fields: [tripId], references: [id], onDelete: Restrict)
+  departedAt     DateTime       @map("departed_at") @db.Timestamptz(3)
+  startMileageKm Int            @map("start_mileage_km")
+  recordedById   String         @map("recorded_by_id") @db.Uuid
+  recordedByRole RecordedByRole @map("recorded_by_role")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("trip_departures")
+}
+
+// Written once when the bus arrives, with the amounts fixed at that moment; a trigger refuses changes.
+model TripArrival {
+  tripId             String         @id @map("trip_id") @db.Uuid
+  trip               Trip           @relation(fields: [tripId], references: [id], onDelete: Restrict)
+  arrivedAt          DateTime       @map("arrived_at") @db.Timestamptz(3)
+  endMileageKm       Int            @map("end_mileage_km")
+  fuelCost           Decimal        @map("fuel_cost") @db.Decimal(10, 2)
+  distanceKm         Int            @map("distance_km")
+  depreciationPerKm  Decimal        @map("depreciation_per_km") @db.Decimal(10, 2)
+  depreciationAmount Decimal        @map("depreciation_amount") @db.Decimal(12, 2)
+  driverPay          Decimal        @map("driver_pay") @db.Decimal(10, 2)
+  settingsVersionId  String         @map("settings_version_id") @db.Uuid
+  recordedById       String         @map("recorded_by_id") @db.Uuid
+  recordedByRole     RecordedByRole @map("recorded_by_role")
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("trip_arrivals")
+}
+
+enum RentalRequestStatus {
+  PENDING
+  ASSIGNED
+}
+
+// A paid rental (RentalPaid) waiting for the branch admin to give it a bus and a driver.
+model RentalRequest {
+  id               String              @id @db.Uuid
+  branchId         String              @map("branch_id") @db.Uuid
+  clientName       String              @map("client_name")
+  nit              String
+  originLabel      String              @map("origin_label")
+  destinationLabel String              @map("destination_label")
+  departureAt      DateTime            @map("departure_at") @db.Timestamptz(3)
+  returnAt         DateTime?           @map("return_at") @db.Timestamptz(3)
+  passengers       Int
+  distanceKm       Decimal             @map("distance_km") @db.Decimal(7, 1)
+  price            Decimal             @db.Decimal(10, 2)
+  status           RentalRequestStatus @default(PENDING)
+  tripId           String?             @unique @map("trip_id") @db.Uuid
+  searchText       String              @default("") @map("search_text")
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([branchId, status, departureAt])
+  @@map("rental_requests")
 }

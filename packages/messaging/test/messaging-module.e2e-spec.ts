@@ -1,17 +1,19 @@
 import 'reflect-metadata';
-import { createEnvelope, eventEnvelopeSchema } from '@debus/contracts';
+import { createEnvelope, eventEnvelopeSchema, exampleBus } from '@debus/contracts';
 import { PubSub } from '@google-cloud/pubsub';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { EventPublisher, InMemoryInboxStore, MessagingModule, OIDC_VERIFIER, Outbox } from '../src';
+import {
+  EventPublisher,
+  InMemoryInboxStore,
+  MessagingModule,
+  OIDC_VERIFIER,
+  Outbox,
+  pushBody,
+} from '../src';
 import { recreateOutboxTable, testPool, transactional } from './support/pg';
 import { pullOne } from './support/pull';
-
-const push = (value: unknown) => ({
-  message: { data: Buffer.from(JSON.stringify(value)).toString('base64') },
-  subscription: 'test',
-});
 
 describe('MessagingModule', () => {
   let app: INestApplication;
@@ -35,8 +37,8 @@ describe('MessagingModule', () => {
     const envelope = createEnvelope('ProbeSent', { requestedAt: new Date().toISOString() }, 'c');
     const server = app.getHttpServer();
 
-    await request(server).post('/events/pubsub').send(push(envelope)).expect(204);
-    await request(server).post('/events/pubsub').send(push(envelope)).expect(204);
+    await request(server).post('/events/pubsub').send(pushBody(envelope)).expect(204);
+    await request(server).post('/events/pubsub').send(pushBody(envelope)).expect(204);
     const response = await request(server).get(`/events/processed/${envelope.eventId}`).expect(200);
 
     expect(response.body).toMatchObject({ eventId: envelope.eventId, type: 'ProbeSent' });
@@ -132,7 +134,7 @@ describe('MessagingModule outside the emulator', () => {
       await request(app.getHttpServer())
         .post('/events/pubsub')
         .set('Authorization', 'Bearer valid')
-        .send(push(envelope))
+        .send(pushBody(envelope))
         .expect(204);
     });
 
@@ -174,7 +176,7 @@ describe('MessagingModule outbox', () => {
 
   it('publishes an event added in a transaction when the flush endpoint is called', async () => {
     const envelope = await db.$transaction((tx) =>
-      app.get(Outbox).add(tx, 'BusAdded', { busId: 'b-1' }, 'c-outbox'),
+      app.get(Outbox).add(tx, 'BusAdded', exampleBus, 'c-outbox'),
     );
 
     const response = await request(app.getHttpServer()).post('/outbox/flush').expect(200);

@@ -2,13 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { busChangedPayloadSchema, busPageSchema } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { seedTestBranch } from './support/branches';
 import { cleanFleetTestData } from './support/cleanup';
 import { captureEvents } from './support/events';
 import { busRow, driverRow, uniquePlate } from './support/fleet';
-import { identityHeaders } from './support/identity';
 
 const newBus = (over: Record<string, unknown> = {}) => ({
   plate: uniquePlate(),
@@ -147,6 +147,27 @@ describe('buses', () => {
     );
   });
 
+  it('refuses an edit that lowers the mileage and queues no event for it', async () => {
+    const { body: bus } = await http()
+      .post('/buses')
+      .set(admin())
+      .send(newBus({ mileageKm: 3000 }))
+      .expect(201);
+    const before = (await events.committed('BusUpdated')).length;
+
+    const response = await http()
+      .patch(`/buses/${bus.id}`)
+      .set(admin())
+      .send(newBus({ plate: bus.plate, mileageKm: 2999 }))
+      .expect(409);
+
+    expect(response.body.message).toContain('kilometraje');
+    expect((await events.committed('BusUpdated')).length).toBe(before);
+    expect((await http().get(`/buses/${bus.id}`).set(admin()).expect(200)).body.mileageKm).toBe(
+      3000,
+    );
+  });
+
   it('refuses to deactivate a bus with a scheduled trip and allows it afterwards', async () => {
     const { body: bus } = await http().post('/buses').set(admin()).send(newBus()).expect(201);
     const driver = await newDriver('Ana Sic');
@@ -256,5 +277,38 @@ describe('buses', () => {
       .expect(403);
     await http().get('/buses').set(identityHeaders(randomUUID(), 'SYSTEM_ADMIN')).expect(403);
     await http().get('/buses').expect(401);
+  });
+
+  describe('republishing for the services that keep a copy', () => {
+    it('sends every bus of a branch again with a higher version, and touches no other branch', async () => {
+      const own = await seedTestBranch(prisma, 'republicar');
+      const other = await seedTestBranch(prisma, 'republicar otra');
+      const buses = await Promise.all(
+        [own, own, other].map((id) => prisma.bus.create({ data: busRow(id) })),
+      );
+
+      const response = await http()
+        .post('/internal/buses/republish')
+        .query({ branchId: own })
+        .expect(200);
+
+      expect(response.body).toEqual({ republished: 2 });
+      const versions = await prisma.bus.findMany({
+        where: { id: { in: buses.map((bus) => bus.id) } },
+        select: { id: true, version: true },
+      });
+      expect(versions.map((row) => row.version).sort()).toEqual([1, 2, 2]);
+      const sent = (await events.committed('BusUpdated')).map((payload) =>
+        busChangedPayloadSchema.parse(payload),
+      );
+      expect(sent.filter((payload) => payload.branchId === own).map((p) => p.version)).toEqual([
+        2, 2,
+      ]);
+      expect(sent.some((payload) => payload.branchId === other)).toBe(false);
+    });
+
+    it('answers 400 for a branch that is not an id', async () => {
+      await http().post('/internal/buses/republish').query({ branchId: 'x' }).expect(400);
+    });
   });
 });

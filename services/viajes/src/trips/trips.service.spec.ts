@@ -1,5 +1,6 @@
 import { ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
+import { TripWrites } from './trip-writes';
 import { TripsService } from './trips.service';
 
 const branchId = '9b2c7a10-1111-4c4c-8888-123456789abc';
@@ -49,14 +50,20 @@ const routeCopy = {
   active: true,
   deleted: false,
 };
-const busCopy = { id: busId, plate: 'C482BTX', capacity: 40, active: true };
-const driverCopy = { id: driverId, fullName: 'Julio Pérez', active: true };
+const busCopy = { id: busId, plate: 'C482BTX', capacity: 40, active: true, mileageKm: 148000 };
+const driverCopy = {
+  id: driverId,
+  fullName: 'Julio Pérez',
+  active: true,
+  baseSalary: new Prisma.Decimal('250.00'),
+};
 
 const setup = () => {
   const tx = {
     trip: { create: jest.fn().mockResolvedValue(tripRow) },
     busCopy: { findUnique: jest.fn().mockResolvedValue(busCopy) },
     driverCopy: { findUnique: jest.fn().mockResolvedValue(driverCopy) },
+    routeCopy: { findUnique: jest.fn().mockResolvedValue(routeCopy) },
     $executeRawUnsafe: jest.fn().mockResolvedValue(1),
   };
   const prisma = {
@@ -65,10 +72,15 @@ const setup = () => {
     driverCopy: { findUnique: jest.fn().mockResolvedValue(driverCopy) },
     branchCopy: {
       findUnique: jest.fn(
-        ({ where }: { where: { id: string } }): Promise<{ id: string; name: string } | null> =>
+        ({
+          where,
+        }: {
+          where: { id: string };
+        }): Promise<{ id: string; name: string; active: boolean } | null> =>
           Promise.resolve({
             id: where.id,
             name: where.id === branchId ? 'Quetzaltenango' : 'Guatemala',
+            active: true,
           }),
       ),
     },
@@ -83,12 +95,20 @@ const setup = () => {
     add: jest.fn().mockResolvedValue({}),
     flush: jest.fn().mockResolvedValue({}),
   };
+  const settings = { effectiveOn: jest.fn().mockResolvedValue({ depreciationPerKm: 0.85 }) };
   return {
     tx,
+    settings,
     prisma,
     fleet,
     outbox,
-    service: new TripsService(prisma as never, fleet as never, outbox as never),
+    service: new TripsService(
+      prisma as never,
+      fleet as never,
+      outbox as never,
+      settings as never,
+      new TripWrites(prisma as never),
+    ),
   };
 };
 
@@ -194,12 +214,47 @@ describe('TripsService.schedule', () => {
   it('refuses a route whose branches are not known yet', async () => {
     const { prisma, service } = setup();
     prisma.branchCopy.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve(where.id === destinationId ? null : { id: where.id, name: 'Origen' }),
+      Promise.resolve(
+        where.id === destinationId ? null : { id: where.id, name: 'Origen', active: true },
+      ),
     );
 
     await expect(service.schedule(actor, input)).rejects.toThrow(
       new ConflictException('Elige una ruta activa que salga de tu sucursal.'),
     );
+  });
+
+  it('refuses a deactivated origin or destination branch before calling flota (m1)', async () => {
+    const { prisma, fleet, service } = setup();
+    prisma.branchCopy.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve({ id: where.id, name: 'Sucursal', active: where.id !== branchId }),
+    );
+    await expect(service.schedule(actor, input)).rejects.toThrow(
+      new ConflictException('Tu sucursal no está activa.'),
+    );
+
+    prisma.branchCopy.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve({ id: where.id, name: 'Sucursal', active: where.id === branchId }),
+    );
+    await expect(service.schedule(actor, input)).rejects.toThrow(
+      new ConflictException('La sucursal destino no está activa. Elige otra ruta.'),
+    );
+    expect(fleet.availability).not.toHaveBeenCalled();
+  });
+
+  it('refuses a route deleted or retired while the trip was being written, and queues nothing (m2)', async () => {
+    const { tx, outbox, service } = setup();
+    tx.routeCopy.findUnique.mockResolvedValue({ ...routeCopy, deleted: true });
+    await expect(service.schedule(actor, input)).rejects.toThrow(
+      new ConflictException('Elige una ruta activa que salga de tu sucursal.'),
+    );
+
+    tx.routeCopy.findUnique.mockResolvedValue({ ...routeCopy, active: false });
+    await expect(service.schedule(actor, input)).rejects.toThrow(ConflictException);
+    tx.routeCopy.findUnique.mockResolvedValue(null);
+    await expect(service.schedule(actor, input)).rejects.toThrow(ConflictException);
+    expect(tx.trip.create).not.toHaveBeenCalled();
+    expect(outbox.add).not.toHaveBeenCalled();
   });
 
   it('checks the bus and the driver again inside the transaction, in case they were deactivated meanwhile', async () => {
@@ -326,22 +381,41 @@ describe('TripsService.schedule', () => {
 });
 
 describe('TripsService.list and get', () => {
+  const driverActor = { ...actor, role: 'DRIVER' as const };
   const lists = () => {
     const prisma = {
       trip: {
         findMany: jest.fn().mockResolvedValue([tripRow]),
         count: jest.fn().mockResolvedValue(1),
-        findFirst: jest.fn().mockResolvedValue(tripRow),
+        findFirst: jest.fn().mockResolvedValue({ ...tripRow, departure: null, arrival: null }),
       },
+      busCopy: { findUnique: jest.fn().mockResolvedValue(busCopy) },
+      driverCopy: { findUnique: jest.fn().mockResolvedValue(driverCopy) },
+      routeCopy: {
+        findUnique: jest.fn().mockResolvedValue({ distanceKm: new Prisma.Decimal('201.5') }),
+      },
+      rentalRequest: { findUnique: jest.fn() },
+      tripArrival: { aggregate: jest.fn().mockResolvedValue({ _max: { endMileageKm: null } }) },
       $transaction: jest.fn((work) => Promise.all(work)),
     };
-    return { prisma, service: new TripsService(prisma as never, {} as never, {} as never) };
+    const settings = { effectiveOn: jest.fn().mockResolvedValue({ depreciationPerKm: 0.85 }) };
+    return {
+      prisma,
+      settings,
+      service: new TripsService(
+        prisma as never,
+        {} as never,
+        {} as never,
+        settings as never,
+        {} as never,
+      ),
+    };
   };
 
   it('pages the trips of the branch by departure, within the days that were asked', async () => {
     const { prisma, service } = lists();
 
-    const page = await service.list(branchId, {
+    const page = await service.list(actor, {
       from: '2999-10-20',
       to: '2999-10-20',
       status: 'SCHEDULED',
@@ -369,14 +443,79 @@ describe('TripsService.list and get', () => {
     expect(page.items[0]).toMatchObject({ id: tripRow.id, busPlate: 'C482BTX' });
   });
 
-  it('finds a trip of the branch or answers not found', async () => {
+  it('lists only the trips a driver drives, whatever the branch', async () => {
     const { prisma, service } = lists();
 
-    expect(await service.get(branchId, tripRow.id)).toMatchObject({ id: tripRow.id });
-    expect(prisma.trip.findFirst).toHaveBeenCalledWith({ where: { id: tripRow.id, branchId } });
-    prisma.trip.findFirst.mockResolvedValueOnce(null);
-    await expect(service.get(branchId, tripRow.id)).rejects.toThrow(
+    await service.list(driverActor, { status: 'all', page: 1, pageSize: 20 });
+
+    const { where } = prisma.trip.findMany.mock.calls[0][0] as { where: object };
+    expect(where).toEqual({ driverId: driverActor.userId });
+    expect(where).not.toHaveProperty('branchId');
+  });
+
+  it('shows the detail of a trip of the branch with the distance of its route and the rate of today', async () => {
+    const { prisma, settings, service } = lists();
+
+    const detail = await service.get(actor, tripRow.id);
+
+    expect(prisma.trip.findFirst).toHaveBeenCalledWith({
+      where: { id: tripRow.id, branchId },
+      include: { departure: true, arrival: true },
+    });
+    expect(settings.effectiveOn).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
+    expect(detail).toMatchObject({
+      id: tripRow.id,
+      distanceKm: 201.5,
+      busActive: true,
+      suggestedStartMileageKm: 148000,
+      depreciationPerKmToday: 0.85,
+      expectedDriverPay: 250,
+      canDelete: true,
+    });
+  });
+
+  it('suggests the last arrival of the bus when the copy of its mileage lags behind', async () => {
+    const { prisma, service } = lists();
+    prisma.tripArrival.aggregate.mockResolvedValue({ _max: { endMileageKm: 148204 } });
+
+    const detail = await service.get(actor, tripRow.id);
+
+    expect(detail.suggestedStartMileageKm).toBe(148204);
+  });
+
+  it('takes the distance of a rental from its request, and none when the rate is not set', async () => {
+    const { prisma, settings, service } = lists();
+    prisma.trip.findFirst.mockResolvedValue({
+      ...tripRow,
+      type: 'RENTAL',
+      routeId: null,
+      rentalId: 'r1',
+      departure: null,
+      arrival: null,
+    });
+    prisma.rentalRequest.findUnique.mockResolvedValue({ distanceKm: new Prisma.Decimal('320.0') });
+    settings.effectiveOn.mockResolvedValue(null);
+
+    const detail = await service.get(actor, tripRow.id);
+
+    expect(prisma.routeCopy.findUnique).not.toHaveBeenCalled();
+    expect(detail).toMatchObject({
+      distanceKm: 320,
+      depreciationPerKmToday: null,
+      expectedDriverPay: 287.5,
+    });
+  });
+
+  it('answers not found for a trip of another branch or of another driver', async () => {
+    const { prisma, service } = lists();
+    prisma.trip.findFirst.mockResolvedValue(null);
+
+    await expect(service.get(actor, tripRow.id)).rejects.toThrow(
       new NotFoundException('No encontramos ese viaje.'),
+    );
+    await expect(service.get(driverActor, tripRow.id)).rejects.toThrow(NotFoundException);
+    expect(prisma.trip.findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { id: tripRow.id, driverId: driverActor.userId } }),
     );
   });
 });

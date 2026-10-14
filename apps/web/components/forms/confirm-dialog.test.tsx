@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/api/api-error';
 import { ConfirmDialog } from './confirm-dialog';
@@ -28,6 +28,22 @@ describe('ConfirmDialog', () => {
 
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('shows the details the person is about to confirm', () => {
+    render(
+      <ConfirmDialog
+        open
+        onOpenChange={jest.fn()}
+        title="¿Registrar la salida?"
+        description="No se podrá cambiar después."
+        confirmLabel="Registrar salida"
+        details={<dl aria-label="Resumen">resumen de la salida</dl>}
+        onConfirm={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Resumen')).toHaveTextContent('resumen de la salida');
   });
 
   it('keeps the dialog open with a friendly message when it fails', async () => {
@@ -76,7 +92,10 @@ describe('ConfirmDialog', () => {
 
     expect(screen.getByRole('button', { name: 'Guardando...' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
-    finish();
+
+    await act(async () => finish());
+
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeEnabled();
   });
 
   it('cancels without running the action', async () => {

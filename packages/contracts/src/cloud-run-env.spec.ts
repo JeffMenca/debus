@@ -1,4 +1,10 @@
-import { cloudRunEnv, escapeNewlines, missingAppValues, readAppSecrets } from './cloud-run-env';
+import {
+  cloudRunEnv,
+  escapeNewlines,
+  missingAppValues,
+  readAppSecrets,
+  serviceAccountEmail,
+} from './cloud-run-env';
 import { serviceUrl } from './topology';
 
 const appSecrets = {
@@ -61,9 +67,7 @@ describe('cloudRunEnv', () => {
       SERVICE_URL_CLIENTES: expect.any(String),
       SERVICE_URL_VIAJES: expect.any(String),
     });
-    expect(cloudRunEnv('clientes', 'production', settings)).toMatchObject({
-      SERVICE_URL_FLOTA: expect.any(String),
-    });
+    expect(cloudRunEnv('clientes', 'production', settings)).not.toHaveProperty('SERVICE_URL_FLOTA');
     expect(cloudRunEnv('reportes', 'production', settings)).not.toHaveProperty('SERVICE_AUTH');
   });
 
@@ -175,5 +179,13 @@ describe('missingAppValues', () => {
     for (const unit of ['flota', 'viajes', 'ventas', 'clientes', 'reportes', 'web'] as const) {
       expect(missingAppValues(unit, empty)).toEqual([]);
     }
+  });
+});
+
+describe('serviceAccountEmail', () => {
+  it('names the identity each unit runs as on Cloud Run', () => {
+    expect(serviceAccountEmail('clientes', 'debus-prod')).toBe(
+      'debus-clientes@debus-prod.iam.gserviceaccount.com',
+    );
   });
 });

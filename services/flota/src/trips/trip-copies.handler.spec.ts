@@ -10,10 +10,11 @@ import { TripCopiesHandler } from './trip-copies.handler';
 type Row = { status: string };
 
 // The SQL text tells the statements apart: a lock on the trip copy, the check that the bus is ours.
-const setup = (over: { current?: string | null; ownsBus?: boolean } = {}) => {
-  const { current = null, ownsBus = true } = over;
+const setup = (over: { current?: string | null; ownsBus?: boolean; tombstone?: boolean } = {}) => {
+  const { current = null, ownsBus = true, tombstone = false } = over;
   const tx = {
     $queryRawUnsafe: jest.fn((sql: string): Promise<Row[] | unknown[]> => {
+      if (sql.includes('FROM deleted_trips')) return Promise.resolve(tombstone ? [{}] : []);
       if (sql.includes('FROM trip_copies'))
         return Promise.resolve(current ? [{ status: current }] : []);
       return Promise.resolve(ownsBus ? [{ '?column?': 1 }] : []);
@@ -52,6 +53,22 @@ describe('TripCopiesHandler.scheduled', () => {
       'UPDATE routes SET has_trips = true WHERE id = $1::uuid',
       exampleTripScheduled.routeId,
     ]);
+  });
+
+  it('ignores a TripScheduled whose trip was already deleted', async () => {
+    const { tx, handler } = setup({ tombstone: true });
+
+    await handler.scheduled(
+      exampleTripScheduled,
+      env('TripScheduled', exampleTripScheduled),
+      tx as never,
+    );
+
+    expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(tx.$queryRawUnsafe).not.toHaveBeenCalledWith(
+      expect.stringContaining('FROM trip_copies'),
+      expect.anything(),
+    );
   });
 
   it('does not touch routes for a trip without one', async () => {
@@ -123,7 +140,9 @@ describe('TripCopiesHandler.scheduled', () => {
 
   it('falls back to the service client outside the inbox transaction', async () => {
     const { prisma, handler } = setup();
-    prisma.$queryRawUnsafe.mockResolvedValue([{ '?column?': 1 }]);
+    prisma.$queryRawUnsafe.mockImplementation((sql: string) =>
+      Promise.resolve(sql.includes('FROM deleted_trips') ? [] : [{ '?column?': 1 }]),
+    );
     prisma.$executeRawUnsafe.mockResolvedValue(1);
 
     await handler.scheduled(exampleTripScheduled, env('TripScheduled', exampleTripScheduled));
@@ -142,10 +161,24 @@ describe('TripCopiesHandler.deleted', () => {
       tx as never,
     );
 
-    expect(statements(tx)).toEqual([
+    expect(statements(tx)[0]).toBe(
       `DELETE FROM trip_copies WHERE trip_id = $1::uuid AND status = 'SCHEDULED'`,
-    ]);
+    );
     expect(tx.$executeRawUnsafe.mock.calls[0][1]).toBe(exampleTripDeleted.tripId);
+  });
+
+  it('leaves a tombstone, so a late TripScheduled does not bring the trip back', async () => {
+    const { tx, handler } = setup();
+
+    await handler.deleted(
+      exampleTripDeleted,
+      env('TripScheduled', exampleTripDeleted),
+      tx as never,
+    );
+
+    const [, tombstone] = tx.$executeRawUnsafe.mock.calls;
+    expect(String(tombstone[0])).toContain('INSERT INTO deleted_trips');
+    expect(tombstone.slice(1)).toEqual([exampleTripDeleted.tripId, exampleTripDeleted.branchId]);
   });
 });
 

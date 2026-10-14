@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SignupForm } from './signup-form';
+import { useHydrated } from '../../hooks/use-hydrated';
 
+jest.mock('../../hooks/use-hydrated', () => ({ useHydrated: jest.fn(() => true) }));
 const fetchMock = jest.fn();
 beforeEach(() => {
   fetchMock.mockReset();
@@ -91,5 +93,27 @@ describe('SignupForm', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Revisa los datos.');
     expect(screen.getByRole('heading', { name: 'Crea tu cuenta' })).toBeInTheDocument();
+  });
+});
+
+describe('SignupForm before the page is interactive', () => {
+  afterEach(() => jest.mocked(useHydrated).mockReturnValue(true));
+
+  it('posts instead of getting, so a native submit never puts the fields in the address', () => {
+    const { container } = render(<SignupForm />);
+
+    expect(container.querySelector('form')).toHaveAttribute('method', 'post');
+  });
+
+  it('keeps the submit button off until the page can handle the submit', () => {
+    jest.mocked(useHydrated).mockReturnValue(false);
+    const view = render(<SignupForm />);
+
+    expect(screen.getByRole('button', { name: /Crear cuenta/ })).toBeDisabled();
+
+    jest.mocked(useHydrated).mockReturnValue(true);
+    view.rerender(<SignupForm />);
+
+    expect(screen.getByRole('button', { name: /Crear cuenta/ })).toBeEnabled();
   });
 });

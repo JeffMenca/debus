@@ -196,6 +196,10 @@ it('shows a driver that is already assigned next to the driver', async () => {
     'bus-driver-error',
   );
   expect(screen.getByRole('combobox', { name: 'Chofer de planta' })).toHaveFocus();
+  expect(screen.getByRole('combobox', { name: 'Chofer de planta' })).toHaveAttribute(
+    'aria-describedby',
+    'bus-driver-error',
+  );
 });
 
 it('shows any other failure at the top of the form', async () => {

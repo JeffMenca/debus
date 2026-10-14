@@ -15,6 +15,12 @@ describe('FormAlert', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Listo.');
   });
 
+  it('gives information politely', () => {
+    render(<FormAlert tone="info">Aviso.</FormAlert>);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Aviso.');
+  });
+
   it('can be a plain note without a live region', () => {
     render(
       <FormAlert tone="success" icon={Ticket} live={false}>

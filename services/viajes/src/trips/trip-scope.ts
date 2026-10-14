@@ -1,10 +1,10 @@
 import { type TripListQuery, escapeLikePattern, guatemalaDayRange } from '@debus/contracts';
 import type { Prisma } from '../generated/prisma/client';
 
-export function tripListWhere(branchId: string, query: TripListQuery): Prisma.TripWhereInput {
+// The filters of the query only; who may see which trips is `tripAccessWhere`.
+export function tripListWhere(query: TripListQuery): Prisma.TripWhereInput {
   const days = guatemalaDayRange(query.from, query.to);
   return {
-    branchId,
     ...(Object.keys(days).length > 0 && { departureAt: days }),
     ...(query.status !== 'all' && { status: query.status }),
     ...(query.q && { searchText: { contains: escapeLikePattern(query.q) } }),

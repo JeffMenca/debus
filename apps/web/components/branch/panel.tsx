@@ -9,13 +9,16 @@ interface PanelProps {
   // What sits on the right of the title: a link, a timestamp.
   aside?: ReactNode;
   className?: string;
+  // The content shown belongs to a previous question while the new answer arrives.
+  refreshing?: boolean;
   children: ReactNode;
 }
 
 // A white block of the branch panel, headed by its title.
-export function Panel({ title, aside, className, children }: PanelProps) {
+export function Panel({ title, aside, className, refreshing, children }: PanelProps) {
   return (
     <section
+      aria-busy={refreshing || undefined}
       className={cn(
         'flex animate-arrive flex-col gap-4 rounded-[26px] bg-card p-5 motion-reduce:animate-none sm:p-6',
         className,
@@ -25,7 +28,14 @@ export function Panel({ title, aside, className, children }: PanelProps) {
         <h2 className="flex items-center gap-2.5 font-display text-[22px] font-bold">{title}</h2>
         {aside}
       </div>
-      {children}
+      <div
+        className={cn(
+          'flex flex-col gap-4',
+          refreshing && 'opacity-60 transition-opacity motion-reduce:transition-none',
+        )}
+      >
+        {children}
+      </div>
     </section>
   );
 }

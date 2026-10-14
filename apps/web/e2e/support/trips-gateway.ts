@@ -17,6 +17,7 @@ import type { Page, Route as PageRoute } from '@playwright/test';
 import type { RecordedRequest } from './admin-gateway';
 import { FLEET_BRANCH_ID, dayFromToday } from './fleet-gateway';
 import { fulfillJson } from './session';
+import { type Reply, type TripCycleSeed, createTripCycle, overlaps } from './trip-cycle-gateway';
 
 // The buses, drivers and routes the screens list come from the flota double; the trips are
 // built from them, the way the service builds them from its copies.
@@ -28,6 +29,8 @@ export interface TripsFleet {
 
 export interface TripsSeed {
   trips?: Trip[];
+  // The departures, arrivals and rentals waiting for a bus that the trip screen works with.
+  cycle?: TripCycleSeed;
   // The service that answers availability does not respond: scheduling gives a 503.
   fleetDown?: boolean;
 }
@@ -48,14 +51,11 @@ const MESSAGES = {
   notFound: 'No encontramos ese viaje.',
 } as const;
 
-const overlaps = (a: Trip, b: { departureAt: string; estimatedArrivalAt: string }) =>
-  isLaterInstant(a.estimatedArrivalAt, b.departureAt) &&
-  isLaterInstant(b.estimatedArrivalAt, a.departureAt);
-
 // Plays the viajes API with state, like the service: the list is validated, filtered by Guatemalan
 // day and cut here, and scheduling answers with the same status codes and texts.
 export async function mockTripsGateway(page: Page, fleet: TripsFleet, seed: TripsSeed = {}) {
   const trips = structuredClone(seed.trips ?? []);
+  const cycle = createTripCycle(fleet, trips, seed.cycle);
   const requests: RecordedRequest[] = [];
   const error = (route: PageRoute, status: number, message: string) =>
     fulfillJson(route, status, { statusCode: status, message });
@@ -69,7 +69,14 @@ export async function mockTripsGateway(page: Page, fleet: TripsFleet, seed: Trip
     const method = request.method();
     const body: unknown = request.postData() ? (request.postDataJSON() as unknown) : undefined;
     requests.push({ method, path, query: url.search, body });
-    const [, resource, id] = path.split('/');
+    const [, resource, id, step] = path.split('/');
+    const answer = (result: Reply) => fulfillJson(route, result.status, result.json);
+
+    if (resource === 'rental-requests') {
+      if (method === 'GET' && !id) return answer(cycle.listRentals(url.searchParams));
+      if (method === 'POST' && step === 'assignment') return answer(cycle.assignRental(id!, body));
+      return error(route, 404, MESSAGES.notFound);
+    }
     if (resource !== 'trips') return error(route, 404, MESSAGES.notFound);
 
     if (method === 'GET' && !id) {
@@ -77,7 +84,8 @@ export async function mockTripsGateway(page: Page, fleet: TripsFleet, seed: Trip
       if (!parsed.success) return error(route, 400, INVALID);
       const { from, to, status, q, ...paging } = parsed.data;
       const days = guatemalaDayRange(from, to);
-      const shown = trips
+      const shown = cycle
+        .visibleTrips()
         .filter(
           (trip) =>
             (!days.gte || new Date(trip.departureAt) >= days.gte) &&
@@ -93,10 +101,10 @@ export async function mockTripsGateway(page: Page, fleet: TripsFleet, seed: Trip
       return fulfillJson(route, 200, toPage(shown.slice(skip, skip + take), shown.length, paging));
     }
 
-    if (method === 'GET') {
-      const found = trips.find((trip) => trip.id === id);
-      return found ? fulfillJson(route, 200, found) : error(route, 404, MESSAGES.notFound);
-    }
+    if (method === 'GET') return answer(cycle.detail(id!));
+    if (method === 'DELETE') return answer(cycle.remove(id!));
+    if (method === 'POST' && step === 'departure') return answer(cycle.recordDeparture(id!, body));
+    if (method === 'POST' && step === 'arrival') return answer(cycle.recordArrival(id!, body));
 
     if (method === 'POST' && !id) {
       const parsed = scheduleTripRequestSchema.safeParse(body);
@@ -147,7 +155,7 @@ export async function mockTripsGateway(page: Page, fleet: TripsFleet, seed: Trip
     return error(route, 404, MESSAGES.notFound);
   });
 
-  return { requests, trips };
+  return { requests, trips, rentals: cycle.rentals, records: cycle.records };
 }
 
 // A Guatemalan day (counted from today) and hour as the instant the service stores.

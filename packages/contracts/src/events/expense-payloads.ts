@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { isoDateSchema } from '../dates';
+import { EVENT_AMOUNT_MAX } from './limits';
 
 export const REPAIR_LINE_KINDS = ['LABOR', 'PART'] as const;
-const amount = z.number().positive().max(1_000_000);
+const amount = z.number().positive().max(EVENT_AMOUNT_MAX);
 const cents = (value: number) => Math.round(value * 100);
 
 export const repairExpenseAddedPayloadSchema = z

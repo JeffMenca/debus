@@ -9,7 +9,7 @@ export interface EventDefinition {
 }
 
 const branchConsumers: BackendService[] = ['flota', 'viajes', 'ventas', 'reportes'];
-const busConsumers: BackendService[] = ['viajes', 'reportes'];
+const busConsumers: BackendService[] = ['viajes', 'reportes', 'administracion'];
 const driverConsumers: BackendService[] = ['viajes', 'notificaciones', 'administracion'];
 const routeConsumers: BackendService[] = ['viajes', 'reportes'];
 

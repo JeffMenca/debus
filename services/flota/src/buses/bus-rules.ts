@@ -42,3 +42,7 @@ export const canAssignDriver = (
   bus: { branchId: string },
   driver: { branchId: string; active: boolean },
 ): boolean => driver.active && driver.branchId === bus.branchId;
+
+// Completed trips raise the mileage on their own; an old form must not take it back.
+export const mileageProblem = (currentKm: number, nextKm: number): 'mileageDecrease' | null =>
+  nextKm < currentKm ? 'mileageDecrease' : null;

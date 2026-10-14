@@ -17,6 +17,7 @@ export const EXAMPLE_IDS = {
   driver: '2a1b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d',
   route: '3b2c1d0e-6f5a-4b4c-9d8e-7f6a5b4c3d2e',
   trip: '4c3d2e1f-7a6b-4c5d-8e9f-0a1b2c3d4e5f',
+  rental: '6e5d4c3b-2a19-4f8e-9d7c-6b5a4f3e2d1c',
 } as const;
 
 export const exampleBus: BusChangedPayload = {

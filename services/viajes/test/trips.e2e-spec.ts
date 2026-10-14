@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { tripScheduledPayloadSchema, tripSchema } from '@debus/contracts';
-import { ServiceHttpClient, ServiceUnavailableError, FakeServiceClient } from '@debus/server';
+import {
+  FakeServiceClient,
+  identityHeaders,
+  ServiceHttpClient,
+  ServiceUnavailableError,
+} from '@debus/server';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -8,7 +13,6 @@ import { createTestApp } from './support/app';
 import { cleanTripTestData } from './support/cleanup';
 import { captureEvents } from './support/events';
 import { type SeededFleet, seedBus, seedDriver, seedFleet } from './support/fleet';
-import { identityHeaders } from './support/identity';
 
 const AVAILABLE = { bus: { available: true }, driver: { available: true } };
 const window = {

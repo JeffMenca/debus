@@ -138,6 +138,15 @@ model Route {
   @@map("routes")
 }
 
+// A trip deleted in viajes; a TripScheduled that arrives later is ignored (events come in any order).
+model DeletedTrip {
+  tripId    String   @id @map("trip_id") @db.Uuid
+  branchId  String   @map("branch_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("deleted_trips")
+}
+
 // Copy of the trips of this service's buses, fed by the Trip* events of viajes.
 model TripCopy {
   tripId             String         @id @map("trip_id") @db.Uuid

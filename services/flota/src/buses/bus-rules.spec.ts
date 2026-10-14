@@ -3,6 +3,7 @@ import {
   canAssignDriver,
   displayStatusWhere,
   hasPendingTrips,
+  mileageProblem,
   toStatusCounts,
 } from './bus-rules';
 
@@ -63,5 +64,16 @@ describe('bus rules', () => {
     expect(canAssignDriver({ branchId: 'b' }, { branchId: 'b', active: true })).toBe(true);
     expect(canAssignDriver({ branchId: 'b' }, { branchId: 'x', active: true })).toBe(false);
     expect(canAssignDriver({ branchId: 'b' }, { branchId: 'b', active: false })).toBe(false);
+  });
+});
+
+describe('mileageProblem', () => {
+  it('lets the mileage stay or grow', () => {
+    expect(mileageProblem(1000, 1000)).toBeNull();
+    expect(mileageProblem(1000, 1200)).toBeNull();
+  });
+
+  it('refuses to lower it, because completed trips already moved it', () => {
+    expect(mileageProblem(1200, 1000)).toBe('mileageDecrease');
   });
 });

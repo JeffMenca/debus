@@ -8,13 +8,13 @@ import {
 } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { activeAccount } from './support/accounts';
 import { createTestApp, tokenOf } from './support/app';
 import { branchFields, createTestBranch, uniqueBranchName } from './support/branches';
 import { cleanTestData } from './support/cleanup';
 import { type EventCapture, captureEvents } from './support/events';
-import { identityHeaders } from './support/identity';
 
 describe('branches', () => {
   let app: INestApplication;

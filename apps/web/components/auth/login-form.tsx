@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { TextLink } from '@/components/ui/text-link';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { messageOf } from '@/lib/api/api-error';
 import { homePathFor, safeNext } from '@/lib/auth/home-path';
 import { FIELD_MESSAGES } from '@/lib/auth/form-messages';
@@ -32,6 +33,7 @@ interface LoginFormProps {
 
 export function LoginForm({ next, notice }: LoginFormProps) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [pending, setPending] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -60,6 +62,7 @@ export function LoginForm({ next, notice }: LoginFormProps) {
     <AuthCard title="Hola de nuevo" subtitle="Ingresa para ver tus viajes y tu saldo.">
       <AuthTabs active="login" />
       <form
+        method="post"
         noValidate
         onSubmit={onSubmit}
         className="flex animate-[arrive_0.45s_var(--ease-route)_both] flex-col gap-4 motion-reduce:animate-none"
@@ -98,7 +101,13 @@ export function LoginForm({ next, notice }: LoginFormProps) {
           />
         </Field>
         {serverError && <FormAlert tone="error">{serverError}</FormAlert>}
-        <Button type="submit" size="lg" arrow={!pending} disabled={pending} className="mt-1.5">
+        <Button
+          type="submit"
+          size="lg"
+          arrow={!pending}
+          disabled={!hydrated || pending}
+          className="mt-1.5"
+        >
           {pending ? 'Ingresando...' : 'Ingresar'}
         </Button>
       </form>

@@ -1,6 +1,11 @@
 // The SQL that removes test data from the local databases (scripts/clean-test-data.mjs runs it with
 // psql). It lives here so integration tests can run the very same statements.
-const { TEST_BRANCH_PREFIX, TEST_EMAIL_DOMAIN } = require('./test-data.cjs');
+const {
+  STALE_SCHEMA_SECONDS,
+  TEST_BRANCH_PREFIX,
+  TEST_EMAIL_DOMAIN,
+  TEST_SCHEMA_PREFIX,
+} = require('./test-data.cjs');
 
 const RUN = /^[0-9a-f]{8}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -15,6 +20,19 @@ const whenTableExistsWithout = (table, missing, sql) =>
 function checkRun(run) {
   if (run != null && !RUN.test(run))
     throw new Error('run must be the 8 hex characters of a TEST_RUN');
+}
+
+// `_` is a wildcard in LIKE: the literal parts of the pattern escape it.
+const escapeLike = (text) => text.replace(/_/g, '\\_');
+
+// Schemas that tests created for themselves (testSchema): a dead run leaves them behind. With a run,
+// that run's schemas go. Without one, only the stale ones: the name carries the second its run
+// started, and a younger schema may belong to an integration run still in progress.
+function dropTestSchemas(run) {
+  const owned = run
+    ? `nspname LIKE '${escapeLike(`${TEST_SCHEMA_PREFIX}${run}_`)}%'`
+    : `nspname LIKE '${escapeLike(TEST_SCHEMA_PREFIX)}%' AND COALESCE(substring(nspname from '^${TEST_SCHEMA_PREFIX}[0-9a-f]{8}_([0-9]{1,10})_')::bigint, 0) < extract(epoch from now())::bigint - ${STALE_SCHEMA_SECONDS}`;
+  return `DO $$ DECLARE s text; BEGIN FOR s IN SELECT nspname FROM pg_namespace WHERE ${owned} LOOP EXECUTE format('DROP SCHEMA %I CASCADE', s); END LOOP; END $$;`;
 }
 
 const patterns = (run) => ({
@@ -48,6 +66,7 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     );
   // flota and viajes rows point at the branch copies, so they go first.
   const fleetAndTrips = [
+    inTestBranches('deleted_trips'),
     whenTablesExist(
       ['trip_copies', 'buses', 'branches'],
       `DELETE FROM trip_copies WHERE bus_id IN (SELECT id FROM buses WHERE branch_id IN (${testBranches}))`,
@@ -64,7 +83,26 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     inTestBranches('drivers'),
     inTestBranches('routes', 'origin_branch_id'),
     inTestBranches('routes', 'destination_branch_id'),
+    // Departures and arrivals are immutable history: the trigger is off only while they go.
+    ...['trip_departures', 'trip_arrivals'].map((table) =>
+      whenTablesExist(
+        [table, 'trips', 'branches'],
+        [
+          `ALTER TABLE ${table} DISABLE TRIGGER ${table}_immutable`,
+          `DELETE FROM ${table} WHERE trip_id IN (SELECT id FROM trips WHERE branch_id IN (${testBranches}))`,
+          `ALTER TABLE ${table} ENABLE TRIGGER ${table}_immutable`,
+        ].join('; '),
+      ),
+    ),
+    inTestBranches('rental_requests'),
     inTestBranches('trips'),
+    inTestBranches('repair_expenses'), // its lines go by CASCADE
+    inTestBranches('trip_costs'),
+    // A category that an expense still uses stays: the foreign key would refuse the delete anyway.
+    whenTablesExist(
+      ['expense_categories', 'repair_expense_lines'],
+      `DELETE FROM expense_categories c WHERE c.name LIKE ${branches} AND NOT EXISTS (SELECT 1 FROM repair_expense_lines l WHERE l.category_id = c.id)`,
+    ),
     inTestBranches('bus_copies'),
     inTestBranches('driver_copies'),
     inTestBranches('route_copies', 'origin_branch_id'),
@@ -72,6 +110,7 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
   ];
 
   return [
+    dropTestSchemas(run),
     whenTablesExist(['settings_versions', 'users'], deleteVersions),
     whenTablesExist(
       ['refresh_tokens', 'users'],

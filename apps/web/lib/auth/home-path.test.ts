@@ -5,7 +5,7 @@ describe('home path', () => {
     expect(homePathFor('SYSTEM_ADMIN')).toBe('/admin');
     expect(homePathFor('BRANCH_ADMIN')).toBe('/sucursal');
     expect(homePathFor('CASHIER')).toBe('/sucursal');
-    expect(homePathFor('DRIVER')).toBe('/sucursal');
+    expect(homePathFor('DRIVER')).toBe('/chofer');
     expect(homePathFor('CLIENT')).toBe('/');
   });
 

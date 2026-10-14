@@ -11,6 +11,7 @@ describe('navigation', () => {
       ['Usuarios', '/admin/usuarios'],
       ['Sucursales', '/admin/sucursales'],
       ['Configuración', '/admin/configuracion'],
+      ['Categorías de gasto', '/admin/categorias'],
       ['Estado del sistema', '/admin/estado'],
     ]);
   });
@@ -37,16 +38,29 @@ describe('navigation', () => {
           ['Rutas', '/sucursal/rutas'],
         ],
       ],
+      ['Finanzas', [['Gastos de taller', '/sucursal/gastos']]],
     ]);
   });
 
-  it('shows the rest of the branch staff only the screens that exist', () => {
-    for (const role of ['CASHIER', 'DRIVER'] as const) {
-      expect(navigationFor(role).flatMap((group) => group.items.map((item) => item.href))).toEqual([
-        '/sucursal',
-      ]);
-    }
+  it('shows the cashier only the screens that exist', () => {
+    expect(
+      navigationFor('CASHIER').flatMap((group) => group.items.map((item) => item.href)),
+    ).toEqual(['/sucursal']);
     expect(navigationFor('CLIENT')).toEqual([]);
+  });
+
+  it('gives the driver their own trips', () => {
+    expect(
+      navigationFor('DRIVER').map((group) => [
+        group.label,
+        group.items.map((item) => [item.label, item.href]),
+      ]),
+    ).toEqual([['Mi trabajo', [['Mis viajes', '/chofer']]]]);
+  });
+
+  it('keeps Mis viajes active on the trip of the driver', () => {
+    expect(isActivePath('/chofer', '/chofer')).toBe(true);
+    expect(isActivePath('/chofer/viajes/abc', '/chofer')).toBe(true);
   });
 
   it('marks the panel only on its own page and sections on their sub-pages', () => {

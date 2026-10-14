@@ -8,13 +8,13 @@ import {
 } from '@debus/contracts';
 import { type INestApplication, Logger } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { activeAccount } from './support/accounts';
 import { createTestApp } from './support/app';
 import { createTestBranch } from './support/branches';
 import { cleanTestData } from './support/cleanup';
 import { type EventCapture, captureEvents } from './support/events';
-import { identityHeaders } from './support/identity';
 
 const push = (value: unknown) => ({
   message: { data: Buffer.from(JSON.stringify(value)).toString('base64'), messageId: '1' },
