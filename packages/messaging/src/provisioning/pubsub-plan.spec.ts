@@ -33,7 +33,7 @@ describe('buildPubSubPlan', () => {
     });
   });
 
-  it('lets flota follow the trips and administracion the drivers', () => {
+  it('lets flota follow the trips and administracion the buses and drivers', () => {
     const plan = buildPubSubPlan({ env: 'production', projectId: 'p', location });
     const names = plan.subscriptions.map((s) => s.name);
 
@@ -43,7 +43,9 @@ describe('buildPubSubPlan', () => {
     // flota listens to every trip event, so its subscription needs no filter.
     expect(plan.subscriptions.find((s) => s.name === 'flota-from-viajes')?.filter).toBe('');
     expect(plan.subscriptions.find((s) => s.name === 'administracion-from-flota')?.filter).toBe(
-      'attributes.type = "DriverAdded" OR attributes.type = "DriverUpdated"',
+      ['BusAdded', 'BusUpdated', 'BusDeactivated', 'DriverAdded', 'DriverUpdated']
+        .map((type) => `attributes.type = "${type}"`)
+        .join(' OR '),
     );
   });
 

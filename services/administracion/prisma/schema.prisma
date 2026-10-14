@@ -139,3 +139,91 @@ model SettingsVersion {
   @@index([effectiveFrom, createdAt])
   @@map("settings_versions")
 }
+
+// Minimal copy of the buses of flota (Bus* events), to check a repair expense belongs to the branch.
+model BusCopy {
+  id        String   @id @db.Uuid
+  branchId  String   @map("branch_id") @db.Uuid
+  plate     String
+  active    Boolean
+  version   Int
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@index([branchId, active])
+  @@map("bus_copies")
+}
+
+model ExpenseCategory {
+  id         String              @id @default(uuid()) @db.Uuid
+  name       String
+  active     Boolean             @default(true)
+  searchText String              @default("") @map("search_text")
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lines      RepairExpenseLine[]
+
+  @@map("expense_categories")
+}
+
+enum RepairLineKind {
+  LABOR
+  PART
+}
+
+model RepairExpense {
+  id          String              @id @db.Uuid
+  branchId    String              @map("branch_id") @db.Uuid
+  busId       String              @map("bus_id") @db.Uuid
+  busPlate    String              @map("bus_plate")
+  serviceDate DateTime            @map("service_date") @db.Date
+  total       Decimal             @db.Decimal(12, 2)
+  laborTotal  Decimal             @map("labor_total") @db.Decimal(12, 2)
+  partsTotal  Decimal             @map("parts_total") @db.Decimal(12, 2)
+  createdById String              @map("created_by_id") @db.Uuid
+  searchText  String              @default("") @map("search_text")
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  lines       RepairExpenseLine[]
+
+  @@index([branchId, serviceDate, id])
+  @@index([busId])
+  @@map("repair_expenses")
+}
+
+model RepairExpenseLine {
+  id          String          @id @default(uuid()) @db.Uuid
+  expenseId   String          @map("expense_id") @db.Uuid
+  expense     RepairExpense   @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  categoryId  String          @map("category_id") @db.Uuid
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  kind        RepairLineKind
+  description String
+  amount      Decimal         @db.Decimal(12, 2)
+  position    Int
+
+  @@index([expenseId])
+  @@index([categoryId])
+  @@map("repair_expense_lines")
+}
+
+enum TripCostType {
+  REGULAR
+  RENTAL
+}
+
+// The fuel and depreciation of a completed trip (TripCompleted); the primary key makes it idempotent.
+model TripCost {
+  tripId             String       @id @map("trip_id") @db.Uuid
+  branchId           String       @map("branch_id") @db.Uuid
+  busId              String       @map("bus_id") @db.Uuid
+  tripType           TripCostType @map("trip_type")
+  arrivedAt          DateTime     @map("arrived_at") @db.Timestamptz(3)
+  distanceKm         Int          @map("distance_km")
+  fuelCost           Decimal      @map("fuel_cost") @db.Decimal(10, 2)
+  depreciationPerKm  Decimal      @map("depreciation_per_km") @db.Decimal(10, 2)
+  depreciationAmount Decimal      @map("depreciation_amount") @db.Decimal(12, 2)
+  driverPay          Decimal      @map("driver_pay") @db.Decimal(10, 2)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([branchId, arrivedAt])
+  @@map("trip_costs")
+}

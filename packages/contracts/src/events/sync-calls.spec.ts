@@ -1,13 +1,15 @@
 import { SYNC_CALLS, eventDrivenShare } from './sync-calls';
 
 describe('communication share', () => {
-  it('keeps the four synchronous calls of the base plan', () => {
+  it('keeps the three synchronous calls: a paid rental is assigned by viajes, not by clientes', () => {
     expect(SYNC_CALLS.map(({ from, to }) => `${from}->${to}`)).toEqual([
       'ventas->clientes',
       'ventas->viajes',
       'viajes->flota',
-      'clientes->flota',
     ]);
+    expect(SYNC_CALLS).toHaveLength(3);
+    expect(SYNC_CALLS.some((call) => call.from === 'clientes')).toBe(false);
+    expect(eventDrivenShare()).toBeCloseTo(21 / 24);
   });
 
   it('routes at least 50% of the communication through events', () => {

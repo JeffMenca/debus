@@ -17,6 +17,17 @@ export function captureEvents(app: INestApplication, prisma: PrismaService) {
   });
 
   return {
+    // The types of the events committed for a trip, in the order they were written.
+    async typesFor(tripId: string): Promise<EventType[]> {
+      const types: EventType[] = [];
+      for (const envelope of written) {
+        if ((envelope.payload as { tripId?: string }).tripId !== tripId) continue;
+        const row = await prisma.outboxEvent.findUnique({ where: { eventId: envelope.eventId } });
+        if (row) types.push(envelope.type);
+      }
+      return types;
+    },
+
     // The payloads of the committed events of a type, oldest first.
     async committed<T = unknown>(type: EventType): Promise<T[]> {
       const payloads: T[] = [];

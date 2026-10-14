@@ -42,6 +42,13 @@ describe('event registry', () => {
     ]);
   });
 
+  it('lets administracion follow the buses of flota', () => {
+    expect(consumersOf('BusUpdated')).toEqual(['viajes', 'reportes', 'administracion']);
+    expect(eventsConsumedBy('administracion')).toEqual(
+      expect.arrayContaining(['BusAdded', 'BusUpdated', 'BusDeactivated', 'TripCompleted']),
+    );
+  });
+
   it('sends account links from administracion to notificaciones', () => {
     expect(publisherOf('AccountLinkSent')).toBe('administracion');
     expect(consumersOf('AccountLinkSent')).toEqual(['notificaciones']);

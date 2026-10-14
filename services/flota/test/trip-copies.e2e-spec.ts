@@ -149,6 +149,20 @@ describe('trip copies', () => {
     expect(await prisma.tripCopy.findUnique({ where: { tripId: onTheRoadId } })).not.toBeNull();
   });
 
+  it('does not bring a trip back when its TripScheduled arrives after its TripDeleted', async () => {
+    const ids = await seedBusDriverAndRoute(prisma, branchId);
+    const tripId = randomUUID();
+    const common = { tripId, busId: ids.busId, driverId: ids.driverId, branchId };
+
+    await send('TripDeleted', { ...exampleTripDeleted, ...common });
+    await send('TripScheduled', { ...exampleTripScheduled, ...common, routeId: ids.routeId });
+
+    expect(await prisma.tripCopy.count({ where: { tripId } })).toBe(0);
+    expect(await prisma.route.findUnique({ where: { id: ids.routeId } })).toMatchObject({
+      hasTrips: false,
+    });
+  });
+
   it('ignores the trips of buses that are not in flota', async () => {
     const tripId = randomUUID();
 

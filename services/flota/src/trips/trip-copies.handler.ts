@@ -30,6 +30,7 @@ export class TripCopiesHandler {
   async scheduled(payload: unknown, _envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
     const trip = tripScheduledPayloadSchema.parse(payload);
     const db = tx ?? this.prisma;
+    if (await this.wasDeleted(db, trip.tripId)) return;
     if (!(await this.ownsBus(db, trip.busId))) return;
     const created = await this.advance(db, trip, 'SCHEDULED');
     // A departure that came first made the copy with an empty window and no route: the schedule has both.
@@ -45,9 +46,15 @@ export class TripCopiesHandler {
   @OnEvent('TripDeleted')
   async deleted(payload: unknown, _envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
     const trip = tripDeletedPayloadSchema.parse(payload);
-    await (tx ?? this.prisma).$executeRawUnsafe(
+    const db = tx ?? this.prisma;
+    await db.$executeRawUnsafe(
       `DELETE FROM trip_copies WHERE trip_id = $1::uuid AND status = 'SCHEDULED'`,
       trip.tripId,
+    );
+    await db.$executeRawUnsafe(
+      'INSERT INTO deleted_trips (trip_id, branch_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT (trip_id) DO NOTHING',
+      trip.tripId,
+      trip.branchId,
     );
   }
 
@@ -125,6 +132,14 @@ export class TripCopiesHandler {
       next,
     );
     return true;
+  }
+
+  private async wasDeleted(db: SqlClient, tripId: string): Promise<boolean> {
+    const rows = await db.$queryRawUnsafe<unknown[]>(
+      'SELECT 1 FROM deleted_trips WHERE trip_id = $1::uuid',
+      tripId,
+    );
+    return rows.length > 0;
   }
 
   private async ownsBus(db: SqlClient, busId: string): Promise<boolean> {

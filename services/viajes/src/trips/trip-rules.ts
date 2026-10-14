@@ -64,3 +64,14 @@ export function availabilityProblem({ bus, driver }: Availability): TripProblem 
   if (!driver.available) return DRIVER[driver.reason ?? 'NOT_FOUND'];
   return null;
 }
+
+// Neither end of a trip may be a branch that was deactivated.
+export function branchesProblem(
+  origin: { active: boolean } | null,
+  destination: { active: boolean } | null,
+): TripProblem | null {
+  if (!origin || !destination) return 'routeNotFound';
+  if (!origin.active) return 'branchInactive';
+  if (!destination.active) return 'destinationInactive';
+  return null;
+}

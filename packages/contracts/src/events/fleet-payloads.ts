@@ -36,5 +36,10 @@ export const routeChangedPayloadSchema = z.object({
 });
 export type RouteChangedPayload = z.infer<typeof routeChangedPayloadSchema>;
 
-export const routeDeletedPayloadSchema = z.object({ routeId: z.uuid() });
+// The branches are optional so older events stay valid; with them a tombstone can be cleaned.
+export const routeDeletedPayloadSchema = z.object({
+  routeId: z.uuid(),
+  originBranchId: z.uuid().optional(),
+  destinationBranchId: z.uuid().optional(),
+});
 export type RouteDeletedPayload = z.infer<typeof routeDeletedPayloadSchema>;

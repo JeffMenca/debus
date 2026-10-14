@@ -1,48 +1,41 @@
-import { setTimeout as delay } from 'node:timers/promises';
 import {
   type ScheduleTripRequest,
   type Trip,
+  type TripDetail,
   type TripListQuery,
   type TripPage,
   pageArgs,
+  todayInGuatemala,
   toPage,
 } from '@debus/contracts';
 import { Outbox, REQUEST_FLUSH } from '@debus/messaging';
-import {
-  type Identity,
-  isConstraintViolation,
-  isTransactionConflict,
-  requireBranch,
-} from '@debus/server';
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { type Identity, requireBranch } from '@debus/server';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SettingsCopyService } from '../settings/settings-copy.service';
+import { lastMileageKm } from './bus-mileage';
 import { FleetClient } from './fleet-client';
+import { tripAccessWhere } from './trip-access';
+import { TRIP_DETAIL_INCLUDE, toTripDetail } from './trip-detail';
 import { toTrip, toTripScheduledPayload } from './trip-mappers';
 import { TRIP_MESSAGES } from './trip-messages';
-import { availabilityProblem, scheduleProblem } from './trip-rules';
+import { availabilityProblem, branchesProblem, scheduleProblem } from './trip-rules';
 import { tripListWhere, tripOrder } from './trip-scope';
-
-// The advisory locks keep simultaneous trips from deadlocking, but the database may still abort a
-// transaction (or fail to start one when the pool is busy); running it again is safe and reaches the
-// exclusion constraint, which answers with the busy text.
-const DEADLOCK_ATTEMPTS = 5;
-const TRANSACTION_MAX_WAIT_MS = 10_000;
-// A short random pause keeps the retried transactions from colliding in the same order again.
-const pauseBeforeRetry = (attempt: number) => delay(attempt * 20 + Math.floor(Math.random() * 40));
+import { TripWrites } from './trip-writes';
 
 @Injectable()
 export class TripsService {
-  private readonly logger = new Logger(TripsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly fleet: FleetClient,
     private readonly outbox: Outbox,
+    private readonly settings: SettingsCopyService,
+    private readonly writes: TripWrites,
   ) {}
 
-  async list(branchId: string, query: TripListQuery): Promise<TripPage> {
-    const where = tripListWhere(branchId, query);
+  async list(actor: Identity, query: TripListQuery): Promise<TripPage> {
+    const where = { ...tripListWhere(query), ...tripAccessWhere(actor) };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.trip.findMany({ where, orderBy: tripOrder(), ...pageArgs(query) }),
       this.prisma.trip.count({ where }),
@@ -50,10 +43,36 @@ export class TripsService {
     return toPage(rows.map(toTrip), total, query);
   }
 
-  async get(branchId: string, id: string): Promise<Trip> {
-    const trip = await this.prisma.trip.findFirst({ where: { id, branchId } });
-    if (!trip) throw new NotFoundException(TRIP_MESSAGES.tripNotFound);
-    return toTrip(trip);
+  get(actor: Identity, id: string): Promise<TripDetail> {
+    return this.loadDetail({ id, ...tripAccessWhere(actor) });
+  }
+
+  // The trip, both records and what the screen needs around them, for whoever may see it.
+  async loadDetail(where: Prisma.TripWhereInput): Promise<TripDetail> {
+    const row = await this.prisma.trip.findFirst({ where, include: TRIP_DETAIL_INCLUDE });
+    if (!row) throw new NotFoundException(TRIP_MESSAGES.tripNotFound);
+    const [bus, driver, route, rental, rate] = await Promise.all([
+      this.busWithMileage(row.busId),
+      this.prisma.driverCopy.findUnique({ where: { id: row.driverId } }),
+      row.routeId ? this.prisma.routeCopy.findUnique({ where: { id: row.routeId } }) : null,
+      row.rentalId ? this.prisma.rentalRequest.findUnique({ where: { id: row.rentalId } }) : null,
+      this.settings.effectiveOn(todayInGuatemala()),
+    ]);
+    return toTripDetail(row, {
+      bus,
+      driver: driver && { active: driver.active, baseSalary: driver.baseSalary.toNumber() },
+      distanceKm: (route?.distanceKm ?? rental?.distanceKm)?.toNumber() ?? null,
+      depreciationPerKmToday: rate?.depreciationPerKm ?? null,
+    });
+  }
+
+  private async busWithMileage(busId: string) {
+    const bus = await this.prisma.busCopy.findUnique({ where: { id: busId } });
+    if (!bus) return null;
+    return {
+      active: bus.active,
+      mileageKm: await lastMileageKm(this.prisma, busId, bus.mileageKm),
+    };
   }
 
   async schedule(
@@ -77,6 +96,17 @@ export class TripsService {
     });
     if (!checked.ok) throw new ConflictException(TRIP_MESSAGES[checked.problem]);
 
+    const [origin, destination] = await Promise.all([
+      this.prisma.branchCopy.findUnique({ where: { id: branchId } }),
+      checked.route.destinationBranchId
+        ? this.prisma.branchCopy.findUnique({ where: { id: checked.route.destinationBranchId } })
+        : null,
+    ]);
+    const branches = branchesProblem(origin, destination);
+    if (branches || !origin || !destination) {
+      throw new ConflictException(TRIP_MESSAGES[branches ?? 'routeNotFound']);
+    }
+
     // The question to flota goes before the write; the exclusion constraints below decide the race.
     const availability = await this.fleet.availability(
       {
@@ -91,95 +121,33 @@ export class TripsService {
     const unavailable = availabilityProblem(availability);
     if (unavailable) throw new ConflictException(TRIP_MESSAGES[unavailable]);
 
-    const [origin, destination] = await Promise.all([
-      this.prisma.branchCopy.findUnique({ where: { id: branchId } }),
-      checked.route.destinationBranchId
-        ? this.prisma.branchCopy.findUnique({ where: { id: checked.route.destinationBranchId } })
-        : null,
-    ]);
-    if (!origin || !destination) throw new ConflictException(TRIP_MESSAGES.routeNotFound);
-
-    try {
-      const row = await this.retryingDeadlocks(() =>
-        this.prisma.$transaction(
-          async (tx) => {
-            await this.queueFor(tx, checked.bus.id, checked.driver.id);
-            await this.assertStillActive(tx, checked.bus.id, checked.driver.id);
-            const trip = await tx.trip.create({
-              data: {
-                type: 'REGULAR',
-                status: 'SCHEDULED',
-                branchId,
-                routeId: checked.route.id,
-                busId: checked.bus.id,
-                busPlate: checked.bus.plate,
-                capacity: checked.bus.capacity,
-                driverId: checked.driver.id,
-                driverName: checked.driver.fullName,
-                originLabel: origin.name,
-                destinationLabel: destination.name,
-                departureAt: new Date(input.departureAt),
-                estimatedArrivalAt: new Date(input.estimatedArrivalAt),
-                ticketPrice: checked.route.ticketPrice,
-                createdById: actor.userId,
-              },
-            });
-            await this.outbox.add(tx, 'TripScheduled', toTripScheduledPayload(trip), correlationId);
-            return trip;
+    const row = await this.writes.write(
+      { busId: checked.bus.id, driverId: checked.driver.id, routeId: checked.route.id },
+      async (tx) => {
+        const trip = await tx.trip.create({
+          data: {
+            type: 'REGULAR',
+            status: 'SCHEDULED',
+            branchId,
+            routeId: checked.route.id,
+            busId: checked.bus.id,
+            busPlate: checked.bus.plate,
+            capacity: checked.bus.capacity,
+            driverId: checked.driver.id,
+            driverName: checked.driver.fullName,
+            originLabel: origin.name,
+            destinationLabel: destination.name,
+            departureAt: new Date(input.departureAt),
+            estimatedArrivalAt: new Date(input.estimatedArrivalAt),
+            ticketPrice: checked.route.ticketPrice,
+            createdById: actor.userId,
           },
-          // Trips queued behind a lock keep their connection until it is their turn.
-          { maxWait: TRANSACTION_MAX_WAIT_MS },
-        ),
-      );
-      await this.outbox.flush(REQUEST_FLUSH);
-      return toTrip(row);
-    } catch (error) {
-      if (isConstraintViolation(error, 'trips_bus_no_overlap')) {
-        throw new ConflictException(TRIP_MESSAGES.busBusy);
-      }
-      if (isConstraintViolation(error, 'trips_driver_no_overlap')) {
-        throw new ConflictException(TRIP_MESSAGES.driverBusy);
-      }
-      if (isTransactionConflict(error)) throw new ConflictException(TRIP_MESSAGES.tripContended);
-      throw error;
-    }
-  }
-
-  // Trips of the same bus or driver wait for each other here, one after the other and always bus
-  // first, so the exclusion constraints below never have two transactions waiting for each other
-  // (no deadlocks) and a request that loses answers as soon as the winner commits.
-  private async queueFor(tx: Prisma.TransactionClient, busId: string, driverId: string) {
-    for (const key of [`trip-bus:${busId}`, `trip-driver:${driverId}`]) {
-      await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', key);
-    }
-  }
-
-  // The copies were read before the call to flota; a bus or driver deactivated since then is refused here.
-  private async assertStillActive(
-    tx: Prisma.TransactionClient,
-    busId: string,
-    driverId: string,
-  ): Promise<void> {
-    const [bus, driver] = await Promise.all([
-      tx.busCopy.findUnique({ where: { id: busId } }),
-      tx.driverCopy.findUnique({ where: { id: driverId } }),
-    ]);
-    if (!bus?.active) throw new ConflictException(TRIP_MESSAGES.busInactive);
-    if (!driver?.active) throw new ConflictException(TRIP_MESSAGES.driverInactive);
-  }
-
-  private async retryingDeadlocks<T>(work: () => Promise<T>): Promise<T> {
-    for (let attempt = 1; ; attempt++) {
-      try {
-        return await work();
-      } catch (error) {
-        if (!isTransactionConflict(error) || attempt >= DEADLOCK_ATTEMPTS) throw error;
-        this.logger.warn(
-          { attempt, code: (error as { code?: string }).code },
-          'Trying the trip again after a database conflict',
-        );
-        await pauseBeforeRetry(attempt);
-      }
-    }
+        });
+        await this.outbox.add(tx, 'TripScheduled', toTripScheduledPayload(trip), correlationId);
+        return trip;
+      },
+    );
+    await this.outbox.flush(REQUEST_FLUSH);
+    return toTrip(row);
   }
 }

@@ -9,6 +9,7 @@ import { CopiesModule } from './copies/copies.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
+import { RentalsModule } from './rentals/rentals.module';
 import { SaleStatusModule } from './sale-status/sale-status.module';
 import { SettingsModule } from './settings/settings.module';
 import { TripsModule } from './trips/trips.module';
@@ -23,6 +24,7 @@ import { TripsModule } from './trips/trips.module';
     SettingsModule,
     ServiceClientModule.forRoot(),
     TripsModule,
+    RentalsModule,
     SaleStatusModule,
     PrismaModule,
     MessagingModule.forRoot({

@@ -18,7 +18,13 @@ import type { NewPhoto } from '../photos/photo-upload';
 import { PrismaService } from '../prisma/prisma.service';
 import { BUS_INCLUDE, toBus, toBusPayload } from './bus-mappers';
 import { busSearchWhere } from './bus-scope';
-import { canAssignDriver, displayStatusWhere, hasPendingTrips, toStatusCounts } from './bus-rules';
+import {
+  canAssignDriver,
+  displayStatusWhere,
+  hasPendingTrips,
+  mileageProblem,
+  toStatusCounts,
+} from './bus-rules';
 
 // The id breaks ties, so a bus never shows up on two pages or on none.
 const BY_PLATE: Prisma.BusOrderByWithRelationInput[] = [{ plate: 'asc' }, { id: 'asc' }];
@@ -83,7 +89,12 @@ export class BusesService {
   ): Promise<Bus> {
     const row = await this.translateConflicts(() =>
       this.prisma.$transaction(async (tx) => {
-        await this.found(tx, branchId, id);
+        // Locks the bus so a trip that completes meanwhile cannot have its mileage overwritten.
+        await tx.$queryRaw`SELECT id FROM buses WHERE id = ${id}::uuid FOR UPDATE`;
+        const current = await this.found(tx, branchId, id);
+        if (mileageProblem(current.mileageKm, fields.mileageKm)) {
+          throw new ConflictException(FLEET_MESSAGES.mileageDecrease);
+        }
         await this.assertAssignable(tx, branchId, fields.assignedDriverId, id);
         const bus = await tx.bus.update({
           where: { id },

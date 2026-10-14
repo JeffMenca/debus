@@ -181,4 +181,29 @@ describe('fleet copies', () => {
       active: false,
     });
   });
+
+  it('keeps the mileage of a bus, so the departure is checked against it', async () => {
+    const busId = randomUUID();
+    const base = { ...exampleBus, busId, branchId };
+
+    await send('BusAdded', { ...base, mileageKm: 1000 });
+    await send('BusUpdated', { ...base, mileageKm: 1450, version: 2 });
+    await send('BusUpdated', { ...base, mileageKm: 1200, version: 1 });
+
+    expect((await prisma.busCopy.findUnique({ where: { id: busId } }))?.mileageKm).toBe(1450);
+  });
+
+  it('keeps the branches of a deleted route, so the cleanup of test branches finds the tombstone', async () => {
+    const routeId = randomUUID();
+
+    await send('RouteDeleted', { routeId, originBranchId: branchId, destinationBranchId: otherId });
+
+    expect(await prisma.routeCopy.findUnique({ where: { id: routeId } })).toMatchObject({
+      deleted: true,
+      originBranchId: branchId,
+      destinationBranchId: otherId,
+    });
+    await cleanTripTestData(prisma);
+    expect(await prisma.routeCopy.count({ where: { id: routeId } })).toBe(0);
+  });
 });

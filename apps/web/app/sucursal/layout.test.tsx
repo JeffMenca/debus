@@ -27,7 +27,7 @@ const signIn = (role: 'BRANCH_ADMIN' | 'CASHIER' | 'DRIVER' | 'SYSTEM_ADMIN') =>
     }),
   );
 
-it.each(['BRANCH_ADMIN', 'CASHIER', 'DRIVER'] as const)(
+it.each(['BRANCH_ADMIN', 'CASHIER'] as const)(
   'shows the branch pages inside the shell to the %s',
   (role) => {
     signIn(role);
@@ -50,6 +50,18 @@ it('sends a system administrator to the admin panel', () => {
   );
 
   expect(replace).toHaveBeenCalledWith('/admin');
+});
+
+it('sends a driver to their own trips', () => {
+  signIn('DRIVER');
+  render(
+    <BranchLayout params={Promise.resolve({})}>
+      <p>pagina</p>
+    </BranchLayout>,
+  );
+
+  expect(replace).toHaveBeenCalledWith('/chofer');
+  expect(screen.queryByText('pagina')).not.toBeInTheDocument();
 });
 
 it('sends a visitor to the login and comes back to the page', () => {

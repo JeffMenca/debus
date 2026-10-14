@@ -9,4 +9,6 @@ export function proxy(request: NextRequest): NextResponse {
   return NextResponse.redirect(login);
 }
 
-export const config = { matcher: ['/admin/:path*', '/sucursal/:path*', '/cuenta/:path*'] };
+export const config = {
+  matcher: ['/admin/:path*', '/sucursal/:path*', '/chofer/:path*', '/cuenta/:path*'],
+};

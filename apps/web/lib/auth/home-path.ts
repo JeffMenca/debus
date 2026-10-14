@@ -4,7 +4,7 @@ const HOME: Record<UserRole, string> = {
   SYSTEM_ADMIN: '/admin',
   BRANCH_ADMIN: '/sucursal',
   CASHIER: '/sucursal',
-  DRIVER: '/sucursal',
+  DRIVER: '/chofer',
   CLIENT: '/',
 };
 

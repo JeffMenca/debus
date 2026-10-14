@@ -190,7 +190,9 @@ describe('Outbox against PostgreSQL', () => {
   afterAll(() => pool.end());
 
   it('returns within its budget when a publication never resolves and retries it later', async () => {
-    const event = await db.$transaction((tx) => outbox.add(tx, 'ProbeSent', {}, 'hung'));
+    const event = await db.$transaction((tx) =>
+      outbox.add(tx, 'ProbeSent', { requestedAt: new Date().toISOString() }, 'hung'),
+    );
     publisher.publish.mockReturnValue(new Promise(() => undefined));
     const startedAt = Date.now();
 

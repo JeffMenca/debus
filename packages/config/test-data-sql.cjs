@@ -48,6 +48,7 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     );
   // flota and viajes rows point at the branch copies, so they go first.
   const fleetAndTrips = [
+    inTestBranches('deleted_trips'),
     whenTablesExist(
       ['trip_copies', 'buses', 'branches'],
       `DELETE FROM trip_copies WHERE bus_id IN (SELECT id FROM buses WHERE branch_id IN (${testBranches}))`,
@@ -64,7 +65,26 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     inTestBranches('drivers'),
     inTestBranches('routes', 'origin_branch_id'),
     inTestBranches('routes', 'destination_branch_id'),
+    // Departures and arrivals are immutable history: the trigger is off only while they go.
+    ...['trip_departures', 'trip_arrivals'].map((table) =>
+      whenTablesExist(
+        [table, 'trips', 'branches'],
+        [
+          `ALTER TABLE ${table} DISABLE TRIGGER ${table}_immutable`,
+          `DELETE FROM ${table} WHERE trip_id IN (SELECT id FROM trips WHERE branch_id IN (${testBranches}))`,
+          `ALTER TABLE ${table} ENABLE TRIGGER ${table}_immutable`,
+        ].join('; '),
+      ),
+    ),
+    inTestBranches('rental_requests'),
     inTestBranches('trips'),
+    inTestBranches('repair_expenses'), // its lines go by CASCADE
+    inTestBranches('trip_costs'),
+    // A category that an expense still uses stays: the foreign key would refuse the delete anyway.
+    whenTablesExist(
+      ['expense_categories', 'repair_expense_lines'],
+      `DELETE FROM expense_categories c WHERE c.name LIKE ${branches} AND NOT EXISTS (SELECT 1 FROM repair_expense_lines l WHERE l.category_id = c.id)`,
+    ),
     inTestBranches('bus_copies'),
     inTestBranches('driver_copies'),
     inTestBranches('route_copies', 'origin_branch_id'),

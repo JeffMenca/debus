@@ -3,7 +3,7 @@ import { BranchShell } from '@/components/layout/branch-shell';
 
 export default function BranchLayout({ children }: LayoutProps<'/sucursal'>) {
   return (
-    <RoleGate allowed={['BRANCH_ADMIN', 'CASHIER', 'DRIVER']}>
+    <RoleGate allowed={['BRANCH_ADMIN', 'CASHIER']}>
       <BranchShell>{children}</BranchShell>
     </RoleGate>
   );

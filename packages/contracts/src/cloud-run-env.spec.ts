@@ -61,9 +61,7 @@ describe('cloudRunEnv', () => {
       SERVICE_URL_CLIENTES: expect.any(String),
       SERVICE_URL_VIAJES: expect.any(String),
     });
-    expect(cloudRunEnv('clientes', 'production', settings)).toMatchObject({
-      SERVICE_URL_FLOTA: expect.any(String),
-    });
+    expect(cloudRunEnv('clientes', 'production', settings)).not.toHaveProperty('SERVICE_URL_FLOTA');
     expect(cloudRunEnv('reportes', 'production', settings)).not.toHaveProperty('SERVICE_AUTH');
   });
 

@@ -11,12 +11,13 @@ import { PrismaService } from '../prisma/prisma.service';
 
 // Events may arrive out of order, so a row is only replaced by a higher version.
 const UPSERT_BUS = `
-  INSERT INTO bus_copies (id, branch_id, plate, capacity, operational_status, active, assigned_driver_id, version, updated_at)
-  VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7::uuid, $8, now())
+  INSERT INTO bus_copies (id, branch_id, plate, capacity, operational_status, active, assigned_driver_id, version, mileage_km, updated_at)
+  VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7::uuid, $8, $9, now())
   ON CONFLICT (id) DO UPDATE
     SET branch_id = EXCLUDED.branch_id, plate = EXCLUDED.plate, capacity = EXCLUDED.capacity,
         operational_status = EXCLUDED.operational_status, active = EXCLUDED.active,
-        assigned_driver_id = EXCLUDED.assigned_driver_id, version = EXCLUDED.version, updated_at = now()
+        assigned_driver_id = EXCLUDED.assigned_driver_id, version = EXCLUDED.version,
+        mileage_km = EXCLUDED.mileage_km, updated_at = now()
     WHERE bus_copies.version < EXCLUDED.version`;
 
 const UPSERT_DRIVER = `
@@ -40,7 +41,7 @@ const UPSERT_ROUTE = `
 
 const DELETE_ROUTE = `
   INSERT INTO route_copies (id, origin_branch_id, destination_branch_id, distance_km, ticket_price, active, deleted, version, updated_at)
-  VALUES ($1::uuid, NULL, NULL, 0, 0, false, true, 0, now())
+  VALUES ($1::uuid, $2::uuid, $3::uuid, 0, 0, false, true, 0, now())
   ON CONFLICT (id) DO UPDATE SET deleted = true, active = false, updated_at = now()`;
 
 @Injectable()
@@ -85,7 +86,12 @@ export class FleetCopiesHandler {
   @OnEvent('RouteDeleted')
   async routeDeleted(payload: unknown, _envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
     const route = routeDeletedPayloadSchema.parse(payload);
-    await (tx ?? this.prisma).$executeRawUnsafe(DELETE_ROUTE, route.routeId);
+    await (tx ?? this.prisma).$executeRawUnsafe(
+      DELETE_ROUTE,
+      route.routeId,
+      route.originBranchId ?? null,
+      route.destinationBranchId ?? null,
+    );
   }
 
   private async keepBus(payload: unknown, tx?: SqlClient): Promise<void> {
@@ -100,6 +106,7 @@ export class FleetCopiesHandler {
       bus.active,
       bus.assignedDriverId,
       bus.version,
+      bus.mileageKm,
     );
   }
 

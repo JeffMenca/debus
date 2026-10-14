@@ -35,6 +35,9 @@ export function useDriverOptions(q: string | undefined) {
   });
 }
 
+// The panel lists five licences; the total says how many more there are.
+const EXPIRING_SHOWN = 5;
+
 // Licences about to expire, soonest first (the branch panel).
 export function useExpiringDrivers(days: number) {
   return useQuery({
@@ -44,7 +47,7 @@ export function useExpiringDrivers(days: number) {
         `${DRIVERS_PATH}?${toQueryString({
           expiringWithinDays: days,
           page: 1,
-          pageSize: MAX_PAGE_SIZE,
+          pageSize: EXPIRING_SHOWN,
           status: 'active',
         })}`,
         driverPageSchema,

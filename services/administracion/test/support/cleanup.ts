@@ -30,7 +30,16 @@ export async function cleanTestData(prisma: PrismaService): Promise<void> {
   await prisma.refreshToken.deleteMany({ where: { userId: { in: ids } } });
   await prisma.accountLink.deleteMany({ where: { userId: { in: ids } } });
   await prisma.user.deleteMany({ where: { id: { in: ids } } });
-  await prisma.branch.deleteMany({
-    where: { name: { startsWith: `${TEST_BRANCH_PREFIX}${TEST_RUN}` } },
+  const testBranches = { name: { startsWith: `${TEST_BRANCH_PREFIX}${TEST_RUN}` } };
+  const branchIds = (
+    await prisma.branch.findMany({ where: testBranches, select: { id: true } })
+  ).map((branch) => branch.id);
+  await prisma.repairExpense.deleteMany({ where: { branchId: { in: branchIds } } });
+  await prisma.tripCost.deleteMany({ where: { branchId: { in: branchIds } } });
+  await prisma.busCopy.deleteMany({ where: { branchId: { in: branchIds } } });
+  // The categories of the run go once their expenses are gone; the seeded ones never match the prefix.
+  await prisma.expenseCategory.deleteMany({
+    where: { ...testBranches, lines: { none: {} } },
   });
+  await prisma.branch.deleteMany({ where: testBranches });
 }

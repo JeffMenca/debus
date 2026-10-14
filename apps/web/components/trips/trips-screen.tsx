@@ -2,6 +2,7 @@
 
 import { SEARCH_MAX_LENGTH, todayInGuatemala } from '@debus/contracts';
 import { Info, Plus, Search } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { DataTable, tablePagination } from '@/components/data/data-table';
 import { StatusTabs } from '@/components/data/status-tabs';
@@ -11,18 +12,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useOwnBranch } from '@/hooks/use-own-branch';
 import { usePageInRange } from '@/hooks/use-page-in-range';
+import { useRentalRequestsPage } from '@/hooks/use-rental-requests';
 import { useTripsPage } from '@/hooks/use-trips';
 import { useUrlQuery } from '@/hooks/use-url-query';
 import { useUrlSearch } from '@/hooks/use-url-search';
 import { readTripListParams, writeTripListParams } from '@/lib/fleet/trip-list-params';
+import { RENTALS_TAB, TAB_PARAM, isRentalsTab } from '@/lib/trips/rental-list-params';
+import { RentalRequestsTab } from './rental-requests-tab';
 import { ScheduleTripDialog } from './schedule-trip-dialog';
 import { tripColumns } from './trip-columns';
 
-export function TripsScreen() {
+// Only the total matters here, to show how many rentals are waiting on the tab.
+const WAITING_COUNT = { status: 'PENDING', page: 1, pageSize: 1 } as const;
+
+type Tab = 'trips' | 'rentals';
+
+// The list of trips, with the days, the state and the search the address carries.
+function TripsList() {
   const [query, update] = useUrlQuery(readTripListParams, writeTripListParams);
   const trips = useTripsPage(query);
-  const branch = useOwnBranch();
-  const [scheduling, setScheduling] = useState(false);
   const [search, setSearch] = useUrlSearch(query.q, update);
   usePageInRange(trips.data, update);
 
@@ -32,17 +40,6 @@ export function TripsScreen() {
 
   return (
     <>
-      <PageHeader
-        eyebrow={branch ? `Operación · ${branch.name}` : 'Operación'}
-        title="Viajes"
-        actions={
-          <Button onClick={() => setScheduling(true)}>
-            <Plus aria-hidden strokeWidth={1.75} className="size-4.5" />
-            Programar viaje
-          </Button>
-        }
-      />
-
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-full sm:w-48">
           <DateField
@@ -114,11 +111,57 @@ export function TripsScreen() {
           </span>
         }
       />
+    </>
+  );
+}
+
+// The trips of the branch and, in another tab, the paid rentals that still need a bus and a driver.
+export function TripsScreen() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const address = new URLSearchParams(useSearchParams().toString());
+  const tab: Tab = isRentalsTab(address) ? 'rentals' : 'trips';
+  const branch = useOwnBranch();
+  const waiting = useRentalRequestsPage(WAITING_COUNT).data?.total;
+  const [scheduling, setScheduling] = useState(false);
+
+  const today = todayInGuatemala();
+  const firstDay = readTripListParams(address).from;
+
+  function showTab(next: Tab) {
+    const href = next === 'rentals' ? `${pathname}?${TAB_PARAM}=${RENTALS_TAB}` : pathname;
+    router.replace(href, { scroll: false });
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow={branch ? `Operación · ${branch.name}` : 'Operación'}
+        title="Viajes"
+        actions={
+          <Button onClick={() => setScheduling(true)}>
+            <Plus aria-hidden strokeWidth={1.75} className="size-4.5" />
+            Programar viaje
+          </Button>
+        }
+      />
+
+      <StatusTabs
+        label="Qué ver"
+        value={tab}
+        onChange={showTab}
+        options={[
+          { value: 'trips', label: 'Viajes' },
+          { value: 'rentals', label: 'Alquileres por asignar', count: waiting },
+        ]}
+      />
+
+      {tab === 'rentals' ? <RentalRequestsTab /> : <TripsList />}
 
       <ScheduleTripDialog
         open={scheduling}
         onOpenChange={setScheduling}
-        defaultDay={query.from > today ? query.from : today}
+        defaultDay={firstDay > today ? firstDay : today}
       />
     </>
   );

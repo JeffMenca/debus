@@ -1,4 +1,4 @@
-import { availabilityProblem, scheduleProblem } from './trip-rules';
+import { availabilityProblem, branchesProblem, scheduleProblem } from './trip-rules';
 
 const now = new Date('2026-10-15T12:00:00Z');
 const route = { originBranchId: 'b', active: true, deleted: false };
@@ -131,5 +131,21 @@ describe('availabilityProblem', () => {
     expect(availabilityProblem({ bus: { available: true }, driver: { available: false } })).toBe(
       'driverNotFound',
     );
+  });
+});
+
+describe('branchesProblem', () => {
+  it('accepts a trip between two active branches', () => {
+    expect(branchesProblem({ active: true }, { active: true })).toBeNull();
+  });
+
+  it('refuses a branch that was deactivated, at either end', () => {
+    expect(branchesProblem({ active: false }, { active: true })).toBe('branchInactive');
+    expect(branchesProblem({ active: true }, { active: false })).toBe('destinationInactive');
+  });
+
+  it('refuses a branch whose copy has not arrived', () => {
+    expect(branchesProblem(null, { active: true })).toBe('routeNotFound');
+    expect(branchesProblem({ active: true }, null)).toBe('routeNotFound');
   });
 });

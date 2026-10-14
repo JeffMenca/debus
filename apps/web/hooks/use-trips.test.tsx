@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { trip, tripPage } from '../test-support/trips';
 import { queryWrapper } from '../test-support/query-wrapper';
 import { useScheduleTrip, useTripsPage } from './use-trips';
@@ -44,6 +44,29 @@ it('asks for the trips of every day when no day is given', async () => {
     `${API}?page=1&pageSize=100&status=IN_TRANSIT`,
     expect.anything(),
   );
+});
+
+it('asks again on its own when it is told how often', async () => {
+  jest.useFakeTimers();
+  try {
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockImplementation(() => Promise.resolve(Response.json(tripPage([]))));
+    const { wrapper } = queryWrapper();
+    const { result } = renderHook(
+      () =>
+        useTripsPage({ status: 'IN_TRANSIT', page: 1, pageSize: 100 }, { refetchInterval: 60_000 }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(() => jest.advanceTimersByTimeAsync(60_000));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 it('fails when the server answers something that is not a page of trips', async () => {

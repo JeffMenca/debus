@@ -1,4 +1,8 @@
-import type { BranchChangedPayload, SettingsUpdatedPayload } from '@debus/contracts';
+import type {
+  BranchChangedPayload,
+  RepairExpenseAddedPayload,
+  SettingsUpdatedPayload,
+} from '@debus/contracts';
 import { Outbox, REQUEST_FLUSH, type SqlClient } from '@debus/messaging';
 import { Injectable } from '@nestjs/common';
 
@@ -21,6 +25,14 @@ export class AdminEvents {
     correlationId?: string,
   ): Promise<void> {
     await this.outbox.add(tx, 'SettingsUpdated', payload, correlationId);
+  }
+
+  async repairExpenseAdded(
+    tx: SqlClient,
+    payload: RepairExpenseAddedPayload,
+    correlationId?: string,
+  ): Promise<void> {
+    await this.outbox.add(tx, 'RepairExpenseAdded', payload, correlationId);
   }
 
   // Publishes right away; whatever fails stays in the outbox for the scheduled flush.

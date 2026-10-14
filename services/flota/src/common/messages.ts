@@ -15,6 +15,8 @@ export const FLEET_MESSAGES = {
   routeDestination: 'Elige otra sucursal activa como destino.',
   routeHasTrips: 'Esta ruta ya tiene viajes. Puedes retirarla para que no se programen más.',
   branchUnavailable: 'Tu sucursal no está activa.',
+  mileageDecrease:
+    'El kilometraje no puede ser menor que el que ya tiene el bus. Recarga la página para ver el actual.',
   photoInvalid: 'Sube una foto JPG, PNG o WebP de hasta 5 MB.',
   photoMissing: 'Aún no tiene foto.',
 } as const;

@@ -45,7 +45,16 @@ function setup(state: { items?: unknown[]; pending?: boolean; error?: boolean } 
 it('asks for the trips that are on the road, whatever their day', () => {
   setup();
 
-  expect(useTripsPage).toHaveBeenCalledWith({ status: 'IN_TRANSIT', page: 1, pageSize: 100 });
+  expect(useTripsPage).toHaveBeenCalledWith(
+    { status: 'IN_TRANSIT', page: 1, pageSize: 100 },
+    expect.anything(),
+  );
+});
+
+it('asks again every minute, so a bus that just left shows up on its own', () => {
+  setup();
+
+  expect(useTripsPage).toHaveBeenCalledWith(expect.anything(), { refetchInterval: 60_000 });
 });
 
 it('shows each bus with its route, plate, departure hour and estimated arrival', () => {

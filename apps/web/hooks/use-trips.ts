@@ -7,11 +7,13 @@ import type { TripQuery } from '@/lib/fleet/trip-list-params';
 export const TRIPS_PATH = '/api/viajes/trips';
 
 // The server filters and pages; the previous page stays on screen while the next one arrives.
-export function useTripsPage(query: TripQuery) {
+// A panel that must stay current passes `refetchInterval` (milliseconds).
+export function useTripsPage(query: TripQuery, options: { refetchInterval?: number } = {}) {
   return useQuery({
     queryKey: ['trips', 'page', query],
     queryFn: () => apiRequest(`${TRIPS_PATH}?${toQueryString({ ...query })}`, tripPageSchema),
     placeholderData: keepPreviousData,
+    ...options,
   });
 }
 

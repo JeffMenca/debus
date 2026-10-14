@@ -1,4 +1,10 @@
-import { isConstraintViolation, isTransactionConflict, isUniqueViolation } from './prisma-errors';
+import {
+  isConstraintViolation,
+  isForeignKeyViolation,
+  isRecordMissing,
+  isTransactionConflict,
+  isUniqueViolation,
+} from './prisma-errors';
 
 describe('database errors', () => {
   it('recognises a unique violation by its Prisma code', () => {
@@ -6,6 +12,20 @@ describe('database errors', () => {
     expect(isUniqueViolation({ code: 'P2034' })).toBe(false);
     expect(isUniqueViolation(new Error('x'))).toBe(false);
     expect(isUniqueViolation(null)).toBe(false);
+  });
+
+  it('recognises a foreign key violation by its Prisma code', () => {
+    expect(isForeignKeyViolation({ code: 'P2003' })).toBe(true);
+    expect(isForeignKeyViolation({ code: 'P2002' })).toBe(false);
+    expect(isForeignKeyViolation('P2003')).toBe(false);
+    expect(isForeignKeyViolation(null)).toBe(false);
+  });
+
+  it('recognises a missing record by its Prisma code', () => {
+    expect(isRecordMissing({ code: 'P2025' })).toBe(true);
+    expect(isRecordMissing({ code: 'P2003' })).toBe(false);
+    expect(isRecordMissing(new Error('x'))).toBe(false);
+    expect(isRecordMissing(undefined)).toBe(false);
   });
 
   it('finds a named constraint in the message or the metadata', () => {

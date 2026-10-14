@@ -38,6 +38,7 @@ describe('FleetCopiesHandler buses', () => {
         true,
         exampleBus.assignedDriverId,
         1,
+        exampleBus.mileageKm,
       ]);
     },
   );
@@ -103,7 +104,24 @@ describe('FleetCopiesHandler routes', () => {
     await handler.routeDeleted(exampleRouteDeleted, env('BusAdded'), tx as never);
 
     expect(sqlOf(tx)).toContain('deleted = true');
-    expect(valuesOf(tx)).toEqual([exampleRouteDeleted.routeId]);
+    expect(valuesOf(tx)).toEqual([exampleRouteDeleted.routeId, null, null]);
+  });
+
+  it('keeps the branches of a deleted route when the event carries them', async () => {
+    const { tx, handler } = setup();
+    const payload = {
+      routeId: exampleRouteDeleted.routeId,
+      originBranchId: exampleRoute.originBranchId,
+      destinationBranchId: exampleRoute.destinationBranchId,
+    };
+
+    await handler.routeDeleted(payload, env('BusAdded'), tx as never);
+
+    expect(valuesOf(tx)).toEqual([
+      payload.routeId,
+      payload.originBranchId,
+      payload.destinationBranchId,
+    ]);
   });
 });
 
