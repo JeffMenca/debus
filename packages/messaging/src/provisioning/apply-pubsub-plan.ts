@@ -9,6 +9,7 @@ import {
 
 type Log = (message: string) => void;
 const DEAD_LETTER_RETENTION_SECONDS = 7 * 24 * 60 * 60;
+const SUBSCRIBER_ROLE = 'roles/pubsub.subscriber';
 
 // Idempotent: creates what is missing, updates push and retry settings, and recreates a
 // subscription whose filter changed (Pub/Sub filters are immutable).
@@ -25,7 +26,7 @@ export async function applyPubSubPlan(
     }
   }
   for (const spec of plan.subscriptions) await upsertPushSubscription(pubsub, spec, log);
-  for (const { name, topic } of plan.deadLetterSubscriptions) {
+  for (const { name, topic, reader } of plan.deadLetterSubscriptions) {
     const [exists] = await pubsub.subscription(name).exists();
     if (!exists) {
       await pubsub.topic(topic).createSubscription(name, {
@@ -33,7 +34,22 @@ export async function applyPubSubPlan(
       });
       log(`dead-letter subscription ${name} created`);
     }
+    await grantSubscriber(pubsub, name, reader, log);
   }
+}
+
+// Services only publish project-wide; each one may pull just its own dead-letters (/dead-letters).
+async function grantSubscriber(pubsub: PubSub, name: string, reader: string, log: Log) {
+  const { iam } = pubsub.subscription(name);
+  const [policy] = await iam.getPolicy();
+  const member = `serviceAccount:${reader}`;
+  const bindings = policy.bindings ?? [];
+  const binding = bindings.find((candidate) => candidate.role === SUBSCRIBER_ROLE);
+  if (binding?.members?.includes(member)) return;
+  const others = bindings.filter((candidate) => candidate !== binding);
+  const members = [...(binding?.members ?? []), member];
+  await iam.setPolicy({ ...policy, bindings: [...others, { role: SUBSCRIBER_ROLE, members }] });
+  log(`${name} readable by ${reader}`);
 }
 
 async function upsertPushSubscription(

@@ -23,8 +23,8 @@ describe('InboundEvents', () => {
     const { events, dispatch } = setup();
     const envelope = createEnvelope('ProbeSent', {}, 'c');
 
-    await events.receive(push(envelope));
-    await events.receive(push(envelope));
+    await expect(events.receive(push(envelope))).resolves.toBe('processed');
+    await expect(events.receive(push(envelope))).resolves.toBe('duplicate');
 
     expect(dispatch).toHaveBeenCalledTimes(1);
     await expect(events.processed(envelope.eventId)).resolves.toMatchObject({
@@ -51,9 +51,9 @@ describe('InboundEvents', () => {
   it('still acknowledges events without handlers', async () => {
     const { events } = setup(0);
 
-    await expect(
-      events.receive(push(createEnvelope('TicketSold', {}, 'c'))),
-    ).resolves.toBeUndefined();
+    await expect(events.receive(push(createEnvelope('TicketSold', {}, 'c')))).resolves.toBe(
+      'processed',
+    );
   });
 
   it('answers 404 for unknown event ids', async () => {

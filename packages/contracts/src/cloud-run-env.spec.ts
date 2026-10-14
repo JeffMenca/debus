@@ -1,4 +1,10 @@
-import { cloudRunEnv, escapeNewlines, missingAppValues, readAppSecrets } from './cloud-run-env';
+import {
+  cloudRunEnv,
+  escapeNewlines,
+  missingAppValues,
+  readAppSecrets,
+  serviceAccountEmail,
+} from './cloud-run-env';
 import { serviceUrl } from './topology';
 
 const appSecrets = {
@@ -175,5 +181,13 @@ describe('missingAppValues', () => {
     for (const unit of ['flota', 'viajes', 'ventas', 'clientes', 'reportes', 'web'] as const) {
       expect(missingAppValues(unit, empty)).toEqual([]);
     }
+  });
+});
+
+describe('serviceAccountEmail', () => {
+  it('names the identity each unit runs as on Cloud Run', () => {
+    expect(serviceAccountEmail('clientes', 'debus-prod')).toBe(
+      'debus-clientes@debus-prod.iam.gserviceaccount.com',
+    );
   });
 });

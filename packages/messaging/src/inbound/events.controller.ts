@@ -12,8 +12,8 @@ export class EventsController {
   @Post('pubsub')
   @HttpCode(204)
   @UseGuards(PubSubPushGuard)
-  receive(@Body() body: unknown): Promise<void> {
-    return this.events.receive(body);
+  async receive(@Body() body: unknown): Promise<void> {
+    await this.events.receive(body);
   }
 
   @Get('processed/:eventId')

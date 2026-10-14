@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@debus/contracts": "workspace:^",
+    "@debus/server": "workspace:^",
     "@google-cloud/pubsub": "^6.1.0",
     "google-auth-library": "^11.1.0",
     "zod": "^4.6.5"

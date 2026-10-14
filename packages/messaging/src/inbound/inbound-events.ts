@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import type { InboxStore, ProcessedEvent } from '../inbox/inbox-store';
+import type { InboxOutcome, InboxStore, ProcessedEvent } from '../inbox/inbox-store';
 import { INBOX_STORE } from '../tokens';
 import { EventDispatcher } from './event-dispatcher';
 import { decodePushMessage } from './push-message';
@@ -13,13 +13,14 @@ export class InboundEvents {
     private readonly dispatcher: EventDispatcher,
   ) {}
 
-  async receive(body: unknown): Promise<void> {
+  async receive(body: unknown): Promise<InboxOutcome> {
     const envelope = decodePushMessage(body);
     const outcome = await this.inbox.runOnce(envelope, async (tx) => {
       const handled = await this.dispatcher.dispatch(envelope, tx);
       if (handled === 0) this.logger.warn(`No handler for ${envelope.type}`);
     });
     this.logger.log(`${envelope.type} ${envelope.eventId} ${outcome}`);
+    return outcome;
   }
 
   async processed(eventId: string): Promise<ProcessedEvent> {
