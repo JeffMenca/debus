@@ -73,7 +73,7 @@ En cada despliegue, el job `pubsub` de `release` crea los tópicos y las suscrip
 
 1. En GitHub, **Actions > republish > Run workflow**. El campo `targets` acepta pares `servicio/recurso` separados por coma (hoy `flota/buses`); vacío republica todo.
 2. El workflow llama a la ruta interna `POST /internal/<recurso>/republish` de cada servicio con el token de identidad de la cuenta de despliegue, y el log de cada destino termina con el resumen, por ejemplo `{"republished":N}`. Un destino que no está en la lista falla antes de llamar a ninguno.
-3. `flota` sube en uno la versión de cada bus y vuelve a publicar `BusUpdated` por el outbox. Repetirlo no hace daño: las copias solo aceptan una versión mayor. El gateway no publica esa ruta.
+3. `flota` sube en uno la versión de cada bus y vuelve a publicar `BusUpdated` por el outbox. Repetirlo no hace daño: las copias solo aceptan una versión mayor. El gateway no publica esa ruta. El workflow republica todas las sucursales; la ruta de `flota` también acepta `?branchId=` para una sola sucursal, si alguna vez hace falta llamarla a mano con el mismo token.
 
 ## Convenciones
 

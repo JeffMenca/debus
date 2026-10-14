@@ -13,7 +13,6 @@ import { useRecordArrival } from '@/hooks/use-trip';
 import { formatKm, formatQuetzales } from '@/lib/format';
 import { parseWholeNumber } from '@/lib/number-input';
 import {
-  CYCLE_PROBLEMS,
   arrivalPreview,
   arrivalRequestFrom,
   formatMoment,

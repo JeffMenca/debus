@@ -89,7 +89,7 @@ describe('tripDepartureFor', () => {
     );
   });
 
-  it('does not move a departure that is exactly now', () => {
+  it('moves a departure that is exactly now to the next minute', () => {
     expect(tripDepartureFor(now, now)).toEqual(new Date('2026-10-20T15:43:00.000Z'));
   });
 });

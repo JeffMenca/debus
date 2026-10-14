@@ -12,9 +12,14 @@ test.describe('the login without scripts', () => {
     await page.getByLabel('Correo electrónico').fill(email);
     await page.locator('#login-password').fill(password);
 
+    await expect(
+      page.locator('form[method="post"]').filter({ has: page.locator('#login-password') }),
+    ).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Ingresar' })).toBeDisabled();
+    // press waits for any navigation the key triggers to start, so no fixed delay is needed
     await page.locator('#login-password').press('Enter');
-    await page.waitForTimeout(500);
+
+    await expect(page).toHaveURL(/\/login$/);
 
     const url = decodeURIComponent(page.url());
     expect(url).not.toContain('password');
