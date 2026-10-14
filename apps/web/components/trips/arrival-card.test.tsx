@@ -79,13 +79,48 @@ describe('ArrivalCard on the road', () => {
     expect(screen.getByText('Pago al chofer').parentElement).toHaveTextContent(/Q\s?250\.00/);
   });
 
-  it('says so when the final mileage is below the starting one', () => {
+  it('stays quiet about a lower mileage while it is still being typed', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     setup();
 
-    type('Kilometraje final', '148000');
+    await user.type(screen.getByLabelText('Kilometraje final'), '1');
+
+    expect(screen.queryByText(/no puede ser menor/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Kilometraje final')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByText('Recorrido').parentElement).toHaveTextContent('—');
+  });
+
+  it('says the final mileage is below the starting one once the field is left', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    setup();
+
+    await user.type(screen.getByLabelText('Kilometraje final'), '148000');
+    await user.tab();
 
     expect(screen.getByText('El kilometraje final no puede ser menor a 148,410.')).toBeVisible();
+    expect(screen.getByLabelText('Kilometraje final')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText('Recorrido').parentElement).toHaveTextContent('—');
+  });
+
+  it('goes back to waiting when the person returns to the field', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    setup();
+    await user.type(screen.getByLabelText('Kilometraje final'), '148000');
+    await user.tab();
+
+    await user.click(screen.getByLabelText('Kilometraje final'));
+
+    expect(screen.queryByText(/no puede ser menor/)).not.toBeInTheDocument();
+  });
+
+  it('shows no error for a mileage that is fine', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    setup();
+
+    await user.type(screen.getByLabelText('Kilometraje final'), '148614');
+    await user.tab();
+
+    expect(screen.getByLabelText('Kilometraje final')).not.toHaveAttribute('aria-invalid');
   });
 
   it('says so, and computes nothing, when the final mileage is a typing mistake', () => {

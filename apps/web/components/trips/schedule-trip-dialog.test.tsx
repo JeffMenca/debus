@@ -254,6 +254,37 @@ describe('ScheduleTripDialog', () => {
     expect(schedule).not.toHaveBeenCalled();
   });
 
+  it('puts the focus on the route when everything is left empty', async () => {
+    setup();
+
+    await submit();
+
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Ruta' })).toHaveFocus());
+  });
+
+  it('puts the focus on the first field with a problem, in screen order', async () => {
+    setup();
+    await choose('Ruta', /Guatemala/);
+
+    await submit();
+
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Bus' })).toHaveFocus());
+  });
+
+  it('puts the focus on the bus when the service says it is busy', async () => {
+    setup({
+      schedule: jest
+        .fn()
+        .mockRejectedValue(new ApiError(409, 'Ese bus ya tiene un viaje en ese horario.')),
+    });
+    await fillEverything();
+
+    await submit();
+
+    await screen.findByText('Ese bus ya tiene un viaje en ese horario.');
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Bus' })).toHaveFocus());
+  });
+
   it('puts a clash of the bus next to the bus field', async () => {
     setup({
       schedule: jest

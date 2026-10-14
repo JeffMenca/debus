@@ -3,12 +3,12 @@ import { topicName } from '@debus/contracts';
 import { PubSub, type Message } from '@google-cloud/pubsub';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { activeAccount } from './support/accounts';
 import { createTestApp } from './support/app';
 import { cleanTestData } from './support/cleanup';
 import { type EventCapture, captureEvents } from './support/events';
-import { identityHeaders } from './support/identity';
 
 // The services running on this machine listen to the local project; what the tests publish must
 // never reach them (it would leave test rates in the copies of viajes, long after the cleanup).

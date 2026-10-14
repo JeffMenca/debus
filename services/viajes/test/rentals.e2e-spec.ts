@@ -6,7 +6,7 @@ import {
   tripScheduledPayloadSchema,
   tripSchema,
 } from '@debus/contracts';
-import { FakeServiceClient, ServiceHttpClient } from '@debus/server';
+import { FakeServiceClient, identityHeaders, ServiceHttpClient } from '@debus/server';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -14,7 +14,6 @@ import { createTestApp } from './support/app';
 import { cleanTripTestData } from './support/cleanup';
 import { captureEvents } from './support/events';
 import { type SeededFleet, seedBus, seedDriver, seedFleet } from './support/fleet';
-import { identityHeaders } from './support/identity';
 
 const push = (value: unknown) => ({
   message: { data: Buffer.from(JSON.stringify(value)).toString('base64'), messageId: '1' },
@@ -285,6 +284,59 @@ describe('rentals waiting for a bus and a driver', () => {
 
     expect(tripSchema.parse(again.body)).toMatchObject({ type: 'RENTAL', status: 'SCHEDULED' });
     expect(await prisma.trip.count({ where: { rentalId: payload.rentalId } })).toBe(1);
+  });
+
+  it('sends a rental assigned late on its way now, so a bus busy at the old hour can take it', async () => {
+    const hour = 3_600_000;
+    const payload = paid({
+      departureAt: new Date(Date.now() - 6 * hour).toISOString(),
+      returnAt: new Date(Date.now() - 2 * hour).toISOString(),
+    });
+    await sendPaid(payload);
+    const busId = await seedBus(prisma, fleet.branchId);
+    await prisma.trip.create({
+      data: {
+        type: 'REGULAR',
+        status: 'SCHEDULED',
+        branchId: fleet.branchId,
+        busId,
+        busPlate: 'Z100BCD',
+        capacity: 40,
+        driverId: randomUUID(),
+        driverName: 'Ana Sic',
+        originLabel: 'Prueba A',
+        destinationLabel: 'Prueba B',
+        departureAt: new Date(Date.now() - 5 * hour),
+        estimatedArrivalAt: new Date(Date.now() - 3 * hour),
+        ticketPrice: 85,
+        createdById: randomUUID(),
+      },
+    });
+    const startedAt = Date.now();
+
+    const response = await http()
+      .post(`/rental-requests/${payload.rentalId}/assignment`)
+      .set(admin())
+      .send({
+        ...(await assignment()),
+        busId,
+        estimatedArrivalAt: new Date(Date.now() + 4 * hour).toISOString(),
+      })
+      .expect(201);
+
+    const departure = new Date(response.body.departureAt);
+    expect(departure.getTime()).toBeGreaterThan(startedAt);
+    expect(departure.getTime() % 60_000).toBe(0);
+    const scheduled = (await events.committed('TripScheduled')).map((event) =>
+      tripScheduledPayloadSchema.parse(event),
+    );
+    expect(scheduled).toContainEqual(
+      expect.objectContaining({ tripId: response.body.id, departureAt: response.body.departureAt }),
+    );
+    const request = await prisma.rentalRequest.findUniqueOrThrow({
+      where: { id: payload.rentalId },
+    });
+    expect(request.departureAt.toISOString()).toBe(payload.departureAt);
   });
 
   it('lets exactly one of several simultaneous assignments of one rental win', async () => {

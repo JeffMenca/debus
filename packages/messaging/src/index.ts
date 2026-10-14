@@ -18,3 +18,4 @@ export * from './outbox/outbox';
 export * from './testing/capture-logs';
 export * from './outbox/request-flush';
 export * from './testing/in-memory-event-bus';
+export * from './testing/ensure-topic';

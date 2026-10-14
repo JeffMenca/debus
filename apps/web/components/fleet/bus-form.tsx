@@ -218,7 +218,7 @@ export function BusForm({ bus, onDone }: BusFormProps) {
               })
             }
           >
-            <SelectTrigger id="bus-driver" aria-invalid={driverError ? true : undefined}>
+            <SelectTrigger id="bus-driver" {...invalidProps('bus-driver', driverError)}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

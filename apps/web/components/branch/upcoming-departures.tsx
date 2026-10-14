@@ -19,6 +19,7 @@ export function UpcomingDepartures({ day }: { day: string }) {
   return (
     <Panel
       title="Próximas salidas"
+      refreshing={departures.isPlaceholderData}
       aside={
         <Link
           href={`/sucursal/viajes?desde=${day}&hasta=${day}`}

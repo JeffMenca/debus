@@ -2,11 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { saleStatusSchema, tripPageSchema, tripSchema } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { cleanTripTestData } from './support/cleanup';
 import { type SeededFleet, seedFleet } from './support/fleet';
-import { identityHeaders } from './support/identity';
 
 describe('listing trips and their sale status', () => {
   let app: INestApplication;

@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { ensureTopic } from '@debus/messaging';
 import { AppModule } from '../../src/app.module';
-import { ensureTopic } from './topic';
 
 export async function createTestApp(): Promise<INestApplication> {
   await ensureTopic('flota');

@@ -6,6 +6,7 @@ import { useBranchOptions } from '../../hooks/use-branches';
 import { useOwnBranch } from '../../hooks/use-own-branch';
 import { useDeleteRoute, useRoutesPage, useSaveRoute } from '../../hooks/use-routes';
 import { route, routePage } from '../../test-support/fleet';
+import { ConfirmDialog } from '../forms/confirm-dialog';
 import { RouteDialog } from './route-dialog';
 import { RoutesScreen } from './routes-screen';
 import { DEBOUNCE_MS, startFakeClock } from '../../test-support/fake-clock';
@@ -15,6 +16,9 @@ jest.mock('../../hooks/use-own-branch');
 jest.mock('../../hooks/use-routes');
 jest.mock('./route-dialog', () => ({
   RouteDialog: jest.fn(jest.requireActual('./route-dialog').RouteDialog),
+}));
+jest.mock('../forms/confirm-dialog', () => ({
+  ConfirmDialog: jest.fn(jest.requireActual('../forms/confirm-dialog').ConfirmDialog),
 }));
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 const replace = jest.fn();
@@ -270,6 +274,22 @@ describe('RoutesScreen', () => {
 
     await userEvent.hover(screen.getByRole('button', { name: 'Tiene viajes: puedes retirarla' }));
     expect(await screen.findAllByText('Tiene viajes: puedes retirarla')).not.toHaveLength(0);
+  });
+
+  it('keeps naming the route while the delete dialog closes', async () => {
+    setup();
+    await openActions('Quetzaltenango a Guatemala');
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Eliminar' }));
+
+    await userEvent.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancelar' }),
+    );
+
+    // The dialog animates out after `open` flips, so its title must not turn into "undefined".
+    expect(jest.mocked(ConfirmDialog).mock.lastCall?.[0]).toMatchObject({
+      open: false,
+      title: '¿Eliminar la ruta a Guatemala?',
+    });
   });
 
   it('opens the dialog from the primary action and from Editar', async () => {

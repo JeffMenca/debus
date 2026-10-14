@@ -175,7 +175,7 @@ export function DriverForm({ driver, onDone }: DriverFormProps) {
               <SelectTrigger
                 id="driver-license-type"
                 className="min-w-32"
-                aria-invalid={errors.licenseType ? true : undefined}
+                {...invalidProps('driver-license-type', error('licenseType'))}
               >
                 <SelectValue placeholder="Elige" />
               </SelectTrigger>

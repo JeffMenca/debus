@@ -20,6 +20,13 @@ export function defaultRentalArrival(request: RentalToAssign): DayTime {
   return splitGuatemala(Date.parse(fromRental) > Date.now() ? fromRental : soonest);
 }
 
+// A rental assigned after its hour does not leave in the past: the service sends it on its way now.
+export function rentalDepartureNote(request: Pick<RentalToAssign, 'departureAt'>, now: Date) {
+  return Date.parse(request.departureAt) <= now.getTime()
+    ? 'La hora de salida pedida ya pasó: el viaje saldrá en cuanto lo registres.'
+    : null;
+}
+
 export const ASSIGN_PROBLEMS = {
   busId: 'Elige el bus.',
   driverId: 'Elige el chofer.',

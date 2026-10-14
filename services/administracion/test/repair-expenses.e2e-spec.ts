@@ -10,12 +10,12 @@ import {
 } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { createTestBranch } from './support/branches';
 import { cleanTestData } from './support/cleanup';
 import { type EventCapture, captureEvents } from './support/events';
-import { identityHeaders } from './support/identity';
 
 const LLANTAS = 'a1000000-0000-4000-8000-000000000001';
 const ACEITE = 'a1000000-0000-4000-8000-000000000005';

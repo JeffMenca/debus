@@ -2,12 +2,12 @@ import { testEmail } from '@debus/config/test-data';
 import type { AccountLinkSentPayload } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders as as } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { activeAccount } from './support/accounts';
 import { createTestBranch } from './support/branches';
 import { cleanTestData } from './support/cleanup';
-import { identityHeaders as as } from './support/identity';
 import { type EventCapture, captureEvents } from './support/events';
 
 // No account behind it: the service trusts the identity headers the gateway sets.

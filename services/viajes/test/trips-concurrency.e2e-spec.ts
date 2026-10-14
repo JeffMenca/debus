@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { FakeServiceClient, ServiceHttpClient } from '@debus/server';
+import { FakeServiceClient, identityHeaders, ServiceHttpClient } from '@debus/server';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -7,7 +7,6 @@ import { createTestApp } from './support/app';
 import { cleanTripTestData } from './support/cleanup';
 import { captureEvents } from './support/events';
 import { type SeededFleet, seedBus, seedDriver, seedFleet } from './support/fleet';
-import { identityHeaders } from './support/identity';
 
 const SIMULTANEOUS = 20;
 // Waiting for each other must be quick: nobody sits on a connection for tens of seconds.

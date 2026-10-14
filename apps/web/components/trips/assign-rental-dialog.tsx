@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { FormAlert } from '@/components/auth/form-alert';
 import { DateField } from '@/components/forms/date-field';
+import { OPTIONS_PAGE, useOptionSearch } from '@/components/forms/option-search';
+import { OptionSelect } from '@/components/forms/option-select';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { useBusesPage } from '@/hooks/use-buses';
 import { useDriverOptions } from '@/hooks/use-drivers';
+import { useFocusFirstProblem } from '@/hooks/use-focus-first-problem';
 import { useAssignRental } from '@/hooks/use-rental-requests';
 import { messageOf } from '@/lib/api/client';
 import { formatPlate } from '@/lib/format';
@@ -24,13 +27,24 @@ import {
   assignClashFieldOf,
   assignRequestFrom,
   defaultRentalArrival,
+  rentalDepartureNote,
 } from '@/lib/trips/rental';
 import type { DayTime } from '@/lib/trips/schedule';
-import { OPTIONS_PAGE, useOptionSearch } from './option-search';
-import { OptionSelect } from './option-select';
 import { TimeField } from './time-field';
 
-const focusField = (id: string) => document.getElementById(id)?.focus();
+// Screen order, which decides what takes the focus after a failed submit.
+const FIELD_ORDER = [
+  'assign-bus',
+  'assign-driver',
+  'assign-arrival-day',
+  'assign-arrival-time',
+] as const;
+const PROBLEM_FIELD_ID: Record<keyof AssignProblems, string> = {
+  busId: 'assign-bus',
+  driverId: 'assign-driver',
+  arrivalDay: 'assign-arrival-day',
+  arrivalTime: 'assign-arrival-time',
+};
 const CLASH_FIELD_ID: Record<AssignClashField, string> = {
   bus: 'assign-bus',
   driver: 'assign-driver',
@@ -39,6 +53,7 @@ const CLASH_FIELD_ID: Record<AssignClashField, string> = {
 
 function AssignRentalForm({ request, onDone }: { request: RentalToAssign; onDone: () => void }) {
   const assign = useAssignRental(request.id);
+  const focusFirstProblem = useFocusFirstProblem(FIELD_ORDER);
   const [busSearch, setBusSearch, busTerm] = useOptionSearch();
   const [driverSearch, setDriverSearch, driverTerm] = useOptionSearch();
   const buses = useBusesPage({
@@ -60,20 +75,24 @@ function AssignRentalForm({ request, onDone }: { request: RentalToAssign; onDone
   const problems: AssignProblems = attempted ? (result.problems ?? {}) : {};
   const clashOn = (field: AssignClashField) => (clash?.field === field ? clash.message : undefined);
   const bus = buses?.items.find((item) => item.id === busId);
+  const [departureNote] = useState(() => rentalDepartureNote(request, new Date()));
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setAttempted(true);
     setClash(null);
-    if (!result.request) return;
+    if (!result.request) {
+      const found = Object.keys(result.problems ?? {}) as (keyof AssignProblems)[];
+      focusFirstProblem(found.map((key) => PROBLEM_FIELD_ID[key]));
+      return;
+    }
     try {
       await assign.mutateAsync(result.request);
     } catch (error) {
       const message = messageOf(error);
       const field = assignClashFieldOf(message);
       setClash({ field, message });
-      // The select is not a registered field, so the field with the problem is focused directly.
-      if (field) setTimeout(() => focusField(CLASH_FIELD_ID[field]), 0);
+      if (field) focusFirstProblem([CLASH_FIELD_ID[field]]);
       return;
     }
     toast.success(`Asignamos el bus y el chofer a ${request.clientName}.`);
@@ -94,6 +113,7 @@ function AssignRentalForm({ request, onDone }: { request: RentalToAssign; onDone
 
   return (
     <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
+      {departureNote && <FormAlert tone="info">{departureNote}</FormAlert>}
       {clash && !clash.field && <FormAlert tone="error">{clash.message}</FormAlert>}
       <OptionSelect
         id="assign-bus"

@@ -34,8 +34,9 @@ import {
 } from '@/components/ui/select';
 import { useBranchOptions } from '@/hooks/use-branches';
 import { useSaveRoute } from '@/hooks/use-routes';
-import { ApiError, messageOf } from '@/lib/api/client';
+import { messageOf } from '@/lib/api/client';
 import { useSession } from '@/lib/auth/session-store';
+import { routeClashField } from '@/lib/fleet/route-clash';
 
 type CreateInput = z.input<typeof createRouteRequestSchema>;
 type EditInput = z.input<typeof updateRouteRequestSchema>;
@@ -112,9 +113,9 @@ function CreateRouteForm({ onDone }: { onDone: () => void }) {
       toast.success(`Creamos la ruta a ${destination?.name ?? 'ese destino'}.`);
       onDone();
     } catch (error) {
-      // A route is only refused for its pair of branches, so a 409 belongs to the destination.
-      const onDestination = error instanceof ApiError && error.status === 409;
-      setServerError({ message: messageOf(error), onDestination });
+      const message = messageOf(error);
+      const onDestination = routeClashField(message) === 'destination';
+      setServerError({ message, onDestination });
       // A select is not a registered field, so its trigger is focused directly.
       if (onDestination) document.getElementById('route-destination')?.focus();
     }
@@ -138,7 +139,10 @@ function CreateRouteForm({ onDone }: { onDone: () => void }) {
             setValue('destinationBranchId', value, { shouldValidate: isSubmitted })
           }
         >
-          <SelectTrigger id="route-destination" aria-invalid={destinationError ? true : undefined}>
+          <SelectTrigger
+            id="route-destination"
+            {...invalidProps('route-destination', destinationError)}
+          >
             <SelectValue placeholder="Elige la sucursal de destino" />
           </SelectTrigger>
           <SelectContent>

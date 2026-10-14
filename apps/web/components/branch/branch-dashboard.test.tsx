@@ -32,10 +32,12 @@ function setup({
   departures = 14,
   licences = 3,
   pending = false,
-}: { departures?: number; licences?: number; pending?: boolean } = {}) {
+  placeholder = false,
+}: { departures?: number; licences?: number; pending?: boolean; placeholder?: boolean } = {}) {
   jest.mocked(useTripsPage).mockReturnValue({
     data: pending ? undefined : tripPage([trip()], { total: departures }),
     isPending: pending,
+    isPlaceholderData: placeholder,
     isError: false,
   } as never);
   jest.mocked(useExpiringDrivers).mockReturnValue({
@@ -123,6 +125,14 @@ describe('BranchDashboard', () => {
     expect(departures.parentElement).toHaveTextContent('14');
     expect(screen.getByText('Licencias por vencer').parentElement).toHaveTextContent('3');
     expect(useExpiringDrivers).toHaveBeenCalledWith(30);
+  });
+
+  it('does not show the count of the previous day under the label of the new one', () => {
+    setup({ departures: 14, placeholder: true });
+
+    expect(screen.queryByText('Salidas programadas hoy')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Cargando')).toBeInTheDocument();
+    expect(screen.getByText('Licencias por vencer').parentElement).toHaveTextContent('3');
   });
 
   it('shows the other blocks of the panel', () => {

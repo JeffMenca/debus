@@ -5,6 +5,7 @@ import {
   assignClashFieldOf,
   assignRequestFrom,
   defaultRentalArrival,
+  rentalDepartureNote,
 } from './rental';
 
 describe('defaultRentalArrival', () => {
@@ -128,5 +129,27 @@ describe('assignClashFieldOf', () => {
     ['Ese alquiler ya tiene bus y chofer.', null],
   ])('puts "%s" next to %s', (message, field) => {
     expect(assignClashFieldOf(message)).toBe(field);
+  });
+});
+
+describe('rentalDepartureNote', () => {
+  const now = new Date('2026-10-24T13:00:00.000Z');
+
+  it('tells that the trip leaves as soon as it is registered when the requested hour passed', () => {
+    expect(
+      rentalDepartureNote(rentalRequest({ departureAt: '2026-10-24T12:00:00.000Z' }), now),
+    ).toBe('La hora de salida pedida ya pasó: el viaje saldrá en cuanto lo registres.');
+  });
+
+  it('counts a departure that is exactly now as passed', () => {
+    expect(
+      rentalDepartureNote(rentalRequest({ departureAt: now.toISOString() }), now),
+    ).not.toBeNull();
+  });
+
+  it('says nothing while the requested hour is still ahead', () => {
+    expect(
+      rentalDepartureNote(rentalRequest({ departureAt: '2026-10-24T14:00:00.000Z' }), now),
+    ).toBeNull();
   });
 });
