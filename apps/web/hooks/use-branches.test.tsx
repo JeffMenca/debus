@@ -102,18 +102,16 @@ describe('useBranch', () => {
     const { wrapper } = queryWrapper();
     const { result } = renderHook(() => useBranch(branch.id), { wrapper });
 
-    const { admins: _admins, ...withoutAdmins } = branch;
-    await waitFor(() => expect(result.current.data).toEqual(withoutAdmins));
+    await waitFor(() => expect(result.current.data).toEqual(branchWithoutAdmins));
     expect(fetchMock).toHaveBeenCalledWith(`${API}/${branch.id}`, expect.anything());
   });
 
   it('reads the branch the way staff and clients receive it, without admins', async () => {
-    const { admins: _admins, ...withoutAdmins } = branch;
-    jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(withoutAdmins));
+    jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(branchWithoutAdmins));
     const { wrapper } = queryWrapper();
     const { result } = renderHook(() => useBranch(branch.id), { wrapper });
 
-    await waitFor(() => expect(result.current.data).toEqual(withoutAdmins));
+    await waitFor(() => expect(result.current.data).toEqual(branchWithoutAdmins));
   });
 
   it('does not ask for anything without an id', () => {

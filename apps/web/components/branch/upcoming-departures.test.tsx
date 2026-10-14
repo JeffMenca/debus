@@ -18,12 +18,15 @@ const departures = [
   }),
 ];
 
-function setup(state: { items?: unknown[]; pending?: boolean; error?: boolean } = {}) {
+function setup(
+  state: { items?: unknown[]; pending?: boolean; error?: boolean; placeholder?: boolean } = {},
+) {
   const refetch = jest.fn();
   jest.mocked(useTripsPage).mockReturnValue({
     data: state.pending || state.error ? undefined : tripPage((state.items ?? departures) as never),
     isPending: Boolean(state.pending),
     isError: Boolean(state.error),
+    isPlaceholderData: Boolean(state.placeholder),
     refetch,
   } as never);
   render(<UpcomingDepartures day={DAY} />);
@@ -92,4 +95,22 @@ it('lets the admin register the departure of each trip from the list', () => {
     '/sucursal/viajes/b',
   ]);
   expect(screen.getByRole('link', { name: 'Registrar salida de C-482BTX' })).toBeInTheDocument();
+});
+
+it('marks the list as refreshing and dims it while the departures of the new day arrive', () => {
+  setup({ placeholder: true });
+
+  const section = screen.getByRole('heading', { name: 'Próximas salidas' }).closest('section');
+  expect(section).toHaveAttribute('aria-busy', 'true');
+  expect(
+    screen.getByRole('table', { name: 'Próximas salidas' }).closest('.opacity-60'),
+  ).toHaveClass('motion-reduce:transition-none');
+});
+
+it('shows the list at full strength once the answer is the one asked for', () => {
+  setup();
+
+  const section = screen.getByRole('heading', { name: 'Próximas salidas' }).closest('section');
+  expect(section).not.toHaveAttribute('aria-busy', 'true');
+  expect(screen.getByRole('table', { name: 'Próximas salidas' }).closest('.opacity-60')).toBeNull();
 });

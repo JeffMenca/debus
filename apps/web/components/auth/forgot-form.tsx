@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { TextLink } from '@/components/ui/text-link';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { messageOf } from '@/lib/api/api-error';
 import { forgotPassword } from '@/lib/auth/auth-api';
 import { FIELD_MESSAGES } from '@/lib/auth/form-messages';
@@ -21,6 +22,7 @@ type ForgotInput = z.input<typeof emailRequestSchema>;
 type ForgotValues = z.output<typeof emailRequestSchema>;
 
 export function ForgotForm() {
+  const hydrated = useHydrated();
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -47,7 +49,7 @@ export function ForgotForm() {
       title="¿Olvidaste tu contraseña?"
       subtitle="Escribe tu correo y te enviamos un enlace para elegir una nueva."
     >
-      <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
+      <form method="post" noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
         <Field id="forgot-email" label="Correo electrónico" error={emailError}>
           <Input
             id="forgot-email"
@@ -60,7 +62,7 @@ export function ForgotForm() {
           />
         </Field>
         {serverError && <FormAlert tone="error">{serverError}</FormAlert>}
-        <Button type="submit" size="lg" arrow={!isSubmitting} disabled={isSubmitting}>
+        <Button type="submit" size="lg" arrow={!isSubmitting} disabled={!hydrated || isSubmitting}>
           {isSubmitting ? 'Enviando...' : 'Enviar enlace'}
         </Button>
       </form>

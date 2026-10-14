@@ -1,8 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SetPasswordForm } from './set-password-form';
+import { useHydrated } from '../../hooks/use-hydrated';
 
 const replace = jest.fn();
+jest.mock('../../hooks/use-hydrated', () => ({ useHydrated: jest.fn(() => true) }));
 jest.mock('next/navigation', () => ({ useRouter: () => ({ replace }) }));
 const fetchMock = jest.fn();
 beforeEach(() => {
@@ -83,5 +85,27 @@ describe('SetPasswordForm', () => {
 
     await waitFor(() => expect(onLinkProblem).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('SetPasswordForm before the page is interactive', () => {
+  afterEach(() => jest.mocked(useHydrated).mockReturnValue(true));
+
+  it('posts instead of getting, so a native submit never puts the fields in the address', () => {
+    const { container } = render(<SetPasswordForm token="t" purpose="ACTIVATION" />);
+
+    expect(container.querySelector('form')).toHaveAttribute('method', 'post');
+  });
+
+  it('keeps the submit button off until the page can handle the submit', () => {
+    jest.mocked(useHydrated).mockReturnValue(false);
+    const view = render(<SetPasswordForm token="t" purpose="ACTIVATION" />);
+
+    expect(screen.getByRole('button', { name: /Guardar contraseña/ })).toBeDisabled();
+
+    jest.mocked(useHydrated).mockReturnValue(true);
+    view.rerender(<SetPasswordForm token="t" purpose="ACTIVATION" />);
+
+    expect(screen.getByRole('button', { name: /Guardar contraseña/ })).toBeEnabled();
   });
 });

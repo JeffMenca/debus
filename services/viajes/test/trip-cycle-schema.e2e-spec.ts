@@ -4,6 +4,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { cleanTripTestData } from './support/cleanup';
 import { seedFleet } from './support/fleet';
+import { arrivalOf, departureOf } from './support/trip-records';
 
 describe('trip departures and arrivals are immutable', () => {
   let app: INestApplication;
@@ -30,28 +31,8 @@ describe('trip departures and arrivals are immutable', () => {
         departureAt: new Date('2030-01-01T12:00:00Z'),
         estimatedArrivalAt: new Date('2030-01-01T16:00:00Z'),
         createdById: randomUUID(),
-        departure: {
-          create: {
-            departedAt: new Date('2030-01-01T12:05:00Z'),
-            startMileageKm: 1000,
-            recordedById: randomUUID(),
-            recordedByRole: 'BRANCH_ADMIN',
-          },
-        },
-        arrival: {
-          create: {
-            arrivedAt: new Date('2030-01-01T16:10:00Z'),
-            endMileageKm: 1200,
-            fuelCost: 900,
-            distanceKm: 200,
-            depreciationPerKm: 0.85,
-            depreciationAmount: 170,
-            driverPay: 300,
-            settingsVersionId: randomUUID(),
-            recordedById: randomUUID(),
-            recordedByRole: 'DRIVER',
-          },
-        },
+        departure: { create: departureOf() },
+        arrival: { create: arrivalOf() },
       },
     });
     tripId = trip.id;

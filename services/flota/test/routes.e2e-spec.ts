@@ -7,11 +7,11 @@ import {
 import { TEST_BRANCH_PREFIX, TEST_RUN } from '@debus/config/test-data';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { cleanFleetTestData } from './support/cleanup';
 import { captureEvents } from './support/events';
-import { identityHeaders } from './support/identity';
 
 describe('routes', () => {
   let app: INestApplication;

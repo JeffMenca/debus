@@ -140,6 +140,16 @@ it('refuses an arrival that is not after the departure', async () => {
   expect(assign).not.toHaveBeenCalled();
 });
 
+it('puts the focus on the arrival hour when it is the first thing left to fix', async () => {
+  setup();
+  await choose('Bus', /C-482BTX/);
+  fireEvent.change(screen.getByLabelText('Hora de llegada'), { target: { value: '' } });
+
+  await submit();
+
+  await waitFor(() => expect(screen.getByLabelText('Hora de llegada')).toHaveFocus());
+});
+
 it('shows a clash of the bus next to its field, focuses it and keeps the dialog open', async () => {
   const { onOpenChange } = setup({
     assign: jest
@@ -204,4 +214,40 @@ it('stays closed while there is no rental to assign', () => {
   render(<AssignRentalDialog request={null} onOpenChange={jest.fn()} />);
 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+describe('a rental whose requested hour already passed', () => {
+  beforeEach(() =>
+    jest.useFakeTimers({
+      now: new Date('2026-10-24T13:00:00.000Z'),
+      doNotFake: [
+        'setTimeout',
+        'clearTimeout',
+        'setInterval',
+        'clearInterval',
+        'setImmediate',
+        'clearImmediate',
+        'nextTick',
+        'queueMicrotask',
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'performance',
+      ],
+    }),
+  );
+  afterEach(() => jest.useRealTimers());
+
+  it('warns that the trip leaves as soon as it is registered', () => {
+    setup();
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'La hora de salida pedida ya pasó: el viaje saldrá en cuanto lo registres.',
+    );
+  });
+
+  it('says nothing when the requested hour is still ahead', () => {
+    setup({ request: rentalRequest({ departureAt: '2026-10-25T12:00:00.000Z' }) });
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
 });

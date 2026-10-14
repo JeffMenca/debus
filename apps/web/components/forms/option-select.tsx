@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Field } from '@/components/ui/field';
+import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -98,7 +98,7 @@ export function OptionSelect({
           onChange(next);
         }}
       >
-        <SelectTrigger id={id} aria-invalid={error ? true : undefined}>
+        <SelectTrigger id={id} {...invalidProps(id, error)}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

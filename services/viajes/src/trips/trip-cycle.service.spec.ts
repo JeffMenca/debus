@@ -53,10 +53,16 @@ const departureRow = {
 const rate = { versionId: '0a0b0c0d-1111-4222-8333-444455556666', depreciationPerKm: 0.85 };
 
 const setup = () => {
+  // Another trip of the bus or of the driver that is on the road; none unless a test sets one.
+  const elsewhere: { bus: object | null; driver: object | null } = { bus: null, driver: null };
   const tx = {
     $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+    $executeRawUnsafe: jest.fn().mockResolvedValue(0),
     trip: {
-      findFirst: jest.fn().mockResolvedValue(tripRow),
+      findFirst: jest.fn(async ({ where }) => {
+        if (where.status !== 'IN_TRANSIT') return tripRow;
+        return where.busId ? elsewhere.bus : elsewhere.driver;
+      }),
       update: jest.fn().mockResolvedValue(tripRow),
       delete: jest.fn().mockResolvedValue(tripRow),
     },
@@ -97,6 +103,7 @@ const setup = () => {
   const trips = { loadDetail: jest.fn().mockResolvedValue({ id: tripRow.id }) };
   return {
     tx,
+    elsewhere,
     prisma,
     outbox,
     settings,
@@ -147,6 +154,64 @@ describe('TripCycleService.recordDeparture', () => {
     expect(detail).toEqual({ id: tripRow.id });
   });
 
+  it('queues for the bus and the driver after locking the trip', async () => {
+    const { tx, service } = setup();
+
+    await service.recordDeparture(admin, tripRow.id, input());
+
+    expect(tx.$queryRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('FOR UPDATE'),
+      tripRow.id,
+    );
+    expect(tx.$executeRawUnsafe.mock.calls.map(([, key]) => key)).toEqual([
+      `trip-bus:${busId}`,
+      `trip-driver:${driverId}`,
+    ]);
+    const [lockRow] = tx.$queryRawUnsafe.mock.invocationCallOrder as [number];
+    const [queueBus, queueDriver] = tx.$executeRawUnsafe.mock.invocationCallOrder as [
+      number,
+      number,
+    ];
+    expect(lockRow).toBeLessThan(queueBus);
+    expect(queueBus).toBeLessThan(queueDriver);
+    expect(queueDriver).toBeLessThan(tx.tripDeparture.create.mock.invocationCallOrder[0] ?? 0);
+  });
+
+  it('looks for another trip on the road of the same bus and of the same driver', async () => {
+    const { tx, service } = setup();
+
+    await service.recordDeparture(admin, tripRow.id, input());
+
+    const notThisTrip = { status: 'IN_TRANSIT', id: { not: tripRow.id } };
+    expect(tx.trip.findFirst).toHaveBeenCalledWith({
+      where: { busId, ...notThisTrip },
+      select: { id: true },
+    });
+    expect(tx.trip.findFirst).toHaveBeenCalledWith({
+      where: { driverId, ...notThisTrip },
+      select: { id: true },
+    });
+  });
+
+  it.each([
+    ['bus', 'Ese bus sigue en otro viaje. Registra primero la llegada de ese viaje.'],
+    ['driver', 'Ese chofer sigue en otro viaje. Registra primero la llegada de ese viaje.'],
+  ] as const)(
+    'refuses the departure while the %s is on another trip, and writes nothing',
+    async (who, text) => {
+      const { tx, elsewhere, outbox, service } = setup();
+      elsewhere[who] = { id: 'other-trip' };
+
+      const attempt = service.recordDeparture(admin, tripRow.id, input());
+
+      await expect(attempt).rejects.toThrow(new ConflictException(text));
+      expect(tx.tripDeparture.create).not.toHaveBeenCalled();
+      expect(tx.trip.update).not.toHaveBeenCalled();
+      expect(outbox.add).not.toHaveBeenCalled();
+      expect(outbox.flush).not.toHaveBeenCalled();
+    },
+  );
+
   it('takes the last arrival of the bus as its mileage when the copy lags behind', async () => {
     const { tx, outbox, service } = setup();
     tx.tripArrival.aggregate.mockResolvedValue({ _max: { endMileageKm: 1204 } });
@@ -179,7 +244,7 @@ describe('TripCycleService.recordDeparture', () => {
 
   it('refuses a departure registered long before the scheduled time', async () => {
     const { tx, outbox, service } = setup();
-    tx.trip.findFirst.mockResolvedValue({
+    tx.trip.findFirst.mockResolvedValueOnce({
       ...tripRow,
       departureAt: new Date(Date.now() + 3 * 24 * 3_600_000),
     });

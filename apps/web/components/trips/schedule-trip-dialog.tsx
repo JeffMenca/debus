@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { FormAlert } from '@/components/auth/form-alert';
 import { DateField } from '@/components/forms/date-field';
+import { OPTIONS_PAGE, useOptionSearch } from '@/components/forms/option-search';
+import { OptionSelect } from '@/components/forms/option-select';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { useBusesPage } from '@/hooks/use-buses';
 import { useDriverOptions } from '@/hooks/use-drivers';
+import { useFocusFirstProblem } from '@/hooks/use-focus-first-problem';
 import { useRoutesPage } from '@/hooks/use-routes';
 import { useScheduleTrip } from '@/hooks/use-trips';
 import { messageOf } from '@/lib/api/client';
@@ -28,9 +31,33 @@ import {
   splitGuatemala,
   suggestedArrival,
 } from '@/lib/trips/schedule';
-import { OPTIONS_PAGE, useOptionSearch } from './option-search';
-import { OptionSelect } from './option-select';
 import { TimeField } from './time-field';
+
+// Screen order, which decides what takes the focus after a failed submit.
+const FIELD_ORDER = [
+  'trip-route',
+  'trip-bus',
+  'trip-driver',
+  'trip-departure-day',
+  'trip-departure-time',
+  'trip-arrival-day',
+  'trip-arrival-time',
+] as const;
+const PROBLEM_FIELD_ID: Record<keyof ScheduleProblems, string> = {
+  routeId: 'trip-route',
+  busId: 'trip-bus',
+  driverId: 'trip-driver',
+  departureDay: 'trip-departure-day',
+  departureTime: 'trip-departure-time',
+  arrivalDay: 'trip-arrival-day',
+  arrivalTime: 'trip-arrival-time',
+};
+const CLASH_FIELD_ID: Record<ClashField, string> = {
+  route: 'trip-route',
+  bus: 'trip-bus',
+  driver: 'trip-driver',
+  departure: 'trip-departure-time',
+};
 
 interface ScheduleTripFormProps {
   defaultDay: string;
@@ -39,6 +66,7 @@ interface ScheduleTripFormProps {
 
 function ScheduleTripForm({ defaultDay, onDone }: ScheduleTripFormProps) {
   const schedule = useScheduleTrip();
+  const focusFirstProblem = useFocusFirstProblem(FIELD_ORDER);
   const [routeSearch, setRouteSearch, routeTerm] = useOptionSearch();
   const [busSearch, setBusSearch, busTerm] = useOptionSearch();
   const [driverSearch, setDriverSearch, driverTerm] = useOptionSearch();
@@ -81,12 +109,18 @@ function ScheduleTripForm({ defaultDay, onDone }: ScheduleTripFormProps) {
     event.preventDefault();
     setAttempted(true);
     setClash(null);
-    if (!result.request) return;
+    if (!result.request) {
+      const found = Object.keys(result.problems ?? {}) as (keyof ScheduleProblems)[];
+      focusFirstProblem(found.map((key) => PROBLEM_FIELD_ID[key]));
+      return;
+    }
     try {
       await schedule.mutateAsync(result.request);
     } catch (error) {
       const message = messageOf(error);
-      setClash({ field: clashFieldOf(message), message });
+      const field = clashFieldOf(message);
+      setClash({ field, message });
+      if (field) focusFirstProblem([CLASH_FIELD_ID[field]]);
       return;
     }
     toast.success(`Programamos el viaje a ${route?.destinationName ?? 'ese destino'}.`);

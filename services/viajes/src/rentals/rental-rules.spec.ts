@@ -1,4 +1,4 @@
-import { assignmentProblem } from './rental-rules';
+import { assignmentProblem, tripDepartureFor } from './rental-rules';
 
 const request = {
   status: 'PENDING' as const,
@@ -63,5 +63,71 @@ describe('assignmentProblem', () => {
 
   it('accepts a bus with exactly as many seats as passengers', () => {
     expect(assignmentProblem({ ...ok, bus: { ...bus, capacity: 35 } })).toBeNull();
+  });
+});
+
+describe('tripDepartureFor', () => {
+  const now = new Date('2026-10-20T15:42:31.000Z');
+
+  it('keeps a departure that is still ahead', () => {
+    const later = new Date('2026-10-21T13:00:00.000Z');
+
+    expect(tripDepartureFor(later, now)).toEqual(later);
+  });
+
+  it('leaves at the next whole minute when the requested time already passed', () => {
+    expect(tripDepartureFor(new Date('2026-10-20T09:00:00.000Z'), now)).toEqual(
+      new Date('2026-10-20T15:43:00.000Z'),
+    );
+  });
+
+  it('leaves in the following minute when now is exactly on a whole minute', () => {
+    const onTheMinute = new Date('2026-10-20T15:42:00.000Z');
+
+    expect(tripDepartureFor(new Date('2026-10-20T09:00:00.000Z'), onTheMinute)).toEqual(
+      new Date('2026-10-20T15:43:00.000Z'),
+    );
+  });
+
+  it('moves a departure that is exactly now to the next minute', () => {
+    expect(tripDepartureFor(now, now)).toEqual(new Date('2026-10-20T15:43:00.000Z'));
+  });
+});
+
+describe('assignmentProblem with a departure that already passed', () => {
+  const now = new Date('2026-10-20T15:42:31.000Z');
+  const late = { ...request, departureAt: new Date('2026-10-20T09:00:00.000Z') };
+
+  it('compares the arrival with the departure the trip will really have', () => {
+    expect(
+      assignmentProblem({
+        ...ok,
+        request: late,
+        estimatedArrivalAt: '2026-10-20T16:42:00.000Z',
+        now,
+      }),
+    ).toBeNull();
+  });
+
+  it('refuses an arrival that falls before the real departure', () => {
+    expect(
+      assignmentProblem({
+        ...ok,
+        request: late,
+        estimatedArrivalAt: '2026-10-20T15:42:45.000Z',
+        now,
+      }),
+    ).toBe('rentalArrivalBeforeDeparture');
+  });
+
+  it('says an arrival in the past has already passed', () => {
+    expect(
+      assignmentProblem({
+        ...ok,
+        request: late,
+        estimatedArrivalAt: '2026-10-20T12:00:00.000Z',
+        now,
+      }),
+    ).toBe('rentalArrivalInPast');
   });
 });

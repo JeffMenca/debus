@@ -8,6 +8,7 @@ import { queryLocal } from './support/local-sql';
 import { isReachable, mailpitUrl } from './support/mailpit';
 import { signInAsRealAdmin } from './support/real-admin';
 import {
+  ACTION_TIMEOUT,
   createBranch,
   createRoute,
   randomLetters,
@@ -25,6 +26,21 @@ async function confirm(page: Page, button: string, check: string) {
   await expect(dialog).toBeHidden();
 }
 
+// Opens the trip of the bus that has not left on that day, deletes it and checks it is gone.
+async function deleteScheduledTrip(page: Page, day: string, plateTail: RegExp) {
+  const list = `/sucursal/viajes?desde=${day}&hasta=${day}`;
+  const scheduled = () =>
+    page.getByRole('row', { name: plateTail }).filter({ hasText: 'Programado' });
+  await page.goto(list);
+  await expect(scheduled()).toHaveCount(1, { timeout: ACTION_TIMEOUT });
+  await scheduled().getByRole('link').click();
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
+  await confirm(page, 'Eliminar viaje', 'Entiendo que se avisará a quienes compraron boletos.');
+  await expect(page).toHaveURL(/\/sucursal\/viajes$/);
+  await page.goto(list);
+  await expect(scheduled()).toHaveCount(0);
+}
+
 test.describe('real trip cycle and repair expenses', () => {
   test.skip(
     !process.env.E2E_REAL_API || !process.env.E2E_ADMIN_EMAIL,
@@ -35,6 +51,7 @@ test.describe('real trip cycle and repair expenses', () => {
     'creates branches and accounts: runs only on the local stack',
   );
   test.setTimeout(420_000);
+  test.use({ actionTimeout: ACTION_TIMEOUT, navigationTimeout: ACTION_TIMEOUT });
   // Removes the rows of this run (including the immutable ones) and the photos of its branches.
   test.afterAll(() => cleanUpTestRun());
 
@@ -89,7 +106,9 @@ test.describe('real trip cycle and repair expenses', () => {
 
     // The first trip leaves two hours ago and arrives now.
     await branch.goto(`/sucursal/viajes?desde=${soon.day}&hasta=${soon.day}`);
-    await branch.getByRole('row', { name: plateTail }).getByRole('link').click();
+    const firstTrip = branch.getByRole('row', { name: plateTail });
+    await expect(firstTrip).toHaveCount(1, { timeout: ACTION_TIMEOUT });
+    await firstTrip.getByRole('link').click();
     await expect(branch).toHaveURL(/\/sucursal\/viajes\/[0-9a-f-]{36}$/);
     const tripId = branch.url().split('/').pop()!;
     const departure = guatemalaAgo(120);
@@ -134,6 +153,17 @@ test.describe('real trip cycle and repair expenses', () => {
       branch.getByRole('row', { name: plateTail }).getByRole('cell', { name: '1', exact: true }),
     ).toBeVisible();
 
+    // The first trip arrived: its bus can take a trip inside the hours it was scheduled for.
+    const inside = guatemalaAgo(-45);
+    await scheduleTrip(branch, {
+      destination: `destino ${stamp}`,
+      plate,
+      day: inside.day,
+      time: inside.time,
+    });
+    await branch.goto(`/sucursal/viajes?desde=${soon.day}&hasta=${inside.day}`);
+    await expect(branch.getByRole('row', { name: plateTail })).toHaveCount(2);
+
     // A repair of the bus is registered with two lines and shows in the list with its total.
     await branch.goto('/sucursal/gastos/nuevo');
     await branch.getByRole('combobox', { name: 'Bus' }).click();
@@ -161,14 +191,9 @@ test.describe('real trip cycle and repair expenses', () => {
         { timeout: 30_000 },
       )
       .toBe('5550.50');
-    // A trip that has not left is deleted, and the bus can be deactivated once flota forgets it.
-    await branch.goto(`/sucursal/viajes?desde=${inTwoDays}&hasta=${inTwoDays}`);
-    await branch.getByRole('row', { name: plateTail }).getByRole('link').click();
-    await branch.getByRole('button', { name: 'Eliminar', exact: true }).click();
-    await confirm(branch, 'Eliminar viaje', 'Entiendo que se avisará a quienes compraron boletos.');
-    await expect(branch).toHaveURL(/\/sucursal\/viajes$/);
-    await branch.goto(`/sucursal/viajes?desde=${inTwoDays}&hasta=${inTwoDays}`);
-    await expect(branch.getByRole('row', { name: plateTail })).toHaveCount(0);
+    // The trips that have not left are deleted, and the bus can be deactivated once flota forgets them.
+    await deleteScheduledTrip(branch, inTwoDays, plateTail);
+    await deleteScheduledTrip(branch, inside.day, plateTail);
     await expect(async () => {
       await branch.goto('/sucursal/buses');
       await branch.getByRole('button', { name: /Acciones de/ }).click();

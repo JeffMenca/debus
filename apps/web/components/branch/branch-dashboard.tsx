@@ -54,7 +54,7 @@ export function BranchDashboard() {
       />
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-3.5">
-        {departures.isPending ? (
+        {departures.isPending || departures.isPlaceholderData ? (
           <KpiSkeleton />
         ) : (
           <KpiCard

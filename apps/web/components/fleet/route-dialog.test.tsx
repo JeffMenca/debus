@@ -134,6 +134,30 @@ describe('creating a route', () => {
     expect(screen.getByRole('combobox', { name: 'Destino' })).toHaveFocus();
   });
 
+  it('shows a failure of the own branch at the top, not on the destination', async () => {
+    setup({ save: jest.fn().mockRejectedValue(new ApiError(409, 'Tu sucursal no está activa.')) });
+    await chooseDestination('Guatemala');
+    await userEvent.type(screen.getByLabelText('Distancia (km)'), '206.5');
+    await userEvent.type(screen.getByLabelText('Precio del boleto (Q)'), '85');
+
+    await submit('Crear ruta');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Tu sucursal no está activa.');
+    expect(screen.getByRole('combobox', { name: 'Destino' })).not.toBeInvalid();
+  });
+
+  it('points the destination at the message that explains its error', async () => {
+    setup();
+
+    await submit('Crear ruta');
+
+    const message = await screen.findByText('Elige la sucursal de destino.');
+    expect(screen.getByRole('combobox', { name: 'Destino' })).toHaveAttribute(
+      'aria-describedby',
+      message.id,
+    );
+  });
+
   it('shows any other failure at the top', async () => {
     setup({ save: jest.fn().mockRejectedValue(new ApiError(0, 'No pudimos conectarnos.')) });
     await chooseDestination('Guatemala');

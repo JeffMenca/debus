@@ -68,3 +68,22 @@ describe('with an option for "all"', () => {
     expect(screen.getByRole('searchbox', { name: 'Buscar categoría' })).toBeInTheDocument();
   });
 });
+
+describe('with an error', () => {
+  it('is marked invalid and points to the message that explains it', () => {
+    setup({ error: 'Elige un bus.' });
+
+    const trigger = screen.getByRole('combobox', { name: 'Categoría' });
+    expect(trigger).toHaveAttribute('aria-invalid', 'true');
+    const message = screen.getByText('Elige un bus.');
+    expect(trigger).toHaveAttribute('aria-describedby', message.id);
+  });
+
+  it('carries no error attributes when all is well', () => {
+    setup();
+
+    const trigger = screen.getByRole('combobox', { name: 'Categoría' });
+    expect(trigger).not.toHaveAttribute('aria-invalid');
+    expect(trigger).not.toHaveAttribute('aria-describedby');
+  });
+});

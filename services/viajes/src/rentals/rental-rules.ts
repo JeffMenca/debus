@@ -2,6 +2,14 @@ import { isLaterInstant } from '@debus/contracts';
 import type { RentalRequestStatus } from '../generated/prisma/client';
 import type { TripProblem } from '../trips/trip-messages';
 
+const MINUTE_MS = 60_000;
+
+// A rental assigned after its requested time cannot start in the past: it leaves now.
+export function tripDepartureFor(requestedDepartureAt: Date, now: Date): Date {
+  if (requestedDepartureAt > now) return requestedDepartureAt;
+  return new Date(Math.ceil((now.getTime() + 1) / MINUTE_MS) * MINUTE_MS);
+}
+
 // What must hold before a paid rental gets its bus and driver; the clashes with other trips are
 // decided by flota and by the exclusion constraints of the database.
 export function assignmentProblem(input: {
@@ -25,14 +33,16 @@ export function assignmentProblem(input: {
   if (bus.capacity < request.passengers) return 'rentalBusTooSmall';
   if (!driver || driver.branchId !== branchId) return 'driverNotFound';
   if (!driver.active) return 'driverInactive';
-  if (!isLaterInstant(input.estimatedArrivalAt, request.departureAt.toISOString())) {
-    return 'rentalArrivalBeforeDeparture';
-  }
   // A rental that was not assigned in time still gets its bus while the trip can be made: the
   // real departure is recorded late, and a deleted trip must always be assignable again.
-  if (new Date(input.estimatedArrivalAt) <= input.now) return 'rentalArrivalInPast';
+  const arrivalAt = new Date(input.estimatedArrivalAt);
+  if (arrivalAt <= input.now) return 'rentalArrivalInPast';
+  const departureAt = tripDepartureFor(request.departureAt, input.now);
+  if (!isLaterInstant(input.estimatedArrivalAt, departureAt.toISOString())) {
+    return 'rentalArrivalBeforeDeparture';
+  }
   // The bus stays with the client until the return, so it is not free before that.
-  if (request.returnAt && new Date(input.estimatedArrivalAt) < request.returnAt) {
+  if (request.returnAt && arrivalAt < request.returnAt) {
     return 'rentalArrivalBeforeReturn';
   }
   return null;

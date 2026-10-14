@@ -20,6 +20,7 @@ import {
   tripCosts,
 } from './trip-cycle-rules';
 import { toTripCompletedPayload, toTripDeletedPayload, toTripDepartedPayload } from './trip-events';
+import { queueTripsOf } from './trip-locks';
 import { TRIP_MESSAGES, type TripProblem } from './trip-messages';
 import { TripsService } from './trips.service';
 
@@ -51,15 +52,21 @@ export class TripCycleService {
     try {
       await this.prisma.$transaction(async (tx) => {
         const trip = await this.lockTrip(tx, actor, tripId);
-        const [bus, driver] = await Promise.all([
+        // Departures of different trips of one bus or driver queue here, so each one sees the last.
+        await queueTripsOf(tx, trip.busId, trip.driverId);
+        const [bus, driver, busOnAnotherTrip, driverOnAnotherTrip] = await Promise.all([
           tx.busCopy.findUnique({ where: { id: trip.busId } }),
           tx.driverCopy.findUnique({ where: { id: trip.driverId } }),
+          this.onTheRoadElsewhere(tx, tripId, { busId: trip.busId }),
+          this.onTheRoadElsewhere(tx, tripId, { driverId: trip.driverId }),
         ]);
         refuse(
           departureProblem({
             status: trip.status,
             busActive: bus?.active ?? false,
             driverActive: driver?.active ?? false,
+            busOnAnotherTrip,
+            driverOnAnotherTrip,
             busMileageKm: bus ? await lastMileageKm(tx, trip.busId, bus.mileageKm) : 0,
             startMileageKm: input.startMileageKm,
             departedAt: input.departedAt,
@@ -171,6 +178,19 @@ export class TripCycleService {
       await this.outbox.add(tx, 'TripDeleted', toTripDeletedPayload(trip), correlationId);
     });
     await this.outbox.flush(REQUEST_FLUSH);
+  }
+
+  // Another trip of the same bus or driver that left and has not arrived yet.
+  private async onTheRoadElsewhere(
+    tx: Prisma.TransactionClient,
+    tripId: string,
+    owner: { busId: string } | { driverId: string },
+  ): Promise<boolean> {
+    const other = await tx.trip.findFirst({
+      where: { ...owner, status: 'IN_TRANSIT', id: { not: tripId } },
+      select: { id: true },
+    });
+    return other !== null;
   }
 
   // The row lock makes departure, arrival and deletion of one trip run one after the other.

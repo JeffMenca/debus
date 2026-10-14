@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { OptionSelect } from '@/components/trips/option-select';
+import { OptionSelect } from '@/components/forms/option-select';
 import {
   type ExpenseProblems,
   LINE_KIND_LABELS,

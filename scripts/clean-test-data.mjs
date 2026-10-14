@@ -7,6 +7,8 @@
 // The SQL lives in @debus/config/test-data-sql, where integration tests run it too.
 // Usage: node scripts/clean-test-data.mjs [--run <id>]
 //   --run limits the cleanup to what one test run created (the TEST_RUN of @debus/config/test-data).
+//   Without it, throwaway schemas (test_run_*) are dropped only when stale, so a run in progress keeps its own.
+//   Test accounts and branches have no such guard: never run it without --run while tests are running.
 import { createRequire } from 'node:module';
 import { localDatabases } from './lib/local-databases.mjs';
 

@@ -177,6 +177,43 @@ test.describe('trip cycle', () => {
     await expect(page.getByText('148,420 km')).toBeVisible();
   });
 
+  test('a bus still on another trip says so in the departure card and records nothing', async ({
+    page,
+    baseURL,
+  }) => {
+    const onTheRoad = scheduled({ status: 'IN_TRANSIT', destinationName: 'Flores' });
+    const next = scheduled({
+      destinationName: 'Cobán',
+      departureAt: instantAt(0, '11:30'),
+      estimatedArrivalAt: instantAt(0, '15:30'),
+    });
+    await open(page, baseURL, `/sucursal/viajes/${next.id}`, {
+      trips: [onTheRoad, next],
+      cycle: {
+        records: [
+          {
+            tripId: onTheRoad.id,
+            departure: {
+              departedAt: instantAt(0, '05:34'),
+              startMileageKm: 148410,
+              recordedByRole: 'DRIVER',
+            },
+          },
+        ],
+      },
+    });
+
+    await page.getByRole('button', { name: 'Registrar salida' }).click();
+    await confirm(page, 'Sí, registrar salida');
+
+    await expect(page.getByRole('alert').filter({ hasText: 'sigue en otro viaje' })).toContainText(
+      'Ese bus sigue en otro viaje. Registra primero la llegada de ese viaje.',
+    );
+    await expect(page.getByRole('button', { name: 'Registrar salida' })).toBeEnabled();
+    await expect(page.getByText('Registrada, no editable')).toHaveCount(0);
+    await expectNoHorizontalScroll(page);
+  });
+
   test('a trip with a deactivated bus warns and does not let the departure through', async ({
     page,
     baseURL,

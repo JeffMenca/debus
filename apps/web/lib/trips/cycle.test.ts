@@ -5,7 +5,9 @@ import {
   arrivalRequestFrom,
   departureRequestFrom,
   formatMoment,
+  liveMileageProblem,
   nowInGuatemala,
+  settledMileageProblem,
 } from './cycle';
 
 describe('arrivalPreview', () => {
@@ -201,5 +203,27 @@ describe('arrivalRequestFrom', () => {
     expect(arrivalRequestFrom({ ...values, fuel: '0' }, departure).problems).toEqual({
       fuel: CYCLE_PROBLEMS.fuel,
     });
+  });
+});
+
+describe('mileage problems while typing and once settled', () => {
+  it('stays quiet while the final mileage is still below the start', () => {
+    expect(liveMileageProblem(1, 1000)).toBeUndefined();
+    expect(liveMileageProblem(120, 1000)).toBeUndefined();
+    expect(liveMileageProblem(null, 1000)).toBeUndefined();
+  });
+
+  it('warns at once when the trip is already too long', () => {
+    expect(liveMileageProblem(1000 + MAX_TRIP_DISTANCE_KM + 1, 1000)).toBe(
+      CYCLE_PROBLEMS.distanceTooLong,
+    );
+  });
+
+  it('says the mileage is below the start once the field is left', () => {
+    expect(settledMileageProblem(120, 1000)).toBe(CYCLE_PROBLEMS.endMileageBelow(1000));
+  });
+
+  it('asks for a number once the field is left empty', () => {
+    expect(settledMileageProblem(null, 1000)).toBe(CYCLE_PROBLEMS.endMileage);
   });
 });

@@ -2,13 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { busChangedPayloadSchema, busPageSchema } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { seedTestBranch } from './support/branches';
 import { cleanFleetTestData } from './support/cleanup';
 import { captureEvents } from './support/events';
 import { busRow, driverRow, uniquePlate } from './support/fleet';
-import { identityHeaders } from './support/identity';
 
 const newBus = (over: Record<string, unknown> = {}) => ({
   plate: uniquePlate(),
