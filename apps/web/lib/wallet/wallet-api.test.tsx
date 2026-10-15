@@ -60,6 +60,7 @@ describe('useTopUp', () => {
       }),
     );
     expect(client.getQueryData(['wallet', 'balance'])).toEqual(wallet({ balance: 440 }));
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['wallet'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['wallet', 'movements'] });
+    expect(invalidate).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { apiError, mockClientesApi, movement, movementPage } from '../../test-support/account';
 import { queryWrapper } from '../../test-support/query-wrapper';
@@ -69,6 +69,15 @@ describe('MovementsList', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Última página' }));
 
     expect(onChange.mock.calls).toEqual([[{ page: 1 }], [{ page: 2 }], [{ page: 5 }]]);
+  });
+
+  it('lands on the last page when the address asks for one past the end', async () => {
+    mockClientesApi({
+      'GET /wallet/movements': () => Response.json(movementPage([], { total: 45, page: 9 })),
+    });
+    const onChange = renderList(jest.fn(), { page: 9 });
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith({ page: 3 }));
   });
 
   it('explains an empty wallet history', async () => {

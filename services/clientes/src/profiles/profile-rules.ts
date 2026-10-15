@@ -1,15 +1,7 @@
 import type { UserRegisteredPayload } from '@debus/contracts';
+import type { ClientProfile } from '../generated/prisma/client';
 
-export interface ProfileRow {
-  userId: string;
-  email: string;
-  fullName: string;
-  role: string;
-  dpi: string | null;
-  phone: string | null;
-  nit: string | null;
-  address: string | null;
-}
+export type NewProfile = Omit<ClientProfile, 'createdAt' | 'updatedAt'>;
 
 // Staff sign up without the client fields; they start empty and the person can fill them in.
 export function toProfileRow({
@@ -18,7 +10,7 @@ export function toProfileRow({
   fullName,
   role,
   profile,
-}: UserRegisteredPayload): ProfileRow {
+}: UserRegisteredPayload): NewProfile {
   return {
     userId,
     email,

@@ -46,7 +46,6 @@ export async function mockAccountGateway(page: Page, seed: AccountSeed = {}) {
   let balance = seed.balance ?? 0;
   const movements = structuredClone(seed.movements ?? []);
   const keys = new Map<string, string>();
-  const topUpKeys: string[] = [];
   let profile: ClientProfile = {
     userId: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
     email: 'ana.mendez@correo.com',
@@ -91,7 +90,6 @@ export async function mockAccountGateway(page: Page, seed: AccountSeed = {}) {
       const key = request.headers()['idempotency-key'];
       const parsed = topUpRequestSchema.safeParse(request.postDataJSON());
       if (!key || !parsed.success) return error(route, 400, ACCOUNT_MESSAGES.invalid);
-      topUpKeys.push(key);
       const fingerprint = JSON.stringify(parsed.data);
       const previous = keys.get(key);
       if (previous && previous !== fingerprint)
@@ -123,5 +121,5 @@ export async function mockAccountGateway(page: Page, seed: AccountSeed = {}) {
     return error(route, 404, 'No encontramos lo que buscas.');
   });
 
-  return { topUpKeys, balance: () => balance };
+  return { balance: () => balance };
 }

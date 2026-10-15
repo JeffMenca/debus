@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { SignOutButton } from '@/components/auth/sign-out-button';
 import { Logo } from '@/components/brand/logo';
+import { isActivePath } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 // Only screens that exist are listed; each new client screen adds its link here.
@@ -21,7 +22,7 @@ export function ClientShell({ children }: { children: ReactNode }) {
           </Link>
           <nav aria-label="Tu cuenta" className="flex flex-wrap gap-1">
             {LINKS.map((link) => {
-              const active = pathname === link.href;
+              const active = isActivePath(pathname, link.href);
               return (
                 <Link
                   key={link.href}

@@ -1,5 +1,5 @@
 import { type WalletMovementKind, idempotencyKeySchema } from '@debus/contracts';
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { MESSAGES } from '../messages';
 
 export interface MovementIntent {
@@ -21,9 +21,8 @@ export function movementFingerprint({
   return [kind, toCents(amount), occurredOn, reference ?? ''].join('|');
 }
 
-export function assertSameIntent(existing: { fingerprint: string }, fingerprint: string): void {
-  if (existing.fingerprint !== fingerprint) throw new ConflictException(MESSAGES.keyReused);
-}
+export const isSameIntent = (existing: { fingerprint: string }, fingerprint: string): boolean =>
+  existing.fingerprint === fingerprint;
 
 const CREDITS: readonly WalletMovementKind[] = ['TOP_UP', 'REFUND'];
 

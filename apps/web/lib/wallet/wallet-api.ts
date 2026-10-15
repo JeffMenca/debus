@@ -49,9 +49,10 @@ export function useTopUp() {
         body: JSON.stringify(request),
         headers: { 'idempotency-key': key },
       }),
+    // The answer is the new balance; only the movements need to be asked for again.
     onSuccess: (wallet) => {
       client.setQueryData(BALANCE_KEY, wallet);
-      return client.invalidateQueries({ queryKey: ['wallet'] });
+      return client.invalidateQueries({ queryKey: ['wallet', 'movements'] });
     },
   });
 }

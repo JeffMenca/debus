@@ -1,6 +1,6 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import {
-  assertSameIntent,
+  isSameIntent,
   movementFingerprint,
   readIdempotencyKey,
   signedAmount,
@@ -23,10 +23,10 @@ describe('wallet rules', () => {
   it('lets a repeated request through only when it asks for the same thing', () => {
     const fingerprint = movementFingerprint(topUp);
 
-    expect(() => assertSameIntent({ fingerprint }, fingerprint)).not.toThrow();
-    expect(() =>
-      assertSameIntent({ fingerprint }, movementFingerprint({ ...topUp, amount: 200 })),
-    ).toThrow(ConflictException);
+    expect(isSameIntent({ fingerprint }, fingerprint)).toBe(true);
+    expect(isSameIntent({ fingerprint }, movementFingerprint({ ...topUp, amount: 200 }))).toBe(
+      false,
+    );
   });
 
   it('credits top-ups and refunds and debits tickets and rentals', () => {

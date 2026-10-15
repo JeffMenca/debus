@@ -6,6 +6,7 @@ import { ErrorAlert } from '@/components/data/error-alert';
 import { StatusTabs } from '@/components/data/status-tabs';
 import { TablePagination } from '@/components/data/table-pagination';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePageInRange } from '@/hooks/use-page-in-range';
 import type { MovementKindFilter } from '@/lib/account/account-view-params';
 import { signedQuetzales } from '@/lib/account/formats';
 import { messageOf } from '@/lib/api/client';
@@ -60,6 +61,7 @@ interface MovementsListProps {
 
 export function MovementsList({ query, onChange }: MovementsListProps) {
   const movements = useWalletMovements(query);
+  usePageInRange(movements.data, onChange);
   const data = movements.data;
   const pages = data ? pageCount(data.total, data.pageSize) : 1;
   const before = (query.page - 1) * query.pageSize;
@@ -118,9 +120,7 @@ export function MovementsList({ query, onChange }: MovementsListProps) {
           onPrevious={() => onChange({ page: query.page - 1 })}
           onNext={() => onChange({ page: query.page + 1 })}
           onLast={() => onChange({ page: pages })}
-          onPageSizeChange={(pageSize) =>
-            onChange({ pageSize: pageSize as MovementsQuery['pageSize'] })
-          }
+          onPageSizeChange={(pageSize) => onChange({ pageSize })}
         />
       )}
     </div>

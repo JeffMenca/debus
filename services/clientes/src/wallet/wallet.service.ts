@@ -13,6 +13,7 @@ import {
 import { SERVER_MESSAGES, isUniqueViolation } from '@debus/server';
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -26,15 +27,10 @@ import { MESSAGES } from '../messages';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   type MovementIntent,
-  assertSameIntent,
+  isSameIntent,
   movementFingerprint,
   signedAmount,
 } from './wallet-rules';
-
-interface Applied {
-  movementId: string;
-  balance: number;
-}
 
 const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
@@ -54,13 +50,17 @@ const toMovement = (row: MovementRow): WalletMovement => ({
   createdAt: row.createdAt.toISOString(),
 });
 
-const replayed = (row: MovementRow, fingerprint: string): Applied => {
-  assertSameIntent(row, fingerprint);
+const byKey = (clientId: string, idempotencyKey: string) => ({
+  where: { clientId_idempotencyKey: { clientId, idempotencyKey } },
+});
+
+const replayed = (row: MovementRow, fingerprint: string): WalletDebit => {
+  if (!isSameIntent(row, fingerprint)) throw new ConflictException(MESSAGES.keyReused);
   return { movementId: row.id, balance: row.balanceAfter.toNumber() };
 };
 
 function movementFilter(clientId: string, query: WalletMovementListQuery) {
-  const { kind, from, to } = query as WalletMovementListQuery & { from?: string; to?: string };
+  const { kind, from, to } = query;
   return {
     clientId,
     ...(kind !== 'all' && { kind }),
@@ -120,7 +120,7 @@ export class WalletService {
     clientId: string,
     key: string,
     intent: MovementIntent & { description: string },
-  ): Promise<Applied> {
+  ): Promise<WalletDebit> {
     const fingerprint = movementFingerprint(intent);
     try {
       return await this.prisma.$transaction((tx) =>
@@ -129,9 +129,7 @@ export class WalletService {
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       // Another request with the same key committed first: answer with what it recorded.
-      const first = await this.prisma.walletMovement.findUnique({
-        where: { clientId_idempotencyKey: { clientId, idempotencyKey: key } },
-      });
+      const first = await this.prisma.walletMovement.findUnique(byKey(clientId, key));
       if (!first) throw error;
       return replayed(first, fingerprint);
     }
@@ -143,10 +141,8 @@ export class WalletService {
     key: string,
     intent: MovementIntent & { description: string },
     fingerprint: string,
-  ): Promise<Applied> {
-    const existing = await tx.walletMovement.findUnique({
-      where: { clientId_idempotencyKey: { clientId, idempotencyKey: key } },
-    });
+  ): Promise<WalletDebit> {
+    const existing = await tx.walletMovement.findUnique(byKey(clientId, key));
     if (existing) return replayed(existing, fingerprint);
 
     const amount = signedAmount(intent.kind, intent.amount);
