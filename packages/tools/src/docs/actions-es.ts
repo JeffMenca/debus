@@ -3,14 +3,14 @@
 // a test fails until someone writes it.
 export const ACTIONS: Readonly<Record<string, string>> = {
   HealthController_check: 'Responde si el servicio está en línea',
-  SystemController_check: 'Mide si el gateway y los siete servicios responden',
+  SystemController_check: 'Mide si los siete servicios responden',
   SystemController_emit: 'Envía un aviso de prueba por Pub/Sub a los siete servicios',
   SystemController_probe: 'Dice qué servicios recibieron un aviso de prueba',
 
   AccountsController_signUp: 'Registra a un cliente y le envía el enlace para crear su contraseña',
   AccountsController_forgot: 'Envía el enlace para crear o restablecer la contraseña',
   AccountsController_status: 'Dice si un enlace sirve, venció o ya se usó',
-  AccountsController_renew: 'Envía un enlace nuevo cuando el anterior venció',
+  AccountsController_renew: 'Envía un enlace nuevo',
   AccountsController_setPassword: 'Guarda la contraseña con el enlace recibido',
   SessionsController_login: 'Inicia sesión',
   SessionsController_refresh: 'Renueva la sesión',
@@ -36,7 +36,7 @@ export const ACTIONS: Readonly<Record<string, string>> = {
   SettingsController_create: 'Crea una versión nueva de la configuración',
   CategoriesController_list: 'Lista las categorías de gasto',
   CategoriesController_create: 'Crea una categoría de gasto',
-  CategoriesController_update: 'Cambia el nombre de una categoría o la desactiva',
+  CategoriesController_update: 'Cambia el nombre de una categoría, la desactiva o la reactiva',
   CategoriesController_remove: 'Elimina una categoría que no tiene gastos',
   RepairExpensesController_list: 'Lista los gastos de taller',
   RepairExpensesController_get: 'Consulta un gasto de taller',
@@ -52,7 +52,7 @@ export const ACTIONS: Readonly<Record<string, string>> = {
   BusesController_photo: 'Descarga la foto de un bus',
   DriversController_list: 'Lista los choferes',
   DriversController_get: 'Consulta un chofer',
-  DriversController_create: 'Registra un chofer y crea su cuenta',
+  DriversController_create: 'Registra un chofer (su cuenta llega después, por evento)',
   DriversController_update: 'Cambia los datos de un chofer',
   DriversController_deactivate: 'Desactiva un chofer',
   DriversController_reactivate: 'Reactiva un chofer',
@@ -61,7 +61,7 @@ export const ACTIONS: Readonly<Record<string, string>> = {
   RoutesController_list: 'Lista las rutas',
   RoutesController_create: 'Abre una ruta hacia otra sucursal',
   RoutesController_update: 'Cambia la distancia, el precio o el estado de una ruta',
-  RoutesController_remove: 'Retira una ruta',
+  RoutesController_remove: 'Elimina una ruta sin viajes',
 
   TripsController_list: 'Lista los viajes',
   TripsController_get: 'Consulta un viaje con su salida y su llegada',

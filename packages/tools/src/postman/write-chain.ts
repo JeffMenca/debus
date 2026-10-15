@@ -513,7 +513,7 @@ const STEPS: Step[] = [
     test: tryAgainWhilePending(made(201, 'testSpareRouteId')),
   },
   act(
-    'Retirar la ruta sin viajes',
+    'Eliminar la ruta sin viajes',
     'DELETE',
     '/api/flota/routes/:id',
     'testSpareRouteId',

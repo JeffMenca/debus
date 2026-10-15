@@ -327,7 +327,7 @@ describe('FLOW', () => {
         'Desactivar el chofer de prueba',
         'Reactivar el chofer de prueba',
         'Abrir una ruta sin viajes',
-        'Retirar la ruta sin viajes',
+        'Eliminar la ruta sin viajes',
         'Crear cajero de prueba',
         'Consultar el cajero de prueba',
         'Actualizar el cajero de prueba',

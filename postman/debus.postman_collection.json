@@ -3297,7 +3297,7 @@
               ]
             },
             {
-              "name": "Retirar la ruta sin viajes",
+              "name": "Eliminar la ruta sin viajes",
               "request": {
                 "method": "DELETE",
                 "header": [],

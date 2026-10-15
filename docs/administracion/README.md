@@ -250,7 +250,7 @@ Todas las rutas pasan por el gateway con el prefijo `/api/administracion` (aquí
 <!-- generado:endpoints -->
 | Método | Ruta | Qué hace | Roles |
 | --- | --- | --- | --- |
-| `POST` | `/auth/links/renew` | Envía un enlace nuevo cuando el anterior venció | Público |
+| `POST` | `/auth/links/renew` | Envía un enlace nuevo | Público |
 | `POST` | `/auth/links/status` | Dice si un enlace sirve, venció o ya se usó | Público |
 | `POST` | `/auth/login` | Inicia sesión | Público |
 | `POST` | `/auth/logout` | Cierra la sesión | Público |
@@ -271,7 +271,7 @@ Todas las rutas pasan por el gateway con el prefijo `/api/administracion` (aquí
 | `POST` | `/dead-letters/{messageId}/replay` | Vuelve a entregar un mensaje de la cola de errores | SYSTEM_ADMIN |
 | `GET` | `/expense-categories` | Lista las categorías de gasto | SYSTEM_ADMIN, BRANCH_ADMIN |
 | `POST` | `/expense-categories` | Crea una categoría de gasto | SYSTEM_ADMIN |
-| `PATCH` | `/expense-categories/{id}` | Cambia el nombre de una categoría o la desactiva | SYSTEM_ADMIN |
+| `PATCH` | `/expense-categories/{id}` | Cambia el nombre de una categoría, la desactiva o la reactiva | SYSTEM_ADMIN |
 | `DELETE` | `/expense-categories/{id}` | Elimina una categoría que no tiene gastos | SYSTEM_ADMIN |
 | `GET` | `/health` | Responde si el servicio está en línea | Cualquier sesión |
 | `GET` | `/repair-expenses` | Lista los gastos de taller | BRANCH_ADMIN |

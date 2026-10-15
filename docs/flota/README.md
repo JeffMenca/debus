@@ -5,8 +5,8 @@
 ## 1. Para qué sirve y qué reglas cumple
 
 - **Buses.** Placa única, kilometraje que no baja, estado operativo, chofer de planta y foto (JPG, PNG o WebP de hasta 5 MB en Cloud Storage). Se desactivan sin borrar, y no mientras tengan viajes programados o en camino.
-- **Choferes.** Licencia (número único, tipo y vencimiento) y salario base; el alta crea su cuenta de acceso y se publica `DriverAdded`/`DriverUpdated`. Se desactivan sin borrar.
-- **Rutas.** Una por par origen-destino (única), con distancia y precio; con viajes ya solo se retiran. La sucursal destino debe estar activa.
+- **Choferes.** Licencia (número único, tipo y vencimiento) y salario base; su cuenta de acceso la crea `administracion` al recibir `DriverAdded` (también se publica `DriverUpdated`). Se desactivan sin borrar.
+- **Rutas.** Una por par origen-destino (única), con distancia y precio; con viajes solo se desactivan. La sucursal destino debe estar activa.
 - **Disponibilidad.** `GET /internal/availability` (solo entre servicios, con token de identidad) dice si un bus y un chofer pueden hacer un viaje: activos, de esa sucursal, fuera de taller, con licencia vigente y sin otro viaje en ese horario. `viajes` la consulta antes de programar.
 - **Copias por eventos.** Guarda la copia de las sucursales (`BranchCreated`/`BranchUpdated`) y marca buses y choferes en camino o con un viaje más a partir de `TripDeparted`, `TripCompleted`, `TripScheduled` y `TripDeleted`.
 - **Republicación.** Las rutas internas `POST /internal/{buses,drivers,routes}/republish` vuelven a publicar el estado actual (con la versión subida) para los servicios que empiezan a guardar copias.
@@ -221,7 +221,7 @@ Todas las rutas pasan por el gateway con el prefijo `/api/flota` (aquí aparecen
 | `DELETE` | `/dead-letters/{messageId}` | Descarta un mensaje de la cola de errores | SYSTEM_ADMIN |
 | `POST` | `/dead-letters/{messageId}/replay` | Vuelve a entregar un mensaje de la cola de errores | SYSTEM_ADMIN |
 | `GET` | `/drivers` | Lista los choferes | BRANCH_ADMIN |
-| `POST` | `/drivers` | Registra un chofer y crea su cuenta | BRANCH_ADMIN |
+| `POST` | `/drivers` | Registra un chofer (su cuenta llega después, por evento) | BRANCH_ADMIN |
 | `GET` | `/drivers/{id}` | Consulta un chofer | BRANCH_ADMIN |
 | `PATCH` | `/drivers/{id}` | Cambia los datos de un chofer | BRANCH_ADMIN |
 | `POST` | `/drivers/{id}/deactivate` | Desactiva un chofer | BRANCH_ADMIN |
@@ -232,7 +232,7 @@ Todas las rutas pasan por el gateway con el prefijo `/api/flota` (aquí aparecen
 | `GET` | `/routes` | Lista las rutas | BRANCH_ADMIN |
 | `POST` | `/routes` | Abre una ruta hacia otra sucursal | BRANCH_ADMIN |
 | `PATCH` | `/routes/{id}` | Cambia la distancia, el precio o el estado de una ruta | BRANCH_ADMIN |
-| `DELETE` | `/routes/{id}` | Retira una ruta | BRANCH_ADMIN |
+| `DELETE` | `/routes/{id}` | Elimina una ruta sin viajes | BRANCH_ADMIN |
 <!-- /generado:endpoints -->
 <!-- prettier-ignore-end -->
 

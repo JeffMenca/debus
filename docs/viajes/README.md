@@ -6,7 +6,7 @@
 
 - **Programar.** Un viaje une una ruta de la sucursal, un bus y un chofer; antes de guardarlo consulta a `flota` si pueden hacerlo (llamada HTTP síncrona, con 502/503 si no responde). Dos exclusiones de PostgreSQL impiden que un bus o un chofer tengan dos viajes en el mismo horario; el viaje con su llegada registrada libera ambos.
 - **Salida y llegada.** Se registran una sola vez y son **inmutables** (trigger de PostgreSQL, sin `PUT`, `PATCH` ni `DELETE`): la salida admite como mucho 12 horas de anticipación y no puede ser futura (con 5 minutos de tolerancia); la llegada va después de la salida con kilometraje final y combustible. Al completarse, la depreciación (km recorridos por la depreciación vigente ese día) y el pago del chofer quedan fijados en el viaje. Un viaje que no ha salido se puede eliminar (`TripDeleted`).
-- **Alquileres.** Cuando `clientes` publica `RentalPaid`, la solicitud queda pendiente; el admin de la sucursal la asigna a un bus con asientos suficientes y a un chofer, y se programa el viaje de alquiler con el pago al chofer 15 % mayor.
+- **Alquileres.** Cuando `clientes` publique `RentalPaid` (en desarrollo), la solicitud queda pendiente; el admin de la sucursal la asigna a un bus con asientos suficientes y a un chofer, y se programa el viaje de alquiler con el pago al chofer 15 % mayor.
 - **Venta.** `GET /internal/trips/:id/sale-status` (solo entre servicios) dirá a `ventas` si el viaje está abierto a la venta; la ruta ya existe y `ventas` aún no la usa.
 - **Copias por eventos.** Guarda la copia de sucursales, buses, choferes, rutas y la configuración vigente con sus fechas, siempre por versión.
 
@@ -20,7 +20,7 @@ flowchart LR
   sale --> svcs[SaleStatusService]
   svc --> fleet[FleetClient<br/>disponibilidad en flota]
   svc --> prisma[(Prisma / PostgreSQL<br/>exclusiones y triggers)]
-  svc --> events[TripCycleService y TripWrites<br/>escriben el outbox]
+  svc --> events[TripsService, TripCycleService y RentalRequestsService<br/>escriben el outbox]
   svcs --> prisma
   events --> prisma
   events --> pubsub[(Pub/Sub)]
