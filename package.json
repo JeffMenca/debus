@@ -28,6 +28,9 @@
     "pubsub:provision": "turbo run build --filter=@debus/messaging && node scripts/provision-pubsub.mjs",
     "db:prune": "node scripts/prune-local-events.mjs",
     "new-service": "node scripts/new-service.mjs",
+    "seed": "turbo run build --filter=@debus/tools && node packages/tools/dist/seed/cli.js",
+    "postman": "turbo run build --filter=@debus/tools && node packages/tools/dist/postman/cli.js",
+    "postman:test": "sh -c 'pnpm --filter @debus/tools exec newman run ../../postman/debus.postman_collection.json -e ../../postman/local.postman_environment.json --env-var adminPassword=${SEED_ADMIN_PASSWORD:-clave-segura-1} --env-var branchPassword=${SEED_PASSWORD:-debus-demo-2026}; s=$?; node scripts/clean-test-data.mjs; exit $s'",
     "prepare": "husky"
   },
   "devDependencies": {

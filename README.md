@@ -12,6 +12,7 @@ Monorepo con pnpm y Turborepo:
 | `packages/contracts` | Nombres y payloads de los eventos                                                                                                |
 | `packages/messaging` | Outbox, inbox idempotente y Pub/Sub                                                                                              |
 | `packages/config`    | tsconfig, ESLint, Prettier y Jest compartidos                                                                                    |
+| `packages/tools`     | Datos de demostración (`pnpm seed`) y colección Postman (`pnpm postman`)                                                         |
 | `infra/`             | Dockerfiles e inicialización de PostgreSQL                                                                                       |
 | `docs/`, `postman/`  | Manuales técnicos y colección de pruebas                                                                                         |
 
@@ -30,15 +31,17 @@ pnpm local                # todo en local: .env, docker, Pub/Sub, migraciones y 
 
 Abre `http://localhost:3000/estado`: muestra si cada servicio responde y permite enviar un aviso de prueba que viaja por Pub/Sub hasta los 7 servicios.
 
-| Comando                 | Qué hace                                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------------------- |
-| `pnpm test:unit`        | Pruebas unitarias de todo el repo y tabla de cobertura (mínimo 85%)                                     |
-| `pnpm test:integration` | Pruebas de integración y tabla de cobertura (mínimo 65%); necesita `pnpm local:setup`                   |
-| `pnpm test:e2e`         | Playwright del web a 1440 y 390 px con el gateway simulado                                              |
-| `pnpm test:e2e:real`    | Playwright contra el stack local real (con `pnpm local` corriendo), un worker, como `admin@debus.local` |
-| `pnpm test:all`         | Unitarias, integración y e2e en orden                                                                   |
-| `pnpm check`            | Lint, typecheck y unitarias (lo que corre la CI)                                                        |
-| `pnpm test:clean`       | Borra los datos de prueba de las bases locales                                                          |
+| Comando                 | Qué hace                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:unit`        | Pruebas unitarias de todo el repo y tabla de cobertura (mínimo 85%)                                                       |
+| `pnpm test:integration` | Pruebas de integración y tabla de cobertura (mínimo 65%); necesita `pnpm local:setup`                                     |
+| `pnpm test:e2e`         | Playwright del web a 1440 y 390 px con el gateway simulado                                                                |
+| `pnpm test:e2e:real`    | Playwright contra el stack local real (con `pnpm local` corriendo), un worker, como `admin@debus.local`                   |
+| `pnpm test:all`         | Unitarias, integración y e2e en orden                                                                                     |
+| `pnpm check`            | Lint, typecheck y unitarias (lo que corre la CI)                                                                          |
+| `pnpm test:clean`       | Borra los datos de prueba de las bases locales                                                                            |
+| `pnpm seed`             | Carga los datos de demostración en el stack local (ver "Datos de demostración")                                           |
+| `pnpm postman`          | Genera la colección Postman desde el Swagger del gateway; `pnpm postman:test` la ejecuta (con `pnpm local` y `pnpm seed`) |
 
 Todas aceptan filtros de turbo, por ejemplo `pnpm test:unit --filter=@debus/flota`. El reporte HTML de cobertura queda en `<paquete>/coverage/lcov-report` (unitarias) y `<paquete>/coverage-integration/lcov-report` (integración).
 
@@ -75,6 +78,14 @@ Varios servicios guardan copias de lo que publican otros y solo las reemplazan p
 2. El workflow llama a la ruta interna `POST /internal/<recurso>/republish` de cada servicio con el token de identidad de la cuenta de despliegue, y el log de cada destino termina con el resumen, por ejemplo `{"republished":N}`. Un destino que no está en la lista falla antes de llamar a ninguno.
 3. Sucursales, choferes, rutas y buses suben en uno su versión y se publican de nuevo (`BranchUpdated`, `DriverUpdated`, `RouteUpdated`, `BusUpdated`) por el outbox. La configuración no cambia nada: cada versión, que es inmutable, se publica otra vez como `SettingsUpdated` con su mismo `versionId`, y las copias la ignoran si ya la tienen. Repetirlo no hace daño. Viajes y gastos no se republican.
 4. El gateway no publica esas rutas. El workflow republica todas las sucursales; las rutas de `administracion` (salvo la configuración, que es global) y de `flota` también aceptan `?branchId=` para una sola sucursal, si alguna vez hace falta llamarlas a mano con el mismo token.
+
+## Datos de demostración
+
+`pnpm seed` (con `pnpm local` corriendo) llena el stack local por la API del gateway: configuración, 6 sucursales con su admin y su cajero, 18 buses con sus choferes, 12 rutas, viajes programados, un viaje completado por bus en el día y gastos de taller. Las cuentas se activan por el mismo enlace de correo que recibiría una persona (Mailpit en local) y usan la contraseña de `SEED_PASSWORD`. Se puede repetir sin duplicar nada y acepta `--only <áreas>` y `--days-ahead <días>`. Las variables y sus valores locales están en `packages/tools/src/seed/run-seed.ts`.
+
+Son datos de demostración, no de prueba: no usan `TEST_BRANCH_PREFIX` y `pnpm test:clean` no los borra. El detalle de las cuentas y de lo que se carga está en [docs/datos-de-prueba.md](docs/datos-de-prueba.md).
+
+En producción se carga con el workflow `seed` (**Actions > seed > Run workflow**), después de `republish`. Nunca corre contra producción sin `--target production` y `SEED_CONFIRM=production`; lee el buzón del equipo por IMAP con `SMTP_USER` y `SMTP_PASSWORD`, y necesita los secretos `SEED_ADMIN_PASSWORD` y `SEED_PASSWORD` y la variable `SEED_ADMIN_EMAIL`.
 
 ## Convenciones
 
