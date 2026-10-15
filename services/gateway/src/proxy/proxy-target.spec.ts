@@ -49,4 +49,14 @@ describe('resolveProxyTarget', () => {
     expect(resolve('/api/flota/internal/availability?busId=1')).toEqual({ kind: 'not-found' });
     expect(resolve('/api/viajes/Internal/trips/1/sale-status')).toEqual({ kind: 'not-found' });
   });
+
+  it.each([
+    '/api/administracion/internal/branches/republish',
+    '/api/administracion/internal/settings/republish',
+    '/api/flota/internal/buses/republish',
+    '/api/flota/internal/drivers/republish',
+    '/api/flota/internal/routes/republish?branchId=1',
+  ])('never exposes the republish route %s', (url) => {
+    expect(resolve(url)).toEqual({ kind: 'not-found' });
+  });
 });

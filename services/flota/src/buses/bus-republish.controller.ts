@@ -1,8 +1,8 @@
 import {
   CORRELATION_HEADER,
-  type RepublishBusesQuery,
-  type RepublishBusesResult,
-  republishBusesQuerySchema,
+  type RepublishQuery,
+  type RepublishResult,
+  republishQuerySchema,
 } from '@debus/contracts';
 import { ZodBody, apiErrors, apiQuery, apiSuccess } from '@debus/server';
 import { Controller, Headers, HttpCode, Post, Query } from '@nestjs/common';
@@ -20,11 +20,11 @@ export class BusRepublishController {
   @HttpCode(200)
   @apiSuccess(200)
   @apiErrors(400)
-  @apiQuery(republishBusesQuerySchema)
+  @apiQuery(republishQuerySchema)
   republish(
-    @Query(new ZodBody(republishBusesQuerySchema)) query: RepublishBusesQuery,
+    @Query(new ZodBody(republishQuerySchema)) query: RepublishQuery,
     @Headers(CORRELATION_HEADER) correlationId?: string,
-  ): Promise<RepublishBusesResult> {
+  ): Promise<RepublishResult> {
     return this.buses.republish(query.branchId, correlationId);
   }
 }

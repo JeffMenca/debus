@@ -19,6 +19,9 @@ const ROUTES: [method: 'get' | 'post' | 'patch' | 'delete', path: string, codes:
   ['patch', '/branches/{id}', ['200', '400', '401', '403', '404', '409']],
   ['post', '/branches/{id}/deactivate', ['204', '400', '401', '403', '404']],
   ['post', '/branches/{id}/reactivate', ['204', '400', '401', '403', '404', '409']],
+  // Called with the identity token of the deploy; the gateway never publishes them.
+  ['post', '/internal/branches/republish', ['200', '400']],
+  ['post', '/internal/settings/republish', ['200']],
   ['get', '/users', ['200', '400', '401', '403']],
   ['get', '/users/{id}', ['200', '400', '401', '403', '404']],
   ['get', '/settings', ['200', '400', '401', '403']],

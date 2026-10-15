@@ -71,6 +71,10 @@ describe('gateway', () => {
       '/api/flota//outbox/flush',
       '/api/flota/OUTBOX/flush',
       '/api/flota//events/pubsub',
+      '/api/administracion/internal/branches/republish',
+      '/api/administracion/internal/settings/republish',
+      '/api/flota/internal/drivers/republish',
+      '/api/flota/internal/routes/republish',
     ]) {
       await request(server).post(path).set('authorization', session()).expect(404);
     }
