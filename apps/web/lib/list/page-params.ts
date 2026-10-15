@@ -50,6 +50,15 @@ export function enumParam<V extends string>(slugs: Record<V, string>) {
   };
 }
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const readDay = (raw: string | null): string | undefined =>
+  raw && ISO_DAY.test(raw) && !Number.isNaN(Date.parse(raw)) ? raw : undefined;
+
+export const readId = (raw: string | null): string | undefined =>
+  raw && UUID.test(raw) ? raw : undefined;
+
 export function lastPageIfOutOfRange(page: Page<unknown>): number | null {
   if (page.items.length > 0 || page.total === 0 || page.page === FIRST_PAGE) return null;
   return pageCount(page.total, page.pageSize);

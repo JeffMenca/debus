@@ -13,6 +13,7 @@ import {
   Users,
   Wrench,
 } from 'lucide-react';
+import { REPORT_LINKS } from '@/lib/branch-reports/report-links';
 
 export interface NavItem {
   label: string;
@@ -63,6 +64,10 @@ const BRANCH_ADMIN: NavGroup[] = [
   {
     label: 'Finanzas',
     items: [{ label: 'Gastos de taller', href: '/sucursal/gastos', icon: Wrench }],
+  },
+  {
+    label: 'Reportes',
+    items: REPORT_LINKS.map(({ title, href, icon }) => ({ label: title, href, icon })),
   },
 ];
 

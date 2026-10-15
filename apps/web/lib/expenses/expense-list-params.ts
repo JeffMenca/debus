@@ -1,5 +1,5 @@
 import type { PageQuery } from '@debus/contracts';
-import { readPage, readSearch, writePage } from '@/lib/list/page-params';
+import { readDay, readId, readPage, readSearch, writePage } from '@/lib/list/page-params';
 
 export interface ExpenseListView extends PageQuery {
   busId?: string;
@@ -8,13 +8,6 @@ export interface ExpenseListView extends PageQuery {
   to?: string;
   q?: string;
 }
-
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const readDay = (raw: string | null): string | undefined =>
-  raw && ISO_DAY.test(raw) && !Number.isNaN(Date.parse(raw)) ? raw : undefined;
-const readId = (raw: string | null): string | undefined =>
-  raw && UUID.test(raw) ? raw : undefined;
 
 // Every filter starts open: all buses, all categories and all dates.
 export function readExpenseListParams(search: URLSearchParams): ExpenseListView {

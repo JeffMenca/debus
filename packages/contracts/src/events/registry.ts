@@ -10,13 +10,18 @@ export interface EventDefinition {
 
 const branchConsumers: BackendService[] = ['flota', 'viajes', 'ventas', 'reportes'];
 const busConsumers: BackendService[] = ['viajes', 'reportes', 'administracion'];
-const driverConsumers: BackendService[] = ['viajes', 'notificaciones', 'administracion'];
+const driverConsumers: BackendService[] = [
+  'viajes',
+  'notificaciones',
+  'administracion',
+  'reportes',
+];
 const routeConsumers: BackendService[] = ['viajes', 'reportes'];
 
 const definitions = {
   BranchCreated: { publisher: 'administracion', consumers: branchConsumers },
   BranchUpdated: { publisher: 'administracion', consumers: branchConsumers },
-  SettingsUpdated: { publisher: 'administracion', consumers: ['viajes', 'clientes'] },
+  SettingsUpdated: { publisher: 'administracion', consumers: ['viajes', 'clientes', 'reportes'] },
   UserRegistered: { publisher: 'administracion', consumers: ['clientes'] },
   AccountLinkSent: { publisher: 'administracion', consumers: ['notificaciones'] },
   RepairExpenseAdded: { publisher: 'administracion', consumers: ['reportes'] },
@@ -29,8 +34,11 @@ const definitions = {
   RouteUpdated: { publisher: 'flota', consumers: routeConsumers },
   RouteDeleted: { publisher: 'flota', consumers: routeConsumers },
   TripScheduled: { publisher: 'viajes', consumers: ['ventas', 'reportes', 'flota'] },
-  TripDeleted: { publisher: 'viajes', consumers: ['ventas', 'notificaciones', 'flota'] },
-  TripDeparted: { publisher: 'viajes', consumers: ['flota'] },
+  TripDeleted: {
+    publisher: 'viajes',
+    consumers: ['ventas', 'notificaciones', 'flota', 'reportes'],
+  },
+  TripDeparted: { publisher: 'viajes', consumers: ['flota', 'reportes'] },
   TripCompleted: { publisher: 'viajes', consumers: ['administracion', 'flota', 'reportes'] },
   TicketSold: { publisher: 'ventas', consumers: ['reportes', 'notificaciones', 'clientes'] },
   RefundRequested: { publisher: 'ventas', consumers: ['clientes'] },

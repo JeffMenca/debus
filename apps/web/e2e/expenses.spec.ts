@@ -186,7 +186,7 @@ test.describe('repair expenses', () => {
     await open(page, baseURL, '/sucursal');
 
     await openMenuOnPhone(page);
-    await page.getByRole('link', { name: 'Gastos de taller' }).click();
+    await page.getByRole('link', { name: 'Gastos de taller', exact: true }).click();
 
     await expect(page).toHaveURL(/\/sucursal\/gastos$/);
     await expect(page.getByText('Finanzas · Quetzaltenango')).toBeVisible();

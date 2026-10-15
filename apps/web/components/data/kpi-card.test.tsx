@@ -1,15 +1,24 @@
 import { render, screen } from '@testing-library/react';
 import { KpiCard } from './kpi-card';
 
+const originalMatchMedia = window.matchMedia;
+
+// Shows the final value at once, so the tests do not wait for the count-up.
+const reduceMotion = () => {
+  window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+    matches: query === '(prefers-reduced-motion: reduce)',
+    media: query,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
+};
+
+afterEach(() => {
+  window.matchMedia = originalMatchMedia;
+});
+
 describe('KpiCard', () => {
-  beforeEach(() => {
-    window.matchMedia = jest.fn().mockImplementation((query: string) => ({
-      matches: query === '(prefers-reduced-motion: reduce)',
-      media: query,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-    }));
-  });
+  beforeEach(reduceMotion);
 
   it('shows the label and the final value formatted', () => {
     render(
@@ -42,5 +51,20 @@ describe('KpiCard', () => {
     expect(screen.getByTestId('art')).toBeInTheDocument();
     expect(container.querySelector('.animate-float')).toBeNull();
     expect(screen.getByText('En camino')).toBeInTheDocument();
+  });
+});
+
+describe('KpiCard hint', () => {
+  it('says what the number counts under the label', () => {
+    reduceMotion();
+    render(<KpiCard tone="mint" value={3} label="Ingresos" hint="Boletos y alquileres" />);
+
+    expect(screen.getByText('Boletos y alquileres')).toBeInTheDocument();
+  });
+});
+
+describe('the simulated reduced motion', () => {
+  it('does not leak into the tests that run after it', () => {
+    expect(window.matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(false);
   });
 });

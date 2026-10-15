@@ -136,6 +136,21 @@ describe('driver accounts', () => {
     );
   });
 
+  it('sends no new invitation when a driver is republished with the same data and a higher version', async () => {
+    const driver = snapshot();
+    await send('DriverAdded', driver);
+    await flush();
+
+    await send('DriverUpdated', { ...driver, version: 2 });
+    await flush();
+
+    expect(await prisma.user.findUnique({ where: { id: driver.driverId } })).toMatchObject({
+      status: 'PENDING',
+      driverVersion: 2,
+    });
+    expect(await prisma.accountLink.count({ where: { userId: driver.driverId } })).toBe(1);
+  });
+
   it('follows the newest snapshot even when an old one arrives afterwards', async () => {
     const driver = snapshot();
 

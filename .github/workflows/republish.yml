@@ -25,7 +25,7 @@ jobs:
       DEPLOY_SA: ${{ vars.GCP_DEPLOY_SA }}
       # service/resource pairs with a POST /internal/<resource>/republish route; the order matters
       # when a copy is built from another one (branches and settings before fleet)
-      ALL_TARGETS: flota/buses
+      ALL_TARGETS: administracion/branches,administracion/settings,flota/drivers,flota/routes,flota/buses
     steps:
       - uses: google-github-actions/auth@v2
         with:

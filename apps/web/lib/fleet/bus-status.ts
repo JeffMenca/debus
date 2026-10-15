@@ -1,5 +1,6 @@
 import type { BusDisplayStatus } from '@debus/contracts';
 import type { BusTone } from '@/components/brand/bus';
+import type { StatusTone } from '@/components/brand/status-dot';
 import type { KpiTone } from '@/components/data/kpi-card';
 
 export const BUS_STATUS_LABELS: Record<BusDisplayStatus, { label: string; tone: KpiTone }> = {
@@ -15,4 +16,11 @@ export const BUS_ART_TONES: Record<BusDisplayStatus, BusTone> = {
   AVAILABLE: 'indigo',
   IN_WORKSHOP: 'mango',
   INACTIVE: 'coral',
+};
+
+export const BUS_DOT_TONES: Record<BusDisplayStatus, StatusTone> = {
+  IN_TRANSIT: 'mint',
+  AVAILABLE: 'indigo',
+  IN_WORKSHOP: 'mango',
+  INACTIVE: 'muted',
 };

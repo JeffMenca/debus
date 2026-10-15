@@ -265,4 +265,39 @@ describe('DataTable', () => {
       screen.getByRole('table', { name: 'Buses' }).closest('[aria-busy="true"]'),
     ).not.toBeNull();
   });
+
+  it('shows the detail under the rows that are expanded, and nowhere else', () => {
+    render(
+      <DataTable
+        caption="Buses"
+        columns={columns}
+        data={rows}
+        getRowId={(row) => row.id}
+        emptyMessage=""
+        expandedRowIds={new Set(['2'])}
+        renderDetail={(row) => <p>Detalle de {row.name}</p>}
+      />,
+    );
+
+    expect(screen.getByText('Detalle de Scania K360')).toBeInTheDocument();
+    expect(screen.queryByText('Detalle de Volvo B8R')).not.toBeInTheDocument();
+    const detail = screen.getByText('Detalle de Scania K360').closest('td')!;
+    expect(detail).toHaveAttribute('colspan', '2');
+    expect(detail.closest('tr')!.previousElementSibling).toHaveTextContent('Scania K360');
+  });
+
+  it('shows no detail when no row is expanded', () => {
+    render(
+      <DataTable
+        caption="Buses"
+        columns={columns}
+        data={rows}
+        getRowId={(row) => row.id}
+        emptyMessage=""
+        renderDetail={(row) => <p>Detalle de {row.name}</p>}
+      />,
+    );
+
+    expect(screen.queryByText(/Detalle de/)).not.toBeInTheDocument();
+  });
 });

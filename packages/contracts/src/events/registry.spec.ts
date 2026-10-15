@@ -1,4 +1,5 @@
 import { BACKEND_SERVICES } from '../topology';
+import { eventDrivenShare } from './sync-calls';
 import {
   EVENT_REGISTRY,
   EVENT_TYPES,
@@ -77,5 +78,18 @@ describe('event registry', () => {
       ]),
     );
     expect(eventsConsumedBy('clientes')).not.toContain('RentalPaid');
+  });
+
+  it('feeds the branch reports with every event they read', () => {
+    expect(eventsConsumedBy('reportes')).toEqual(
+      expect.arrayContaining([
+        'DriverAdded',
+        'DriverUpdated',
+        'TripDeparted',
+        'TripDeleted',
+        'SettingsUpdated',
+      ]),
+    );
+    expect(eventDrivenShare()).toBeCloseTo(21 / 24);
   });
 });
