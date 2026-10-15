@@ -35,3 +35,4 @@ export * from './api/rentals';
 export * from './api/dead-letters';
 export * from './events/sales-payloads';
 export * from './events/sales-examples';
+export * from './api/profile';

@@ -28,3 +28,71 @@ model OutboxEvent {
 
   @@map("outbox")
 }
+
+// One per user, created from UserRegistered. Staff get one too, with the client fields empty.
+// The NIT is unique only when present (partial index in the migration).
+model ClientProfile {
+  userId    String          @id @map("user_id") @db.Uuid
+  email     String
+  fullName  String          @map("full_name")
+  role      String
+  dpi       String?
+  phone     String?
+  nit       String?
+  address   String?
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  wallet    Wallet?
+
+  @@map("client_profiles")
+}
+
+// The balance never goes below zero (CHECK wallets_balance_non_negative in the migration).
+model Wallet {
+  clientId  String           @id @map("client_id") @db.Uuid
+  balance   Decimal          @default(0) @db.Decimal(12, 2)
+  updatedAt DateTime         @default(now()) @map("updated_at") @db.Timestamptz(3)
+  profile   ClientProfile    @relation(fields: [clientId], references: [userId], onDelete: Cascade)
+  movements WalletMovement[]
+
+  @@map("wallets")
+}
+
+enum WalletMovementKind {
+  TOP_UP
+  TICKET
+  RENTAL
+  REFUND
+}
+
+// Debits are negative. A repeated Idempotency-Key finds the movement it already created.
+model WalletMovement {
+  id             String             @id @db.Uuid
+  clientId       String             @map("client_id") @db.Uuid
+  kind           WalletMovementKind
+  amount         Decimal            @db.Decimal(12, 2)
+  balanceAfter   Decimal            @map("balance_after") @db.Decimal(12, 2)
+  reference      String?            @db.Uuid
+  description    String
+  occurredOn     DateTime           @map("occurred_on") @db.Date
+  idempotencyKey String             @map("idempotency_key") @db.Uuid
+  fingerprint    String
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  wallet         Wallet             @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+
+  @@unique([clientId, idempotencyKey])
+  @@index([clientId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("wallet_movements")
+}
+
+// Copy of the settings versions of administracion, fed by SettingsUpdated. Versions never change.
+model SettingsVersionCopy {
+  id                String   @id @db.Uuid
+  depreciationPerKm Decimal  @map("depreciation_per_km") @db.Decimal(10, 2)
+  rentalRatePerKm   Decimal  @map("rental_rate_per_km") @db.Decimal(10, 2)
+  effectiveFrom     DateTime @map("effective_from") @db.Date
+  createdAt         DateTime @map("created_at") @db.Timestamptz(3)
+
+  @@index([effectiveFrom, createdAt])
+  @@map("settings_versions")
+}
