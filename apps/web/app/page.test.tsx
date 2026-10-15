@@ -93,6 +93,10 @@ describe('HomePage', () => {
     render(<HomePage />);
 
     expect(screen.getByText('Hola, Ana')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Hola, Ana. Ir a mi cuenta' })).toHaveAttribute(
+      'href',
+      '/cuenta',
+    );
     expect(screen.queryByRole('link', { name: 'Ir a mi panel' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
   });

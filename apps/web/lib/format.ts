@@ -39,9 +39,7 @@ const DATE_TIME = new Intl.DateTimeFormat('es-GT', {
 export const formatDateTime = (isoInstant: string): string =>
   DATE_TIME.format(new Date(isoInstant));
 
-// Plates are stored without separators; people read them with the hyphen after the letter prefix.
-export const formatPlate = (plate: string): string =>
-  plate.replace(/^([A-Z]{1,2})(\d{3}[A-Z]{3})$/, '$1-$2');
+export { formatPlate } from '@debus/contracts';
 
 const SHORT_DATE = new Intl.DateTimeFormat('es-GT', {
   day: 'numeric',

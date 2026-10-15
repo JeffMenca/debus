@@ -1,0 +1,140 @@
+// Read models of the branch administrator reports. Events fill them in any order, so there are no
+// foreign keys between them. search_text is kept by a trigger (fold_search_text).
+
+model BranchReportBus {
+  id                String   @id @db.Uuid
+  branchId          String   @map("branch_id") @db.Uuid
+  plate             String
+  brand             String
+  model             String
+  capacity          Int
+  operationalStatus String   @map("operational_status")
+  active            Boolean
+  assignedDriverId  String?  @map("assigned_driver_id") @db.Uuid
+  mileageKm         Int      @map("mileage_km")
+  version           Int
+  searchText        String   @default("") @map("search_text")
+  updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@index([branchId, plate, id])
+  @@map("branch_report_buses")
+}
+
+model BranchReportDriver {
+  id               String   @id @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  fullName         String   @map("full_name")
+  licenseNumber    String   @map("license_number")
+  licenseType      String   @map("license_type")
+  licenseExpiresOn DateTime @map("license_expires_on") @db.Date
+  active           Boolean
+  version          Int
+  searchText       String   @default("") @map("search_text")
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@index([branchId, fullName, id])
+  @@map("branch_report_drivers")
+}
+
+// One row per trip, assembled column by column from TripScheduled, TripDeparted, TripCompleted and
+// TripDeleted. A column stays null until the event that owns it arrives.
+model BranchReportTrip {
+  id                 String    @id @db.Uuid
+  branchId           String    @map("branch_id") @db.Uuid
+  busId              String    @map("bus_id") @db.Uuid
+  driverId           String    @map("driver_id") @db.Uuid
+  type               String?
+  routeId            String?   @map("route_id") @db.Uuid
+  rentalId           String?   @map("rental_id") @db.Uuid
+  busPlate           String?   @map("bus_plate")
+  originLabel        String?   @map("origin_label")
+  destinationLabel   String?   @map("destination_label")
+  departureAt        DateTime? @map("departure_at") @db.Timestamptz(3)
+  departedAt         DateTime? @map("departed_at") @db.Timestamptz(3)
+  arrivedAt          DateTime? @map("arrived_at") @db.Timestamptz(3)
+  startMileageKm     Int?      @map("start_mileage_km")
+  endMileageKm       Int?      @map("end_mileage_km")
+  fuelCost           Decimal?  @map("fuel_cost") @db.Decimal(12, 2)
+  depreciationPerKm  Decimal?  @map("depreciation_per_km") @db.Decimal(12, 2)
+  depreciationAmount Decimal?  @map("depreciation_amount") @db.Decimal(12, 2)
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@index([branchId, arrivedAt])
+  @@index([busId])
+  @@index([driverId])
+  @@index([rentalId])
+  @@map("branch_report_trips")
+}
+
+// A settings version, immutable: the depreciation per km in force from effective_from on.
+model BranchReportDepreciationRate {
+  id                String   @id @db.Uuid
+  depreciationPerKm Decimal  @map("depreciation_per_km") @db.Decimal(12, 2)
+  effectiveFrom     DateTime @map("effective_from") @db.Date
+  createdAt         DateTime @map("created_at") @db.Timestamptz(3)
+
+  @@index([effectiveFrom])
+  @@map("branch_report_depreciation_rates")
+}
+
+// One row per line of a repair expense; the expense itself is not kept.
+model BranchReportRepairLine {
+  expenseId    String   @map("expense_id") @db.Uuid
+  lineNo       Int      @map("line_no")
+  branchId     String   @map("branch_id") @db.Uuid
+  busId        String   @map("bus_id") @db.Uuid
+  serviceDate  DateTime @map("service_date") @db.Date
+  categoryId   String   @map("category_id") @db.Uuid
+  categoryName String   @map("category_name")
+  kind         String
+  description  String
+  amount       Decimal  @db.Decimal(12, 2)
+
+  @@id([expenseId, lineNo])
+  @@index([branchId, serviceDate])
+  @@index([busId])
+  @@map("branch_report_repair_lines")
+}
+
+// One row per ticket sold; the income belongs to the origin branch of the trip.
+model BranchReportTicketSale {
+  id               String   @id @db.Uuid
+  tripId           String   @map("trip_id") @db.Uuid
+  routeId          String   @map("route_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  busId            String   @map("bus_id") @db.Uuid
+  originLabel      String   @map("origin_label")
+  destinationLabel String   @map("destination_label")
+  departureAt      DateTime @map("departure_at") @db.Timestamptz(3)
+  channel          String
+  seats            Int
+  total            Decimal  @db.Decimal(12, 2)
+  paidOn           DateTime @map("paid_on") @db.Date
+  soldAt           DateTime @map("sold_at") @db.Timestamptz(3)
+
+  @@index([branchId, paidOn])
+  @@index([tripId])
+  @@map("branch_report_ticket_sales")
+}
+
+// One row per paid rental; the income belongs to the branch that confirmed it.
+model BranchReportRental {
+  id               String    @id @db.Uuid
+  branchId         String    @map("branch_id") @db.Uuid
+  clientId         String?   @map("client_id") @db.Uuid
+  nit              String
+  clientName       String    @map("client_name")
+  originLabel      String    @map("origin_label")
+  destinationLabel String    @map("destination_label")
+  departureAt      DateTime  @map("departure_at") @db.Timestamptz(3)
+  returnAt         DateTime? @map("return_at") @db.Timestamptz(3)
+  passengers       Int
+  distanceKm       Decimal   @map("distance_km") @db.Decimal(6, 1)
+  price            Decimal   @db.Decimal(12, 2)
+  paidOn           DateTime  @map("paid_on") @db.Date
+  searchText       String    @default("") @map("search_text")
+
+  @@index([branchId, paidOn])
+  @@map("branch_report_rentals")
+}

@@ -66,9 +66,13 @@ export function HomeActions() {
   return (
     <nav aria-label="Tu cuenta" className={NAV}>
       {role === 'CLIENT' ? (
-        <p className="min-w-0 truncate font-semibold text-foreground">
+        <Link
+          href="/cuenta"
+          aria-label={`Hola, ${firstName(fullName)}. Ir a mi cuenta`}
+          className="min-w-0 truncate rounded-lg font-semibold text-foreground underline-offset-4 hover:underline"
+        >
           Hola, {firstName(fullName)}
-        </p>
+        </Link>
       ) : (
         <Button asChild className={PRIMARY}>
           <Link href={homePathFor(role)}>Ir a mi panel</Link>

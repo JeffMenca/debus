@@ -11,6 +11,7 @@ import { repairExpenseAddedPayloadSchema } from './expense-payloads';
 import { CLIENT_EXAMPLES, CLIENT_PAYLOAD_SCHEMAS } from './client-examples';
 import { EXAMPLE_IDS } from './fleet-examples';
 import { routeDeletedPayloadSchema } from './fleet-payloads';
+import { ADMIN_EXAMPLES, ADMIN_PAYLOAD_SCHEMAS } from './admin-examples';
 
 describe('event examples', () => {
   it.each(Object.entries(FLEET_EXAMPLES))('the %s example fits its schema', (type, payload) => {
@@ -28,6 +29,12 @@ describe('event examples', () => {
   it.each(Object.entries(CLIENT_EXAMPLES))('the %s example fits its schema', (type, payload) => {
     expect(
       CLIENT_PAYLOAD_SCHEMAS[type as keyof typeof CLIENT_PAYLOAD_SCHEMAS].parse(payload),
+    ).toEqual(payload);
+  });
+
+  it.each(Object.entries(ADMIN_EXAMPLES))('the %s example fits its schema', (type, payload) => {
+    expect(
+      ADMIN_PAYLOAD_SCHEMAS[type as keyof typeof ADMIN_PAYLOAD_SCHEMAS].parse(payload),
     ).toEqual(payload);
   });
 

@@ -4,7 +4,15 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import { CommonModule } from './common/common.module';
 import { HealthModule } from './health/health.module';
+import { BranchBusesModule } from './reports/branch-buses/branch-buses.module';
+import { BranchDepreciationModule } from './reports/branch-depreciation/branch-depreciation.module';
+import { BranchDriversModule } from './reports/branch-drivers/branch-drivers.module';
+import { BranchRentalIncomeModule } from './reports/branch-rental-income/branch-rental-income.module';
+import { BranchReadModelModule } from './reports/branch-read-model/branch-read-model.module';
+import { BranchRepairExpensesModule } from './reports/branch-repair-expenses/branch-repair-expenses.module';
+import { BranchTicketIncomeModule } from './reports/branch-ticket-income/branch-ticket-income.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 
@@ -14,6 +22,14 @@ import { PrismaService } from './prisma/prisma.service';
     LoggerModule.forRoot({ pinoHttp: httpLoggerOptions() }),
     HealthModule,
     PrismaModule,
+    CommonModule,
+    BranchReadModelModule,
+    BranchBusesModule,
+    BranchDriversModule,
+    BranchDepreciationModule,
+    BranchRepairExpensesModule,
+    BranchTicketIncomeModule,
+    BranchRentalIncomeModule,
     MessagingModule.forRoot({
       service: 'reportes',
       inbox: {

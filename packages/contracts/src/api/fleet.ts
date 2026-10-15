@@ -191,11 +191,16 @@ export const availabilityQuerySchema = z
   });
 export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;
 
-// Sends the buses again to the services that keep a copy of them, all of them or those of a branch.
-export const republishBusesQuerySchema = z.object({ branchId: z.uuid().optional() });
-export type RepublishBusesQuery = z.infer<typeof republishBusesQuerySchema>;
-export const republishBusesResultSchema = z.object({ republished: z.number().int().nonnegative() });
-export type RepublishBusesResult = z.infer<typeof republishBusesResultSchema>;
+// Sends the records again to the services that keep a copy of them, all of them or those of a branch.
+export const republishQuerySchema = z.object({ branchId: z.uuid().optional() });
+export type RepublishQuery = z.infer<typeof republishQuerySchema>;
+export const republishResultSchema = z.object({ republished: z.number().int().nonnegative() });
+export type RepublishResult = z.infer<typeof republishResultSchema>;
+
+export const republishBusesQuerySchema = republishQuerySchema;
+export type RepublishBusesQuery = RepublishQuery;
+export const republishBusesResultSchema = republishResultSchema;
+export type RepublishBusesResult = RepublishResult;
 
 const verdict = z.object({
   available: z.boolean(),

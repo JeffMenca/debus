@@ -17,3 +17,7 @@ export const foldSearchText = (value: string): string =>
 export const escapeLikePattern = (value: string): string => value.replace(/[\\%_]/g, '\\$&');
 
 export const searchTermSchema = z.string().trim().max(SEARCH_MAX_LENGTH).transform(foldSearchText);
+
+// Plates are stored without separators; people read them with the hyphen after the letter prefix.
+export const formatPlate = (plate: string): string =>
+  plate.replace(/^([A-Z]{1,2})(\d{3}[A-Z]{3})$/, '$1-$2');

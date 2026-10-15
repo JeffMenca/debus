@@ -1,6 +1,9 @@
 import {
   availabilityQuerySchema,
   republishBusesQuerySchema,
+  republishBusesResultSchema,
+  republishQuerySchema,
+  republishResultSchema,
   busFieldsSchema,
   busListQuerySchema,
   createRouteRequestSchema,
@@ -122,5 +125,20 @@ describe('republishBusesQuerySchema', () => {
         .success,
     ).toBe(true);
     expect(republishBusesQuerySchema.safeParse({ branchId: 'x' }).success).toBe(false);
+  });
+});
+
+describe('republishQuerySchema', () => {
+  it('is the one query every republish route reads, and the buses ones are the same schemas', () => {
+    expect(republishQuerySchema.parse({})).toEqual({});
+    expect(republishQuerySchema.safeParse({ branchId: 'x' }).success).toBe(false);
+    expect(republishBusesQuerySchema).toBe(republishQuerySchema);
+    expect(republishBusesResultSchema).toBe(republishResultSchema);
+  });
+
+  it('counts the republished rows with a whole number', () => {
+    expect(republishResultSchema.parse({ republished: 0 })).toEqual({ republished: 0 });
+    expect(republishResultSchema.safeParse({ republished: -1 }).success).toBe(false);
+    expect(republishResultSchema.safeParse({ republished: 1.5 }).success).toBe(false);
   });
 });

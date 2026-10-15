@@ -1,5 +1,5 @@
 import { BUS_DISPLAY_STATUSES } from '@debus/contracts';
-import { BUS_ART_TONES, BUS_STATUS_LABELS } from './bus-status';
+import { BUS_ART_TONES, BUS_DOT_TONES, BUS_STATUS_LABELS } from './bus-status';
 
 it('has a plain label and a tone for every status a bus can show', () => {
   for (const status of BUS_DISPLAY_STATUSES) {
@@ -19,5 +19,14 @@ it('draws the bus illustration in the color of its state', () => {
     AVAILABLE: 'indigo',
     IN_WORKSHOP: 'mango',
     INACTIVE: 'coral',
+  });
+});
+
+it('gives every status the color of its dot', () => {
+  expect(BUS_DOT_TONES).toEqual({
+    IN_TRANSIT: 'mint',
+    AVAILABLE: 'indigo',
+    IN_WORKSHOP: 'mango',
+    INACTIVE: 'muted',
   });
 });

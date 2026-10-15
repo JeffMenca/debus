@@ -20,6 +20,9 @@ const update = flags.includes('--update');
 const portFlag = flags.indexOf('--port');
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'services', name);
+// A service whose schema is split into prisma/schema/ keeps the folder: the template points the
+// config at it and never recreates the single prisma/schema.prisma.
+const schemaFolder = existsSync(join(dir, 'prisma/schema'));
 // An update keeps the port the service already uses unless --port says otherwise.
 const currentPort = update
   ? /^PORT=(\d+)$/m.exec(readFileSync(join(dir, '.env.example'), 'utf8'))?.[1]
@@ -296,12 +299,13 @@ import { defineConfig } from 'prisma/config';
 config({ path: ['.env', '.env.example'], quiet: true });
 
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
+  schema: '${schemaFolder ? 'prisma/schema' : 'prisma/schema.prisma'}',
   migrations: { path: 'prisma/migrations' },
   datasource: { url: process.env.DATABASE_URL ?? '' },
 });
 `,
-    'prisma/schema.prisma': `generator client {
+    ...(!schemaFolder && {
+      'prisma/schema.prisma': `generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
   moduleFormat = "cjs"
@@ -332,6 +336,7 @@ model OutboxEvent {
   @@map("outbox")
 }
 `,
+    }),
     'prisma/migrations/migration_lock.toml': 'provider = "postgresql"\n',
     'prisma/migrations/20261006000000_processed_events/migration.sql': `CREATE TABLE "processed_events" (
     "event_id" TEXT NOT NULL,
@@ -558,6 +563,7 @@ if (update) {
 
 const CUSTOMIZED_FILES = [
   'src/app.module.ts',
+  'prisma.config.ts',
   'prisma/schema.prisma',
   '.env.example',
   'test/jest-integration.cjs',

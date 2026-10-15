@@ -117,7 +117,12 @@ test.describe('trip cycle', () => {
     await page.getByLabel('Kilometraje final').fill('148614');
     await page.getByLabel('Combustible total (Q)').fill('1180');
     await expect(page.getByText('Recorrido').locator('..')).toContainText('204 km');
-    await expect(page.getByText(/Depreciación/).locator('..')).toContainText(/Q\s?173\.40/);
+    await expect(
+      page
+        .getByRole('main')
+        .getByText(/Depreciación/)
+        .locator('..'),
+    ).toContainText(/Q\s?173\.40/);
     await expect(page.getByText('Pago al chofer').locator('..')).toContainText(/Q\s?150\.00/);
     await page.getByRole('button', { name: 'Registrar llegada' }).click();
     await confirm(page, 'Sí, registrar llegada');
@@ -386,7 +391,12 @@ test.describe('trip cycle', () => {
 
     await expect(page.getByText(/demasiado alto para un solo viaje/)).toBeVisible();
     await expect(page.getByText('Recorrido').locator('..')).toContainText('—');
-    await expect(page.getByText(/Depreciación/).locator('..')).not.toContainText('Q 1,');
+    await expect(
+      page
+        .getByRole('main')
+        .getByText(/Depreciación/)
+        .locator('..'),
+    ).not.toContainText('Q 1,');
     await expectNoHorizontalScroll(page);
     const cards = page.locator('[class*="rounded-[18px]"]');
     for (const card of await cards.all()) {

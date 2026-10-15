@@ -9,3 +9,4 @@ export * from './service-client';
 export * from './service-client.module';
 export * from './testing/fake-service-client';
 export * from './testing/identity-headers';
+export * from './republish';

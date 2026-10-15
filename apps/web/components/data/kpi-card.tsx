@@ -34,6 +34,8 @@ interface KpiCardProps {
   icon?: LucideIcon;
   // An illustration on the right, which takes the place of the decorative circle.
   art?: ReactNode;
+  // A line under the label that says what the number counts.
+  hint?: string;
 }
 
 const wholeNumber = (value: number) => Math.round(value).toLocaleString('es-GT');
@@ -45,6 +47,7 @@ export function KpiCard({
   format = wholeNumber,
   icon: Icon,
   art,
+  hint,
 }: KpiCardProps) {
   const shown = useCountUp(value);
   return (
@@ -70,6 +73,7 @@ export function KpiCard({
           {format(shown)}
         </span>
         <span className="text-[13px] font-semibold">{label}</span>
+        {hint && <span className="text-xs font-medium">{hint}</span>}
       </div>
       {art}
     </div>

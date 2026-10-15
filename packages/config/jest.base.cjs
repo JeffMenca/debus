@@ -1,6 +1,9 @@
 // Unit-test preset: the 85% coverage threshold is part of the contract.
+// Workers are capped because turbo already runs one jest per package in parallel, and each
+// ts-jest worker holds a full type-checking program (~450 MB): uncapped, a single service took 4.4 GB.
 module.exports = {
   preset: 'ts-jest',
+  maxWorkers: 2,
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testRegex: '.*\\.spec\\.ts$',
