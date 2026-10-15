@@ -1,7 +1,8 @@
 import { testSchema } from '@debus/config/test-data';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
-import { assertWritesTo, migrateSchema, schemaClient } from './support/isolated-app';
+import { assertWritesTo } from './support/isolated-app';
+import { migrateSchema, schemaClient } from './support/isolated-schema';
 
 // The guard that keeps an isolated app away from the shared schema. A client that routes only the
 // ORM to the throwaway schema, leaving the raw SQL on the default one, must be refused before it

@@ -1,27 +1,59 @@
 import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import { createEnvelope, type EventEnvelope } from '@debus/contracts';
 import { EventPublisher, Outbox } from '@debus/messaging';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { type IsolatedSchema, isolatedSchema } from './support/isolated-schema';
 
 const push = (value: unknown) => ({
   message: { data: Buffer.from(JSON.stringify(value)).toString('base64'), messageId: '1' },
   subscription: 'test',
 });
 
+// Both groups work on a schema of their own: a flush claims every pending row of the outbox it
+// sees, so on the shared schema it would also take (and mark as published) the rows that the local
+// stack has not sent yet, and the stack would take the rows of the test.
+let isolated: IsolatedSchema;
+
+beforeAll(async () => {
+  isolated = await isolatedSchema('events');
+});
+
+afterAll(async () => {
+  await isolated.drop();
+});
+
+async function createApp(
+  customize: (builder: TestingModuleBuilder) => TestingModuleBuilder = (builder) => builder,
+): Promise<INestApplication> {
+  const builder = Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(PrismaService)
+    .useValue(isolated.client);
+  const app = (await customize(builder).compile()).createNestApplication();
+  await app.init();
+  return app;
+}
+
+const currentSchemaOf = async (prisma: PrismaService): Promise<string | undefined> => {
+  const rows = await prisma.$queryRawUnsafe<{ name: string }[]>('SELECT current_schema() AS name');
+  return rows[0]?.name;
+};
+
 describe('Pub/Sub push endpoint', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
-    await app.init();
+    app = await createApp();
   });
 
   afterAll(async () => {
     await app.close();
+  });
+
+  it('runs on a schema of its own', async () => {
+    expect(await currentSchemaOf(app.get(PrismaService))).toBe(isolated.schema);
   });
 
   it('records a probe exactly once even when delivered twice', async () => {
@@ -76,18 +108,18 @@ describe('Outbox with the service database client', () => {
         return 'message-id';
       },
     };
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(EventPublisher)
-      .useValue(publisher)
-      .compile();
-    app = moduleRef.createNestApplication();
-    await app.init();
+    app = await createApp((builder) =>
+      builder.overrideProvider(EventPublisher).useValue(publisher),
+    );
     prisma = app.get(PrismaService);
   });
 
   afterAll(async () => {
-    await prisma.outboxEvent.deleteMany();
     await app.close();
+  });
+
+  it('runs on a schema of its own', async () => {
+    expect(await currentSchemaOf(prisma)).toBe(isolated.schema);
   });
 
   // Publishing takes longer than Prisma's interactive transaction timeout (5 s) in total.
