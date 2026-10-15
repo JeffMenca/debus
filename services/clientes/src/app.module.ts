@@ -7,12 +7,18 @@ import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
+import { ProfilesModule } from './profiles/profiles.module';
+import { SettingsModule } from './settings/settings.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule.forRoot({ pinoHttp: httpLoggerOptions() }),
     HealthModule,
+    ProfilesModule,
+    SettingsModule,
+    WalletModule,
     PrismaModule,
     MessagingModule.forRoot({
       service: 'clientes',
