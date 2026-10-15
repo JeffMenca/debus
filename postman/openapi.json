@@ -4429,6 +4429,239 @@
         ]
       }
     },
+    "/api/clientes/profile": {
+      "get": {
+        "operationId": "clientes_ProfilesController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "clientes · profile"
+        ]
+      },
+      "put": {
+        "operationId": "clientes_ProfilesController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "dpi": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "nit": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string",
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "dpi",
+                  "phone"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "clientes · profile"
+        ]
+      }
+    },
+    "/api/clientes/wallet": {
+      "get": {
+        "operationId": "clientes_WalletController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "clientes · wallet"
+        ]
+      }
+    },
+    "/api/clientes/wallet/top-ups": {
+      "post": {
+        "operationId": "clientes_WalletController_topUp",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "description": "A uuid per top-up.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100000
+                  },
+                  "paidOn": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "paidOn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "clientes · wallet"
+        ]
+      }
+    },
+    "/api/clientes/wallet/movements": {
+      "get": {
+        "operationId": "clientes_WalletController_movements",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "clientes · wallet"
+        ]
+      }
+    },
     "/api/clientes/dead-letters": {
       "get": {
         "description": "Allowed roles: SYSTEM_ADMIN.",
