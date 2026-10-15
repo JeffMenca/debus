@@ -109,7 +109,9 @@ test.describe('real trip cycle and repair expenses', () => {
     const firstTrip = branch.getByRole('row', { name: plateTail });
     await expect(firstTrip).toHaveCount(1, { timeout: ACTION_TIMEOUT });
     await firstTrip.getByRole('link').click();
-    await expect(branch).toHaveURL(/\/sucursal\/viajes\/[0-9a-f-]{36}$/);
+    await expect(branch).toHaveURL(/\/sucursal\/viajes\/[0-9a-f-]{36}$/, {
+      timeout: ACTION_TIMEOUT,
+    });
     const tripId = branch.url().split('/').pop()!;
     const departure = guatemalaAgo(120);
     await expect(branch.getByLabel('Kilometraje inicial')).toHaveValue('1000');

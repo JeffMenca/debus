@@ -1,4 +1,5 @@
 import type { BranchBusRow } from '@debus/contracts';
+import { assertPrintable } from '../../common/pdf/printable-text';
 import { toReportDocument } from './branch-buses.pdf';
 
 describe('the buses report document', () => {
@@ -106,5 +107,9 @@ describe('the buses report document', () => {
     });
 
     expect(doc.scope).toBe('Sucursal');
+  });
+
+  it('only carries text the standard PDF font can print, filters included', () => {
+    expect(() => assertPrintable(build({ status: 'IN_WORKSHOP', q: 'hino' }))).not.toThrow();
   });
 });

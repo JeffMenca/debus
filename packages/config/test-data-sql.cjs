@@ -111,6 +111,9 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     inTestBranches('branch_report_trips'),
     inTestBranches('branch_report_buses'),
     inTestBranches('branch_report_drivers'),
+    inTestBranches('branch_report_repair_lines'),
+    inTestBranches('branch_report_ticket_sales'),
+    inTestBranches('branch_report_rentals'),
   ];
 
   return [
@@ -138,7 +141,7 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
   ];
 }
 
-// A service that only keeps copies of the settings (viajes) receives them by event, after the
+// A service that only keeps copies of the settings (viajes, reportes) receives them by event, after the
 // source version may be gone: it keeps the copies whose id still exists in administracion.
 function copiesStatements(settingsVersionIds) {
   if (settingsVersionIds == null) return [];
@@ -149,6 +152,10 @@ function copiesStatements(settingsVersionIds) {
   const where = settingsVersionIds.length > 0 ? ` WHERE id NOT IN (${alive})` : '';
   return [
     whenTableExistsWithout('settings_versions', 'users', `DELETE FROM settings_versions${where}`),
+    whenTablesExist(
+      ['branch_report_depreciation_rates'],
+      `DELETE FROM branch_report_depreciation_rates${where}`,
+    ),
   ];
 }
 

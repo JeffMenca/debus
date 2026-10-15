@@ -8,6 +8,16 @@ type Method = 'get' | 'post' | 'delete';
 const ROUTES: [method: Method, path: string, codes: string[]][] = [
   ['get', '/reports/branch-buses', ['200', '400', '401', '403']],
   ['get', '/reports/branch-buses/pdf', ['200', '400', '401', '403', '409']],
+  ['get', '/reports/branch-drivers', ['200', '400', '401', '403']],
+  ['get', '/reports/branch-drivers/pdf', ['200', '400', '401', '403', '409']],
+  ['get', '/reports/branch-depreciation', ['200', '400', '401', '403']],
+  ['get', '/reports/branch-depreciation/pdf', ['200', '400', '401', '403', '409']],
+  ['get', '/reports/branch-ticket-income', ['200', '400', '401', '403']],
+  ['get', '/reports/branch-ticket-income/pdf', ['200', '400', '401', '403', '409']],
+  ['get', '/reports/branch-rental-income', ['200', '400', '401', '403']],
+  ['get', '/reports/branch-rental-income/pdf', ['200', '400', '401', '403', '409']],
+  ['get', '/reports/branch-repair-expenses', ['200', '400', '401', '403']],
+  ['get', '/reports/branch-repair-expenses/pdf', ['200', '400', '401', '403', '409']],
   // Every consumer mounts the dead-letter review of @debus/messaging.
   ['get', '/dead-letters', ['200', '400', '401', '403', '503']],
   ['post', '/dead-letters/{messageId}/replay', ['200', '401', '403', '404', '502', '503']],
@@ -47,6 +57,36 @@ describe('API documentation', () => {
     expect(document.paths['/reports/branch-buses/pdf']?.get?.description).toBe(
       'Allowed roles: BRANCH_ADMIN.',
     );
+    expect(document.paths['/reports/branch-drivers']?.get?.description).toBe(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
+    expect(document.paths['/reports/branch-drivers/pdf']?.get?.description).toBe(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
+    expect(document.paths['/reports/branch-depreciation']?.get?.description).toBe(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
+    expect(document.paths['/reports/branch-depreciation/pdf']?.get?.description).toBe(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
+    expect(document.paths['/reports/branch-ticket-income']?.get?.description).toBe(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
+    expect(document.paths['/reports/branch-ticket-income/pdf']?.get?.description).toBe(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
+    expect(document.paths['/reports/branch-rental-income']?.get?.description).toBe(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
+    expect(document.paths['/reports/branch-rental-income/pdf']?.get?.description).toBe(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
+    expect(document.paths['/reports/branch-repair-expenses']?.get?.description).toBe(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
+    expect(document.paths['/reports/branch-repair-expenses/pdf']?.get?.description).toBe(
+      'Allowed roles: BRANCH_ADMIN.',
+    );
   });
 
   it('documents the PDF as a binary file', () => {
@@ -67,6 +107,94 @@ describe('API documentation', () => {
     expect(parameters.filter((p) => p.in === 'query').map((p) => [p.name, p.required])).toEqual(
       expect.arrayContaining([
         ['status', false],
+        ['q', false],
+        ['page', false],
+        ['pageSize', false],
+      ]),
+    );
+  });
+
+  it('documents the filters of the drivers report as optional query parameters', () => {
+    const parameters = (document.paths['/reports/branch-drivers']?.get?.parameters ?? []) as {
+      in: string;
+      name: string;
+      required?: boolean;
+    }[];
+
+    expect(parameters.filter((p) => p.in === 'query').map((p) => [p.name, p.required])).toEqual(
+      expect.arrayContaining([
+        ['status', false],
+        ['q', false],
+        ['page', false],
+        ['pageSize', false],
+      ]),
+    );
+  });
+
+  it('documents the period and the search of the depreciation report as optional query parameters', () => {
+    const parameters = (document.paths['/reports/branch-depreciation']?.get?.parameters ?? []) as {
+      in: string;
+      name: string;
+      required?: boolean;
+    }[];
+
+    expect(parameters.filter((p) => p.in === 'query').map((p) => [p.name, p.required])).toEqual(
+      expect.arrayContaining([
+        ['from', false],
+        ['to', false],
+        ['q', false],
+        ['page', false],
+        ['pageSize', false],
+      ]),
+    );
+  });
+
+  it('documents the period, the bus and the category of the repair report as optional query parameters', () => {
+    const parameters = (document.paths['/reports/branch-repair-expenses']?.get?.parameters ??
+      []) as { in: string; name: string; required?: boolean }[];
+
+    expect(parameters.filter((p) => p.in === 'query').map((p) => [p.name, p.required])).toEqual(
+      expect.arrayContaining([
+        ['from', false],
+        ['to', false],
+        ['busId', false],
+        ['categoryId', false],
+        ['page', false],
+        ['pageSize', false],
+      ]),
+    );
+  });
+
+  it('documents the period, the route and the bus of the ticket income report as optional query parameters', () => {
+    const parameters = (document.paths['/reports/branch-ticket-income']?.get?.parameters ?? []) as {
+      in: string;
+      name: string;
+      required?: boolean;
+    }[];
+
+    expect(parameters.filter((p) => p.in === 'query').map((p) => [p.name, p.required])).toEqual(
+      expect.arrayContaining([
+        ['from', false],
+        ['to', false],
+        ['routeId', false],
+        ['busId', false],
+        ['page', false],
+        ['pageSize', false],
+      ]),
+    );
+  });
+
+  it('documents the period and the search of the rental income report as optional query parameters', () => {
+    const parameters = (document.paths['/reports/branch-rental-income']?.get?.parameters ?? []) as {
+      in: string;
+      name: string;
+      required?: boolean;
+    }[];
+
+    expect(parameters.filter((p) => p.in === 'query').map((p) => [p.name, p.required])).toEqual(
+      expect.arrayContaining([
+        ['from', false],
+        ['to', false],
         ['q', false],
         ['page', false],
         ['pageSize', false],

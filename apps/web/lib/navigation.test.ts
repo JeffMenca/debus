@@ -39,7 +39,17 @@ describe('navigation', () => {
         ],
       ],
       ['Finanzas', [['Gastos de taller', '/sucursal/gastos']]],
-      ['Reportes', [['Listado de buses', '/sucursal/reportes/buses']]],
+      [
+        'Reportes',
+        [
+          ['Listado de buses', '/sucursal/reportes/buses'],
+          ['Listado de choferes', '/sucursal/reportes/choferes'],
+          ['Ingresos por boletos', '/sucursal/reportes/ingresos-boletos'],
+          ['Ingresos por alquiler', '/sucursal/reportes/ingresos-alquileres'],
+          ['Depreciación por bus', '/sucursal/reportes/depreciacion'],
+          ['Gastos de taller por bus', '/sucursal/reportes/taller'],
+        ],
+      ],
     ]);
   });
 

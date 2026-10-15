@@ -12,6 +12,7 @@ import {
 import type { InMemoryEventBus } from '@debus/messaging';
 import { identityHeaders } from '@debus/server';
 import type { INestApplication } from '@nestjs/common';
+import pdfmake from 'pdfmake';
 import request from 'supertest';
 import { REPORT_MESSAGES } from '../src/common/report-messages';
 import type { PrismaService } from '../src/prisma/prisma.service';
@@ -26,6 +27,7 @@ describe('branch buses report', () => {
   let branchId: string;
   let otherBranchId: string;
   let precedenceBranchId: string;
+  let substitutionBranchId: string;
 
   const http = () => request(app.getHttpServer());
   const asAdmin = (branch: string) => identityHeaders(randomUUID(), 'BRANCH_ADMIN', branch);
@@ -56,6 +58,8 @@ describe('branch buses report', () => {
     branchId = await seedTestBranch(bus, 'buses report');
     otherBranchId = await seedTestBranch(bus, 'buses report other');
     precedenceBranchId = await seedTestBranch(bus, 'buses report precedence');
+    substitutionBranchId = await seedTestBranch(bus, 'buses report substitution');
+    await addBus(substitutionBranchId, 'ZZ700GGG', { brand: 'Hino', model: 'AK8J 🚌' });
 
     const driverId = randomUUID();
     await bus.deliver('DriverAdded', {
@@ -209,6 +213,21 @@ describe('branch buses report', () => {
     );
 
     expect((response.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('exports a bus whose model the PDF font cannot print, with a question mark in its place', async () => {
+    const createPdf = jest.spyOn(pdfmake, 'createPdf');
+
+    const response = await getPdf('/reports/branch-buses/pdf', substitutionBranchId).expect(200);
+
+    const drawn = JSON.stringify(createPdf.mock.calls.at(-1)?.[0]);
+    createPdf.mockRestore();
+    expect((response.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+    expect(drawn).toContain('"AK8J ?"');
+    expect(drawn).not.toContain('🚌');
+    // The screen keeps the exact model.
+    const screen = await get('/reports/branch-buses', substitutionBranchId).expect(200);
+    expect(screen.body.items[0].model).toBe('AK8J 🚌');
   });
 
   it('exports a PDF with the message of an empty result when nothing matches', async () => {

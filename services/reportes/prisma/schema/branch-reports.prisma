@@ -66,3 +66,75 @@ model BranchReportTrip {
   @@index([rentalId])
   @@map("branch_report_trips")
 }
+
+// A settings version, immutable: the depreciation per km in force from effective_from on.
+model BranchReportDepreciationRate {
+  id                String   @id @db.Uuid
+  depreciationPerKm Decimal  @map("depreciation_per_km") @db.Decimal(12, 2)
+  effectiveFrom     DateTime @map("effective_from") @db.Date
+  createdAt         DateTime @map("created_at") @db.Timestamptz(3)
+
+  @@index([effectiveFrom])
+  @@map("branch_report_depreciation_rates")
+}
+
+// One row per line of a repair expense; the expense itself is not kept.
+model BranchReportRepairLine {
+  expenseId    String   @map("expense_id") @db.Uuid
+  lineNo       Int      @map("line_no")
+  branchId     String   @map("branch_id") @db.Uuid
+  busId        String   @map("bus_id") @db.Uuid
+  serviceDate  DateTime @map("service_date") @db.Date
+  categoryId   String   @map("category_id") @db.Uuid
+  categoryName String   @map("category_name")
+  kind         String
+  description  String
+  amount       Decimal  @db.Decimal(12, 2)
+
+  @@id([expenseId, lineNo])
+  @@index([branchId, serviceDate])
+  @@index([busId])
+  @@map("branch_report_repair_lines")
+}
+
+// One row per ticket sold; the income belongs to the origin branch of the trip.
+model BranchReportTicketSale {
+  id               String   @id @db.Uuid
+  tripId           String   @map("trip_id") @db.Uuid
+  routeId          String   @map("route_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  busId            String   @map("bus_id") @db.Uuid
+  originLabel      String   @map("origin_label")
+  destinationLabel String   @map("destination_label")
+  departureAt      DateTime @map("departure_at") @db.Timestamptz(3)
+  channel          String
+  seats            Int
+  total            Decimal  @db.Decimal(12, 2)
+  paidOn           DateTime @map("paid_on") @db.Date
+  soldAt           DateTime @map("sold_at") @db.Timestamptz(3)
+
+  @@index([branchId, paidOn])
+  @@index([tripId])
+  @@map("branch_report_ticket_sales")
+}
+
+// One row per paid rental; the income belongs to the branch that confirmed it.
+model BranchReportRental {
+  id               String    @id @db.Uuid
+  branchId         String    @map("branch_id") @db.Uuid
+  clientId         String?   @map("client_id") @db.Uuid
+  nit              String
+  clientName       String    @map("client_name")
+  originLabel      String    @map("origin_label")
+  destinationLabel String    @map("destination_label")
+  departureAt      DateTime  @map("departure_at") @db.Timestamptz(3)
+  returnAt         DateTime? @map("return_at") @db.Timestamptz(3)
+  passengers       Int
+  distanceKm       Decimal   @map("distance_km") @db.Decimal(6, 1)
+  price            Decimal   @db.Decimal(12, 2)
+  paidOn           DateTime  @map("paid_on") @db.Date
+  searchText       String    @default("") @map("search_text")
+
+  @@index([branchId, paidOn])
+  @@map("branch_report_rentals")
+}

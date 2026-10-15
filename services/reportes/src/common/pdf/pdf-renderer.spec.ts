@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import pdfmake from 'pdfmake';
 import { PdfRenderer } from './pdf-renderer';
 import type { PdfTable, ReportDocument } from './report-document';
@@ -36,6 +37,35 @@ describe('PdfRenderer', () => {
     const buffer = await new PdfRenderer().render(empty);
 
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('prints what the font lacks as its closest equivalent and warns of what it replaced', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const createPdf = jest.spyOn(pdfmake, 'createPdf');
+    const dirty = { ...doc, scope: 'Sucursal Kʼicheʼ', notes: ['AK8J 🚌 · Xela → Antigua'] };
+
+    const buffer = await new PdfRenderer().render(dirty);
+
+    const drawn = JSON.stringify(createPdf.mock.calls.at(-1)?.[0]);
+    createPdf.mockRestore();
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(drawn).toContain('Sucursal K’iche’');
+    expect(drawn).toContain('AK8J ? · Xela – Antigua');
+    expect(warn).toHaveBeenCalledTimes(1);
+    const message = String(warn.mock.calls[0]?.[0]);
+    expect(message).toContain('U+02BC');
+    expect(message).toContain('U+1F68C');
+    expect(message).not.toContain('AK8J');
+    warn.mockRestore();
+  });
+
+  it('does not warn when everything could be printed', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+    await new PdfRenderer().render(doc);
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('never reads a file or a URL beyond its own standard fonts', () => {
