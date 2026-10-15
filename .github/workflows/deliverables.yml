@@ -1,0 +1,126 @@
+name: deliverables
+
+# Builds the compiled code of every unit and packs it, to hand it in with the source. With publish
+# on it also creates the GitHub Release `v<version>` with those files. Run it by hand.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version of the release, for example 1.0.0'
+        required: true
+        type: string
+      publish:
+        description: 'Create the GitHub Release with the files (off: only keep them as a workflow artifact)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: deliverables
+  cancel-in-progress: false
+
+env:
+  VERSION: ${{ inputs.version }}
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check the version
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "The version must look like 1.0.0, got '$VERSION'"
+            exit 1
+          fi
+      - run: pnpm turbo run build
+      - name: Pack the gateway and the services
+        run: |
+          mkdir -p out dist-files
+          for unit in gateway administracion flota viajes ventas clientes reportes notificaciones; do
+            pnpm --filter "@debus/$unit" deploy --prod --legacy "out/$unit"
+            # Only what runs: the compiled code, the production dependencies and the migrations.
+            rm -rf "out/$unit"/{coverage,coverage-integration,test,src,eslint.config.mjs,jest.config.cjs,tsconfig.json,tsconfig.build.json}
+            tar -czf "dist-files/debus-$unit-$VERSION.tar.gz" -C out "$unit"
+          done
+      - name: Pack the web
+        run: |
+          NEXT_OUTPUT=standalone pnpm --filter @debus/web build
+          mkdir -p out/web
+          cp -R apps/web/.next/standalone/. out/web/
+          mkdir -p out/web/apps/web/.next
+          cp -R apps/web/.next/static out/web/apps/web/.next/static
+          cp -R apps/web/public out/web/apps/web/public
+          tar -czf "dist-files/debus-web-$VERSION.tar.gz" -C out web
+      # The images are listed only if they exist: `deploy` builds just the units a commit changes, so
+      # run it with all=true on this commit before releasing.
+      - name: Sign in to Google Cloud
+        if: vars.GCP_PROJECT_ID != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+        if: vars.GCP_PROJECT_ID != ''
+      - name: List the images that the deploy published for this commit
+        if: vars.GCP_PROJECT_ID != ''
+        env:
+          REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_ARTIFACT_REPO }}
+        run: |
+          missing=()
+          {
+            echo "# Imágenes de la versión $VERSION"
+            echo
+            echo "Commit \`$GITHUB_SHA\`. Son las que el despliegue publicó en Artifact Registry para ese commit."
+            echo
+            echo "| Unidad | Imagen |"
+            echo "| --- | --- |"
+            for unit in gateway administracion flota viajes ventas clientes reportes notificaciones web; do
+              images=("$REGISTRY/$unit:$GITHUB_SHA")
+              if [ -f "services/$unit/prisma/migrations/migration_lock.toml" ]; then
+                images+=("$REGISTRY/$unit-migrate:$GITHUB_SHA")
+              fi
+              for image in "${images[@]}"; do
+                if gcloud artifacts docker images describe "$image" >/dev/null 2>&1; then
+                  echo "| $unit | \`$image\` |"
+                else
+                  missing+=("$image")
+                fi
+              done
+            done
+          } > dist-files/IMAGES.md
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing image: %s\n' "${missing[@]}"
+            echo "Run the deploy workflow with all=true on commit $GITHUB_SHA first, then run this one again."
+            exit 1
+          fi
+      - name: Without GCP variables there is no list of images
+        if: vars.GCP_PROJECT_ID == '' && inputs.publish
+        run: |
+          echo "A release lists the images of the commit, and the GCP variables of the repository are missing."
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debus-${{ inputs.version }}
+          path: dist-files/
+          if-no-files-found: error
+      - name: Create the GitHub Release
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$VERSION" dist-files/* \
+            --title "debus v$VERSION" \
+            --notes "Código compilado de los ocho servicios y del web, e imágenes del commit $GITHUB_SHA (ver IMAGES.md). Manuales en docs/, colección en postman/." \
+            --target "$GITHUB_SHA"
