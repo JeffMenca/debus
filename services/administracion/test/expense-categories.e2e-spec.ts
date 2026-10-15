@@ -3,11 +3,11 @@ import { TEST_BRANCH_PREFIX, TEST_RUN } from '@debus/config/test-data';
 import { expenseCategoryPageSchema, expenseCategorySchema } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { identityHeaders } from '@debus/server';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { createTestBranch } from './support/branches';
 import { cleanTestData } from './support/cleanup';
-import { identityHeaders } from './support/identity';
 
 describe('expense categories', () => {
   let app: INestApplication;

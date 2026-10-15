@@ -188,6 +188,31 @@ describe('RentalRequestsService.assign', () => {
     expect(trip).toMatchObject({ id: tripRow.id, type: 'RENTAL', ticketPrice: null });
   });
 
+  it('leaves now when the requested time already passed, and tells flota and the trip the same', async () => {
+    const { tx, fleet, outbox, prisma, service } = setup();
+    prisma.rentalRequest.findFirst.mockResolvedValue({
+      ...requestRow,
+      departureAt: new Date('2000-01-01T08:00:00.000Z'),
+    });
+    tx.trip.create.mockImplementation(({ data }) => Promise.resolve({ ...tripRow, ...data }));
+
+    const before = Date.now();
+    await service.assign(actor, rentalId, input, 'c');
+    const after = Date.now();
+
+    const sent = new Date(fleet.availability.mock.calls[0]?.[0].departureAt);
+    const created = tx.trip.create.mock.calls[0]?.[0].data.departureAt as Date;
+    expect(created).toEqual(sent);
+    expect(created.getTime() % 60_000).toBe(0);
+    expect(created.getTime()).toBeGreaterThan(before);
+    expect(created.getTime()).toBeLessThanOrEqual(after + 60_000);
+    expect(outbox.add.mock.calls[0]?.[2].departureAt).toBe(created.toISOString());
+    expect(tx.rentalRequest.update).toHaveBeenCalledWith({
+      where: { id: rentalId },
+      data: { status: 'ASSIGNED', tripId: tripRow.id },
+    });
+  });
+
   it.each([
     ['rental of another branch or unknown', 'No encontramos ese alquiler.'],
     ['rental already assigned', 'Ese alquiler ya tiene bus y chofer.'],

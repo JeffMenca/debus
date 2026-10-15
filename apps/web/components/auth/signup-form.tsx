@@ -9,6 +9,7 @@ import type { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { messageOf } from '@/lib/api/api-error';
 import { type FieldName, FIELD_MESSAGES } from '@/lib/auth/form-messages';
 import { signUp } from '@/lib/auth/auth-api';
@@ -20,6 +21,7 @@ import { FormAlert } from './form-alert';
 type FormInput = z.input<typeof signupRequestSchema>;
 
 export function SignupForm() {
+  const hydrated = useHydrated();
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -55,6 +57,7 @@ export function SignupForm() {
     >
       <AuthTabs active="signup" />
       <form
+        method="post"
         noValidate
         onSubmit={onSubmit}
         className="flex animate-[arrive_0.45s_var(--ease-route)_both] flex-col gap-3.5 motion-reduce:animate-none"
@@ -110,7 +113,7 @@ export function SignupForm() {
           Si ya compraste en ventanilla con este NIT, esos boletos aparecerán en tu historial.
         </FormAlert>
         {serverError && <FormAlert tone="error">{serverError}</FormAlert>}
-        <Button type="submit" size="lg" arrow={!isSubmitting} disabled={isSubmitting}>
+        <Button type="submit" size="lg" arrow={!isSubmitting} disabled={!hydrated || isSubmitting}>
           {isSubmitting ? 'Creando tu cuenta...' : 'Crear cuenta'}
         </Button>
       </form>

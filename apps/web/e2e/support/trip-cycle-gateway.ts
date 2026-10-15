@@ -46,6 +46,8 @@ export const CYCLE_MESSAGES = {
     'El bus de este viaje fue desactivado. Elimina el viaje y prográmalo con otro bus.',
   departureDriverInactive:
     'El chofer de este viaje fue desactivado. Elimina el viaje y prográmalo con otro chofer.',
+  busOnAnotherTrip: 'Ese bus sigue en otro viaje. Registra primero la llegada de ese viaje.',
+  driverOnAnotherTrip: 'Ese chofer sigue en otro viaje. Registra primero la llegada de ese viaje.',
   startMileageBelowBus:
     'El kilometraje inicial no puede ser menor que el último registrado del bus.',
   departureInFuture: 'La hora real de salida no puede ser en el futuro.',
@@ -149,6 +151,16 @@ export function createTripCycle(fleet: TripsFleet, trips: Trip[], seed: TripCycl
       if (busOf(trip)?.active === false) return refuse(409, CYCLE_MESSAGES.departureBusInactive);
       if (driverOf(trip)?.active === false) {
         return refuse(409, CYCLE_MESSAGES.departureDriverInactive);
+      }
+      // A bus or a driver that left on another trip and has not arrived cannot leave again.
+      const onTheRoad = trips.filter(
+        (other) => other.id !== trip.id && other.status === 'IN_TRANSIT',
+      );
+      if (onTheRoad.some((other) => other.busId === trip.busId)) {
+        return refuse(409, CYCLE_MESSAGES.busOnAnotherTrip);
+      }
+      if (onTheRoad.some((other) => other.driverId === trip.driverId)) {
+        return refuse(409, CYCLE_MESSAGES.driverOnAnotherTrip);
       }
       if (parsed.data.startMileageKm < (busOf(trip)?.mileageKm ?? 0)) {
         return refuse(409, CYCLE_MESSAGES.startMileageBelowBus);

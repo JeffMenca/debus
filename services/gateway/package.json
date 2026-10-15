@@ -6,7 +6,7 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
-    "lint": "eslint src test",
+    "lint": "eslint src test --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "jest --coverage",
     "test:integration": "jest --config test/jest-integration.cjs --coverage"

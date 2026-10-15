@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModuleBuilder } from '@nestjs/testing';
+import { ensureTopic } from '@debus/messaging';
 import { AppModule } from '../../src/app.module';
-import { ensureTopic } from './topic';
 
 // `customize` swaps providers before the app starts (for example flota for a fake).
 export async function createTestApp(

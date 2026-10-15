@@ -6,7 +6,7 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
-    "lint": "eslint src test",
+    "lint": "eslint src test --max-warnings 0 && prisma format --check",
     "typecheck": "tsc --noEmit",
     "test": "jest --coverage",
     "test:integration": "prisma migrate deploy && jest --config test/jest-integration.cjs --coverage",

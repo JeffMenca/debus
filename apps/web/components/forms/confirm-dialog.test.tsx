@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/api/api-error';
 import { ConfirmDialog } from './confirm-dialog';
@@ -92,7 +92,10 @@ describe('ConfirmDialog', () => {
 
     expect(screen.getByRole('button', { name: 'Guardando...' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
-    finish();
+
+    await act(async () => finish());
+
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeEnabled();
   });
 
   it('cancels without running the action', async () => {

@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ForgotForm } from './forgot-form';
+import { useHydrated } from '../../hooks/use-hydrated';
 
+jest.mock('../../hooks/use-hydrated', () => ({ useHydrated: jest.fn(() => true) }));
 const fetchMock = jest.fn();
 beforeEach(() => {
   fetchMock.mockReset();
@@ -51,5 +53,27 @@ describe('ForgotForm', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Enviar enlace' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos conectarnos.');
+  });
+});
+
+describe('ForgotForm before the page is interactive', () => {
+  afterEach(() => jest.mocked(useHydrated).mockReturnValue(true));
+
+  it('posts instead of getting, so a native submit never puts the fields in the address', () => {
+    const { container } = render(<ForgotForm />);
+
+    expect(container.querySelector('form')).toHaveAttribute('method', 'post');
+  });
+
+  it('keeps the submit button off until the page can handle the submit', () => {
+    jest.mocked(useHydrated).mockReturnValue(false);
+    const view = render(<ForgotForm />);
+
+    expect(screen.getByRole('button', { name: /Enviar enlace/ })).toBeDisabled();
+
+    jest.mocked(useHydrated).mockReturnValue(true);
+    view.rerender(<ForgotForm />);
+
+    expect(screen.getByRole('button', { name: /Enviar enlace/ })).toBeEnabled();
   });
 });

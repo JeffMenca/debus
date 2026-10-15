@@ -16,7 +16,7 @@ import { TRIP_MESSAGES } from '../trips/trip-messages';
 import { availabilityProblem } from '../trips/trip-rules';
 import { TripWrites } from '../trips/trip-writes';
 import { toRentalRequest } from './rental-mappers';
-import { assignmentProblem } from './rental-rules';
+import { assignmentProblem, tripDepartureFor } from './rental-rules';
 import { rentalListWhere, rentalOrder } from './rental-scope';
 
 @Injectable()
@@ -51,26 +51,27 @@ export class RentalRequestsService {
       this.prisma.driverCopy.findUnique({ where: { id: input.driverId } }),
     ]);
     if (!request) throw new NotFoundException(TRIP_MESSAGES.rentalNotFound);
+    const now = new Date();
     const problem = assignmentProblem({
       request,
       bus,
       driver,
       branchId,
       estimatedArrivalAt: input.estimatedArrivalAt,
-      now: new Date(),
+      now,
     });
     if (problem || !bus || !driver) {
       throw new ConflictException(TRIP_MESSAGES[problem ?? 'busNotFound']);
     }
 
     // The question to flota goes before the write; the exclusion constraints decide the race.
-    const departureAt = request.departureAt.toISOString();
+    const departureAt = tripDepartureFor(request.departureAt, now);
     const availability = await this.fleet.availability(
       {
         branchId,
         busId: bus.id,
         driverId: driver.id,
-        departureAt,
+        departureAt: departureAt.toISOString(),
         estimatedArrivalAt: input.estimatedArrivalAt,
       },
       correlationId,
@@ -101,7 +102,7 @@ export class RentalRequestsService {
             driverName: driver.fullName,
             originLabel: request.originLabel,
             destinationLabel: request.destinationLabel,
-            departureAt: request.departureAt,
+            departureAt,
             estimatedArrivalAt: new Date(input.estimatedArrivalAt),
             ticketPrice: null,
             rentalId,

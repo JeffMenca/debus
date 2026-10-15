@@ -28,7 +28,7 @@ export function RoutesScreen() {
   const branch = useOwnBranch();
   const [editing, setEditing] = useState<{ route: Route | null; open: boolean } | null>(null);
   // The record stays while the panel animates out, so only `open` is cleared on close.
-  const [deleting, setDeleting] = useState<Route | null>(null);
+  const [deleting, setDeleting] = useState<{ route: Route; open: boolean } | null>(null);
 
   const [search, setSearch] = useUrlSearch(query.q, update);
   usePageInRange(routes.data, update);
@@ -38,7 +38,7 @@ export function RoutesScreen() {
 
   const columns = useRouteColumns({
     onEdit: useCallback((route: Route) => setEditing({ route, open: true }), []),
-    onDelete: useCallback((route: Route) => setDeleting(route), []),
+    onDelete: useCallback((route: Route) => setDeleting({ route, open: true }), []),
     onToggle: useCallback(
       async (route: Route, active: boolean) => {
         try {
@@ -127,16 +127,16 @@ export function RoutesScreen() {
       />
 
       <ConfirmDialog
-        open={Boolean(deleting)}
-        onOpenChange={(open) => !open && setDeleting(null)}
-        title={`¿Eliminar la ruta a ${deleting?.destinationName}?`}
+        open={deleting?.open ?? false}
+        onOpenChange={(open) => !open && setDeleting((current) => current && { ...current, open })}
+        title={`¿Eliminar la ruta a ${deleting?.route.destinationName}?`}
         description="No se puede deshacer."
         confirmLabel="Eliminar"
         tone="danger"
         onConfirm={async () => {
           if (!deleting) return;
-          await remove.mutateAsync(deleting.id);
-          toast.success(`Eliminamos la ruta a ${deleting.destinationName}.`);
+          await remove.mutateAsync(deleting.route.id);
+          toast.success(`Eliminamos la ruta a ${deleting.route.destinationName}.`);
         }}
       />
     </>

@@ -23,8 +23,7 @@ describe('buildPubSubPlan', () => {
     expect(reportsFromFleet).toEqual({
       name: 'reportes-from-flota',
       topic: 'flota-events',
-      filter:
-        'attributes.type = "BusAdded" OR attributes.type = "BusUpdated" OR attributes.type = "BusDeactivated" OR attributes.type = "RouteCreated" OR attributes.type = "RouteUpdated" OR attributes.type = "RouteDeleted"',
+      filter: '',
       pushEndpoint: 'https://reportes-123.us-central1.run.app/events/pubsub',
       oidc: {
         serviceAccountEmail: 'pubsub-invoker@p.iam.gserviceaccount.com',
@@ -45,6 +44,19 @@ describe('buildPubSubPlan', () => {
     expect(plan.subscriptions.find((s) => s.name === 'flota-from-viajes')?.filter).toBe('');
     expect(plan.subscriptions.find((s) => s.name === 'administracion-from-flota')?.filter).toBe(
       ['BusAdded', 'BusUpdated', 'BusDeactivated', 'DriverAdded', 'DriverUpdated']
+        .map((type) => `attributes.type = "${type}"`)
+        .join(' OR '),
+    );
+  });
+
+  it('lets reportes read every event of flota and viajes and four of administracion', () => {
+    const plan = buildPubSubPlan({ env: 'production', projectId: 'p', location });
+    const filterOf = (name: string) => plan.subscriptions.find((s) => s.name === name)?.filter;
+
+    expect(filterOf('reportes-from-flota')).toBe('');
+    expect(filterOf('reportes-from-viajes')).toBe('');
+    expect(filterOf('reportes-from-administracion')).toBe(
+      ['BranchCreated', 'BranchUpdated', 'SettingsUpdated', 'RepairExpenseAdded']
         .map((type) => `attributes.type = "${type}"`)
         .join(' OR '),
     );

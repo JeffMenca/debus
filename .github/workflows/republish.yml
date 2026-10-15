@@ -1,0 +1,58 @@
+name: republish
+
+# Asks a service to publish again the current state of the records other services keep copies of, so
+# a copy that was created before the copy existed (or lost an event) catches up. Run it by hand after
+# a deploy that adds a copy; repeating it is harmless because a copy only accepts a higher version.
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: 'Comma separated service/resource pairs, e.g. flota/buses (empty = all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  republish:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      GCP_PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      DEPLOY_SA: ${{ vars.GCP_DEPLOY_SA }}
+      # service/resource pairs with a POST /internal/<resource>/republish route; the order matters
+      # when a copy is built from another one (branches and settings before fleet)
+      ALL_TARGETS: administracion/branches,administracion/settings,flota/drivers,flota/routes,flota/buses
+    steps:
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Republish
+        env:
+          TARGETS: ${{ inputs.targets }}
+        run: |
+          IFS=',' read -ra targets <<< "${TARGETS:-$ALL_TARGETS}"
+          for target in "${targets[@]}"; do
+            target="${target// /}"
+            case " ${ALL_TARGETS//,/ } " in
+              *" $target "*) ;;
+              *) echo "Unknown target $target. Known: $ALL_TARGETS"; exit 1 ;;
+            esac
+          done
+          for target in "${targets[@]}"; do
+            target="${target// /}"
+            unit="${target%%/*}"
+            resource="${target#*/}"
+            url="https://$unit-$GCP_PROJECT_NUMBER.$GCP_REGION.run.app"
+            token=$(gcloud auth print-identity-token --impersonate-service-account="$DEPLOY_SA" --audiences="$url")
+            echo "::group::$target"
+            curl --fail-with-body --retry 3 --retry-all-errors -X POST \
+              -H "X-Serverless-Authorization: Bearer $token" "$url/internal/$resource/republish"
+            echo
+            echo "::endgroup::"
+          done

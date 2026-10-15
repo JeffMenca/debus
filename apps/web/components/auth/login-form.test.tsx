@@ -2,8 +2,10 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { clearSession } from '@/lib/auth/session-store';
 import { LoginForm } from './login-form';
+import { useHydrated } from '../../hooks/use-hydrated';
 
 const replace = jest.fn();
+jest.mock('../../hooks/use-hydrated', () => ({ useHydrated: jest.fn(() => true) }));
 jest.mock('next/navigation', () => ({ useRouter: () => ({ replace }) }));
 const fetchMock = jest.fn();
 beforeEach(() => {
@@ -144,5 +146,27 @@ describe('LoginForm', () => {
       'href',
       '/recuperar',
     );
+  });
+});
+
+describe('LoginForm before the page is interactive', () => {
+  afterEach(() => jest.mocked(useHydrated).mockReturnValue(true));
+
+  it('posts instead of getting, so a native submit never puts the fields in the address', () => {
+    const { container } = render(<LoginForm next={null} />);
+
+    expect(container.querySelector('form')).toHaveAttribute('method', 'post');
+  });
+
+  it('keeps the submit button off until the page can handle the submit', () => {
+    jest.mocked(useHydrated).mockReturnValue(false);
+    const view = render(<LoginForm next={null} />);
+
+    expect(screen.getByRole('button', { name: /Ingresar/ })).toBeDisabled();
+
+    jest.mocked(useHydrated).mockReturnValue(true);
+    view.rerender(<LoginForm next={null} />);
+
+    expect(screen.getByRole('button', { name: /Ingresar/ })).toBeEnabled();
   });
 });

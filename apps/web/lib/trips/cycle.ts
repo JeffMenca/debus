@@ -112,9 +112,13 @@ function endMileageProblem(endMileageKm: number | null, startMileageKm: number) 
   return undefined;
 }
 
-// What is wrong with the mileage while it is still being typed; nothing until there is a number.
-export const liveMileageProblem = (endMileageKm: number | null, startMileageKm: number) =>
-  endMileageKm === null ? undefined : endMileageProblem(endMileageKm, startMileageKm);
+export const settledMileageProblem = endMileageProblem;
+
+// While typing, only what more digits can never fix: a lower number is just unfinished.
+export function liveMileageProblem(endMileageKm: number | null, startMileageKm: number) {
+  if (endMileageKm === null || endMileageKm < startMileageKm) return undefined;
+  return endMileageProblem(endMileageKm, startMileageKm);
+}
 
 export function arrivalRequestFrom(
   values: { day: string; time: string; mileage: string; fuel: string },

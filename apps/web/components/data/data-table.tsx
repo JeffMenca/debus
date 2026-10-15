@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-table';
 import { FileDown } from 'lucide-react';
 import type { PageQuery } from '@debus/contracts';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from './error-alert';
 import { TablePagination } from './table-pagination';
@@ -59,6 +59,10 @@ interface DataTableProps<T extends RowData> {
   pagination?: DataTablePagination;
   // The next page is on its way: the table stays, dimmed, instead of going back to the skeleton.
   isRefreshing?: boolean;
+  // Rows that show a detail under them, such as a bus with its categories; the screen decides which
+  // are open (by row id) and what each one shows.
+  expandedRowIds?: ReadonlySet<string>;
+  renderDetail?: (row: T) => ReactNode;
 }
 
 // The server filters and pages before passing `data`; this component only paints the table.
@@ -77,6 +81,8 @@ export function DataTable<T extends RowData>({
   onExport,
   pagination,
   isRefreshing,
+  expandedRowIds,
+  renderDetail,
 }: DataTableProps<T>) {
   const table = useTable({
     features: dataTableFeatures,
@@ -158,17 +164,28 @@ export function DataTable<T extends RowData>({
                 </tr>
               ) : (
                 rows.map((row, index) => (
-                  <tr
-                    key={row.id}
-                    className="animate-arrive transition-colors hover:bg-background/60 motion-reduce:animate-none"
-                    style={{ animationDelay: `${Math.min(index, 7) * 60}ms` }}
-                  >
-                    {row.getAllCells().map((cell) => (
-                      <td key={cell.id} className="relative border-b border-muted px-3.5 py-2.5">
-                        <table.FlexRender cell={cell} />
-                      </td>
-                    ))}
-                  </tr>
+                  <Fragment key={row.id}>
+                    <tr
+                      className="animate-arrive transition-colors hover:bg-background/60 motion-reduce:animate-none"
+                      style={{ animationDelay: `${Math.min(index, 7) * 60}ms` }}
+                    >
+                      {row.getAllCells().map((cell) => (
+                        <td key={cell.id} className="relative border-b border-muted px-3.5 py-2.5">
+                          <table.FlexRender cell={cell} />
+                        </td>
+                      ))}
+                    </tr>
+                    {renderDetail && expandedRowIds?.has(row.id) && (
+                      <tr>
+                        <td
+                          colSpan={columns.length}
+                          className="border-b border-muted bg-background/60 px-3.5 py-3"
+                        >
+                          {renderDetail(row.original)}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))
               )}
             </tbody>

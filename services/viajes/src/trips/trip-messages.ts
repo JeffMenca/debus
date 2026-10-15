@@ -19,6 +19,8 @@ export const TRIP_MESSAGES = {
     'El bus de este viaje fue desactivado. Elimina el viaje y prográmalo con otro bus.',
   departureDriverInactive:
     'El chofer de este viaje fue desactivado. Elimina el viaje y prográmalo con otro chofer.',
+  busOnAnotherTrip: 'Ese bus sigue en otro viaje. Registra primero la llegada de ese viaje.',
+  driverOnAnotherTrip: 'Ese chofer sigue en otro viaje. Registra primero la llegada de ese viaje.',
   startMileageBelowBus:
     'El kilometraje inicial no puede ser menor que el último registrado del bus.',
   departureTooEarly:

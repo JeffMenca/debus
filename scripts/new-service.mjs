@@ -2,6 +2,7 @@
 // Scaffolds a NestJS service under services/<name>.
 // Usage: node scripts/new-service.mjs <name> [--no-db] [--port <n>] [--update]
 // --update rewrites the template files of an existing service and keeps its package.json dependencies.
+// Dependency versions are copied from services/flota, so a new service pins them like the rest of the repo.
 // It never overwrites the files a service customizes (module wiring, Prisma schema, env example, integration Jest config) and lists what it skipped.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -19,6 +20,9 @@ const update = flags.includes('--update');
 const portFlag = flags.indexOf('--port');
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'services', name);
+// A service whose schema is split into prisma/schema/ keeps the folder: the template points the
+// config at it and never recreates the single prisma/schema.prisma.
+const schemaFolder = existsSync(join(dir, 'prisma/schema'));
 // An update keeps the port the service already uses unless --port says otherwise.
 const currentPort = update
   ? /^PORT=(\d+)$/m.exec(readFileSync(join(dir, '.env.example'), 'utf8'))?.[1]
@@ -28,6 +32,55 @@ if (existsSync(join(dir, 'package.json')) && !update) {
   console.error(`services/${name} already exists (use --update to refresh its template files)`);
   process.exit(1);
 }
+
+// What the generated code imports, by section. Versions come from the reference service's manifest.
+const REFERENCE_SERVICE = 'flota';
+const TEMPLATE_DEPENDENCIES = [
+  '@debus/messaging',
+  '@debus/server',
+  '@nestjs/common',
+  '@nestjs/config',
+  '@nestjs/core',
+  '@nestjs/platform-express',
+  '@nestjs/swagger',
+  'class-transformer',
+  'class-validator',
+  'nestjs-pino',
+  'pino',
+  'pino-http',
+  'reflect-metadata',
+  'rxjs',
+  ...(withDb ? ['@debus/contracts', '@prisma/adapter-pg', '@prisma/client', 'dotenv', 'pg'] : []),
+];
+const TEMPLATE_DEV_DEPENDENCIES = [
+  '@debus/config',
+  '@nestjs/cli',
+  '@nestjs/testing',
+  '@types/supertest',
+  'supertest',
+  'typescript',
+  ...(withDb ? ['prisma'] : []),
+];
+
+function versionsFrom(manifest, section, names) {
+  return Object.fromEntries(
+    [...names].sort().map((dependency) => {
+      const version = manifest[section]?.[dependency];
+      if (!version) {
+        throw new Error(
+          `${REFERENCE_SERVICE} does not declare ${dependency} in ${section}: update the template list`,
+        );
+      }
+      return [dependency, version];
+    }),
+  );
+}
+const reference = JSON.parse(
+  readFileSync(join(root, 'services', REFERENCE_SERVICE, 'package.json'), 'utf8'),
+);
+const dependencies = versionsFrom(reference, 'dependencies', TEMPLATE_DEPENDENCIES);
+const devDependencies = versionsFrom(reference, 'devDependencies', TEMPLATE_DEV_DEPENDENCIES);
+
 const integrationScript = `${withDb ? 'prisma migrate deploy && ' : ''}jest --config test/jest-integration.cjs --coverage`;
 
 const files = {
@@ -40,7 +93,9 @@ const files = {
         build: 'tsc -p tsconfig.build.json',
         dev: 'nest start --watch',
         start: 'node dist/main.js',
-        lint: 'eslint src test',
+        lint: withDb
+          ? 'eslint src test --max-warnings 0 && prisma format --check'
+          : 'eslint src test --max-warnings 0',
         typecheck: 'tsc --noEmit',
         test: 'jest --coverage',
         'test:integration': integrationScript,
@@ -50,8 +105,8 @@ const files = {
           'prisma:deploy': 'prisma migrate deploy',
         }),
       },
-      dependencies: { '@debus/server': 'workspace:^' },
-      devDependencies: { '@debus/config': 'workspace:*', typescript: '^5.9.3' },
+      dependencies,
+      devDependencies,
     },
     null,
     2,
@@ -244,12 +299,13 @@ import { defineConfig } from 'prisma/config';
 config({ path: ['.env', '.env.example'], quiet: true });
 
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
+  schema: '${schemaFolder ? 'prisma/schema' : 'prisma/schema.prisma'}',
   migrations: { path: 'prisma/migrations' },
   datasource: { url: process.env.DATABASE_URL ?? '' },
 });
 `,
-    'prisma/schema.prisma': `generator client {
+    ...(!schemaFolder && {
+      'prisma/schema.prisma': `generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
   moduleFormat = "cjs"
@@ -268,18 +324,19 @@ model ProcessedEvent {
 }
 
 model OutboxEvent {
-  eventId     String    @id @map("event_id")
-  type        String
-  envelope    Json
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
-  attempts    Int       @default(0)
-  lastError   String?   @map("last_error")
+  eventId      String    @id @map("event_id")
+  type         String
+  envelope     Json
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt  DateTime? @map("published_at") @db.Timestamptz(3)
+  attempts     Int       @default(0)
+  lastError    String?   @map("last_error")
   claimedUntil DateTime? @map("claimed_until") @db.Timestamptz(3)
 
   @@map("outbox")
 }
 `,
+    }),
     'prisma/migrations/migration_lock.toml': 'provider = "postgresql"\n',
     'prisma/migrations/20261006000000_processed_events/migration.sql': `CREATE TABLE "processed_events" (
     "event_id" TEXT NOT NULL,
@@ -499,15 +556,14 @@ if (update) {
   const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
   manifest.scripts['test:integration'] = integrationScript;
   // Template dependencies are added without touching the ones the service already has.
-  manifest.dependencies = {
-    ...JSON.parse(files['package.json']).dependencies,
-    ...manifest.dependencies,
-  };
+  manifest.dependencies = { ...dependencies, ...manifest.dependencies };
+  manifest.devDependencies = { ...devDependencies, ...manifest.devDependencies };
   files['package.json'] = JSON.stringify(manifest, null, 2);
 }
 
 const CUSTOMIZED_FILES = [
   'src/app.module.ts',
+  'prisma.config.ts',
   'prisma/schema.prisma',
   '.env.example',
   'test/jest-integration.cjs',
@@ -527,5 +583,12 @@ console.log(`services/${name} ${update ? 'updated' : 'created'}${withDb ? '' : '
 if (skipped.length > 0) {
   console.log(
     `Skipped (the service may have customized them; merge by hand if needed): ${skipped.join(', ')}`,
+  );
+}
+// The services are a closed list in the contracts: the module wiring is typed against it.
+const topology = readFileSync(join(root, 'packages/contracts/src/topology.ts'), 'utf8');
+if (!new RegExp(`BACKEND_SERVICES = \\[[^\\]]*'${name}'`).test(topology)) {
+  console.warn(
+    `${name} is not in BACKEND_SERVICES or LOCAL_PORTS (packages/contracts/src/topology.ts): add it there, or the service does not typecheck.`,
   );
 }

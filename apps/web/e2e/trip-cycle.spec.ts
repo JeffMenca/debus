@@ -117,7 +117,12 @@ test.describe('trip cycle', () => {
     await page.getByLabel('Kilometraje final').fill('148614');
     await page.getByLabel('Combustible total (Q)').fill('1180');
     await expect(page.getByText('Recorrido').locator('..')).toContainText('204 km');
-    await expect(page.getByText(/Depreciación/).locator('..')).toContainText(/Q\s?173\.40/);
+    await expect(
+      page
+        .getByRole('main')
+        .getByText(/Depreciación/)
+        .locator('..'),
+    ).toContainText(/Q\s?173\.40/);
     await expect(page.getByText('Pago al chofer').locator('..')).toContainText(/Q\s?150\.00/);
     await page.getByRole('button', { name: 'Registrar llegada' }).click();
     await confirm(page, 'Sí, registrar llegada');
@@ -175,6 +180,43 @@ test.describe('trip cycle', () => {
 
     await expect(page.getByText('Registrada, no editable')).toBeVisible();
     await expect(page.getByText('148,420 km')).toBeVisible();
+  });
+
+  test('a bus still on another trip says so in the departure card and records nothing', async ({
+    page,
+    baseURL,
+  }) => {
+    const onTheRoad = scheduled({ status: 'IN_TRANSIT', destinationName: 'Flores' });
+    const next = scheduled({
+      destinationName: 'Cobán',
+      departureAt: instantAt(0, '11:30'),
+      estimatedArrivalAt: instantAt(0, '15:30'),
+    });
+    await open(page, baseURL, `/sucursal/viajes/${next.id}`, {
+      trips: [onTheRoad, next],
+      cycle: {
+        records: [
+          {
+            tripId: onTheRoad.id,
+            departure: {
+              departedAt: instantAt(0, '05:34'),
+              startMileageKm: 148410,
+              recordedByRole: 'DRIVER',
+            },
+          },
+        ],
+      },
+    });
+
+    await page.getByRole('button', { name: 'Registrar salida' }).click();
+    await confirm(page, 'Sí, registrar salida');
+
+    await expect(page.getByRole('alert').filter({ hasText: 'sigue en otro viaje' })).toContainText(
+      'Ese bus sigue en otro viaje. Registra primero la llegada de ese viaje.',
+    );
+    await expect(page.getByRole('button', { name: 'Registrar salida' })).toBeEnabled();
+    await expect(page.getByText('Registrada, no editable')).toHaveCount(0);
+    await expectNoHorizontalScroll(page);
   });
 
   test('a trip with a deactivated bus warns and does not let the departure through', async ({
@@ -349,7 +391,12 @@ test.describe('trip cycle', () => {
 
     await expect(page.getByText(/demasiado alto para un solo viaje/)).toBeVisible();
     await expect(page.getByText('Recorrido').locator('..')).toContainText('—');
-    await expect(page.getByText(/Depreciación/).locator('..')).not.toContainText('Q 1,');
+    await expect(
+      page
+        .getByRole('main')
+        .getByText(/Depreciación/)
+        .locator('..'),
+    ).not.toContainText('Q 1,');
     await expectNoHorizontalScroll(page);
     const cards = page.locator('[class*="rounded-[18px]"]');
     for (const card of await cards.all()) {

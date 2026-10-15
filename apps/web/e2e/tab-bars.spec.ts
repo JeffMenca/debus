@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockAdminGateway, sampleBranch, sampleUser } from './support/admin-gateway';
 import { mockExpensesGateway, sampleCategory } from './support/expenses-gateway';
 import {
@@ -38,6 +38,41 @@ async function expectReadableTabBars(page: Page, expected: number) {
   await expectNoHorizontalScroll(page);
 }
 
+// The indicator sits exactly under the tab that is active, whatever width each column got.
+async function expectIndicatorOn(page: Page, tab: Locator) {
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  const indicator = page.getByTestId('tab-indicator').first();
+  await expect
+    .poll(async () => {
+      const [tabBox, indicatorBox] = [await tab.boundingBox(), await indicator.boundingBox()];
+      return Math.max(
+        Math.abs(tabBox!.x - indicatorBox!.x),
+        Math.abs(tabBox!.width - indicatorBox!.width),
+      );
+    })
+    .toBeLessThanOrEqual(2);
+}
+
+async function expectIndicatorFollowsEveryTab(page: Page) {
+  const tabs = await page.getByRole('tab').all();
+  for (const tab of tabs) {
+    await tab.scrollIntoViewIfNeeded();
+    await tab.click();
+    await expectIndicatorOn(page, tab);
+  }
+}
+
+async function expectActiveTabInView(page: Page) {
+  const active = page.getByRole('tab', { selected: true });
+  await expect
+    .poll(async () => {
+      const frame = await page.locator('[data-tabs-frame]').first().boundingBox();
+      const box = await active.boundingBox();
+      return box!.x >= frame!.x - 0.5 && box!.x + box!.width <= frame!.x + frame!.width + 0.5;
+    })
+    .toBe(true);
+}
+
 const fleetSeed = () => ({
   buses: [sampleBus({ plate: 'C482BTX' }), sampleBus({ plate: 'C731PLR', brand: 'Scania' })],
   drivers: [sampleDriver({ fullName: 'Julio Pérez' })],
@@ -62,6 +97,33 @@ test.describe('tab bars', () => {
       await expectReadableTabBars(page, 1);
     });
   }
+
+  test('the buses indicator follows each tab and the active one is in view', async ({
+    page,
+    baseURL,
+  }) => {
+    await mockAdminGateway(page, { branches: [sampleBranch({ id: FLEET_BRANCH_ID })] });
+    await mockFleetGateway(page, fleetSeed());
+    await signInAs(page, baseURL!, 'BRANCH_ADMIN', FLEET_BRANCH_ID);
+    await page.goto('/sucursal/buses?estado=inactivos');
+    await expect(page.getByRole('tab', { name: /Inactivos/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expectActiveTabInView(page);
+    await expectIndicatorFollowsEveryTab(page);
+  });
+
+  test('the users indicator follows each tab', async ({ page, baseURL }) => {
+    await mockAdminGateway(page, {
+      branches: [sampleBranch()],
+      users: [sampleUser({ fullName: 'Rosa Pop', email: 'rosa@correo.com', role: 'CASHIER' })],
+    });
+    await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+    await page.goto('/admin/usuarios');
+    await expect(page.getByRole('tab').first()).toBeVisible();
+    await expectIndicatorFollowsEveryTab(page);
+  });
 
   test('the trips bars stay readable, the rentals one with its count', async ({
     page,

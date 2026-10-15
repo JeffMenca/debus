@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Field, invalidProps } from '@/components/ui/field';
+import { useHydrated } from '@/hooks/use-hydrated';
 import { ApiError, messageOf } from '@/lib/api/api-error';
 import { setPassword } from '@/lib/auth/auth-api';
 import { FIELD_MESSAGES } from '@/lib/auth/form-messages';
@@ -42,6 +43,7 @@ interface SetPasswordFormProps {
 
 export function SetPasswordForm({ token, purpose, onLinkProblem }: SetPasswordFormProps) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [pending, setPending] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -70,7 +72,7 @@ export function SetPasswordForm({ token, purpose, onLinkProblem }: SetPasswordFo
   const confirmError = errors.confirm && FIELD_MESSAGES.confirm;
   return (
     <AuthCard {...TEXTS[purpose]}>
-      <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
+      <form method="post" noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
         <Field id="new-password" label="Contraseña" error={passwordError}>
           <PasswordInput
             id="new-password"
@@ -88,7 +90,7 @@ export function SetPasswordForm({ token, purpose, onLinkProblem }: SetPasswordFo
           />
         </Field>
         {serverError && <FormAlert tone="error">{serverError}</FormAlert>}
-        <Button type="submit" size="lg" disabled={pending}>
+        <Button type="submit" size="lg" disabled={!hydrated || pending}>
           {pending ? 'Guardando...' : 'Guardar contraseña'}
         </Button>
       </form>

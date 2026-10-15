@@ -207,3 +207,15 @@ describe('editing', () => {
     expect(toast.success).toHaveBeenCalledWith('Guardamos los cambios de Julio Pérez.');
   });
 });
+
+it('points the license type at the message that explains its error', async () => {
+  setup();
+
+  await submit();
+
+  const message = await screen.findByText('Elige el tipo de licencia.');
+  expect(screen.getByRole('combobox', { name: 'Tipo de licencia' })).toHaveAttribute(
+    'aria-describedby',
+    message.id,
+  );
+});

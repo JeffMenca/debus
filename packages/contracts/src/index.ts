@@ -36,3 +36,6 @@ export * from './api/dead-letters';
 export * from './events/sales-payloads';
 export * from './events/sales-examples';
 export * from './api/profile';
+export * from './api/reports';
+export * from './api/branch-reports';
+export * from './events/admin-examples';

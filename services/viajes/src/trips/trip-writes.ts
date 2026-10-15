@@ -3,6 +3,7 @@ import { isConstraintViolation, isTransactionConflict } from '@debus/server';
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { queueTripsOf } from './trip-locks';
 import { TRIP_MESSAGES } from './trip-messages';
 
 // The advisory locks keep simultaneous trips from deadlocking, but the database may still abort a
@@ -36,7 +37,7 @@ export class TripWrites {
       return await this.retryingDeadlocks(() =>
         this.prisma.$transaction(
           async (tx) => {
-            await this.queueFor(tx, target.busId, target.driverId);
+            await queueTripsOf(tx, target.busId, target.driverId);
             await this.assertStillActive(tx, target);
             return work(tx);
           },
@@ -53,15 +54,6 @@ export class TripWrites {
       }
       if (isTransactionConflict(error)) throw new ConflictException(TRIP_MESSAGES.tripContended);
       throw error;
-    }
-  }
-
-  // Trips of the same bus or driver wait for each other here, one after the other and always bus
-  // first, so the exclusion constraints never have two transactions waiting for each other (no
-  // deadlocks) and a request that loses answers as soon as the winner commits.
-  private async queueFor(tx: Prisma.TransactionClient, busId: string, driverId: string) {
-    for (const key of [`trip-bus:${busId}`, `trip-driver:${driverId}`]) {
-      await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', key);
     }
   }
 

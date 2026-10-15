@@ -20,6 +20,8 @@ export function departureProblem(input: {
   status: TripStatus;
   busActive: boolean;
   driverActive: boolean;
+  busOnAnotherTrip: boolean;
+  driverOnAnotherTrip: boolean;
   busMileageKm: number;
   startMileageKm: number;
   departedAt: string;
@@ -29,6 +31,8 @@ export function departureProblem(input: {
   if (input.status !== 'SCHEDULED') return 'alreadyDeparted';
   if (!input.busActive) return 'departureBusInactive';
   if (!input.driverActive) return 'departureDriverInactive';
+  if (input.busOnAnotherTrip) return 'busOnAnotherTrip';
+  if (input.driverOnAnotherTrip) return 'driverOnAnotherTrip';
   if (input.startMileageKm < input.busMileageKm) return 'startMileageBelowBus';
   if (isInFuture(input.departedAt, input.now)) return 'departureInFuture';
   if (isTooEarly(input.departedAt, input.scheduledAt)) return 'departureTooEarly';

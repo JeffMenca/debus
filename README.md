@@ -67,16 +67,14 @@ En cada despliegue, el job `pubsub` de `release` crea los tópicos y las suscrip
 2. Con `smtp-check` en verde, abrir `/recuperar` en la web de producción e ingresar el correo del admin. Mientras la cuenta esté pendiente, reenvía el enlace de activación; si ya está activa, envía el de restablecimiento.
 3. Si sigue sin llegar, revisar los logs de Cloud Run de `notificaciones` (¿recibió `AccountLinkSent`?) y de `administracion` (¿publicó el evento?), y las suscripciones `notificaciones-from-administracion` y su dead-letter en Pub/Sub. Requiere acceso a GCP. En un entorno nuevo, si `notificaciones` tarda más de unos 2,5 minutos en estar en línea después de que arranque `administracion`, Pub/Sub agota sus 5 reintentos y deja la invitación del primer admin en `notificaciones-dlq-sub`; en ese caso basta con el paso 2.
 
-### Cuando un servicio empieza a guardar copias de los buses
+### Cuando un servicio empieza a guardar copias
 
-`administracion` y `viajes` guardan una copia de cada bus que se actualiza con los eventos de `flota`, y solo reemplazan una copia por una versión más alta. Los buses creados antes del primer despliegue que incluye esas copias no tienen copia (o la tienen sin kilometraje), así que después de ese despliegue se ejecuta una vez, con el token de identidad de la cuenta de despliegue:
+Varios servicios guardan copias de lo que publican otros y solo las reemplazan por una versión más alta: sucursales y configuración (`administracion`), choferes, rutas y buses (`flota`). Lo que se creó antes del primer despliegue que incluye una copia no la tiene (o la tiene incompleta), así que se republica una vez: después de un despliegue que agrega consumidores y antes de cada carga de datos iniciales en producción.
 
-```bash
-curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token --audiences=<URL de flota>)" \
-  "<URL de flota>/internal/buses/republish"
-```
-
-`flota` sube en uno la versión de cada bus y vuelve a publicar `BusUpdated` por el outbox (acepta `?branchId=` para una sola sucursal). Repetirlo no hace daño. El gateway no publica esa ruta.
+1. En GitHub, **Actions > republish > Run workflow**. El campo `targets` acepta pares `servicio/recurso` separados por coma; vacío republica todo, en este orden: `administracion/branches`, `administracion/settings`, `flota/drivers`, `flota/routes`, `flota/buses` (las sucursales antes de lo que vive en ellas).
+2. El workflow llama a la ruta interna `POST /internal/<recurso>/republish` de cada servicio con el token de identidad de la cuenta de despliegue, y el log de cada destino termina con el resumen, por ejemplo `{"republished":N}`. Un destino que no está en la lista falla antes de llamar a ninguno.
+3. Sucursales, choferes, rutas y buses suben en uno su versión y se publican de nuevo (`BranchUpdated`, `DriverUpdated`, `RouteUpdated`, `BusUpdated`) por el outbox. La configuración no cambia nada: cada versión, que es inmutable, se publica otra vez como `SettingsUpdated` con su mismo `versionId`, y las copias la ignoran si ya la tienen. Repetirlo no hace daño. Viajes y gastos no se republican.
+4. El gateway no publica esas rutas. El workflow republica todas las sucursales; las rutas de `administracion` (salvo la configuración, que es global) y de `flota` también aceptan `?branchId=` para una sola sucursal, si alguna vez hace falta llamarlas a mano con el mismo token.
 
 ## Convenciones
 

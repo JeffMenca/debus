@@ -13,12 +13,12 @@ import { useRecordArrival } from '@/hooks/use-trip';
 import { formatKm, formatQuetzales } from '@/lib/format';
 import { parseWholeNumber } from '@/lib/number-input';
 import {
-  CYCLE_PROBLEMS,
   arrivalPreview,
   arrivalRequestFrom,
-  liveMileageProblem,
   formatMoment,
+  liveMileageProblem,
   nowInGuatemala,
+  settledMileageProblem,
 } from '@/lib/trips/cycle';
 import { splitGuatemala } from '@/lib/trips/schedule';
 import {
@@ -118,9 +118,13 @@ function ArrivalForm({ trip }: { trip: TripDetail }) {
     depreciationPerKm: trip.depreciationPerKmToday,
     expectedDriverPay: trip.expectedDriverPay,
   });
-  // Said while typing, like the rest of the preview, not only after pressing the button.
+  // Said while typing only when more digits cannot fix it; the rest once the field is left.
+  const [mileageLeft, setMileageLeft] = useState(false);
   const mileageError =
-    problems.mileage ?? liveMileageProblem(typedMileage, departure.startMileageKm);
+    problems.mileage ??
+    (mileageLeft && typedMileage !== null
+      ? settledMileageProblem(typedMileage, departure.startMileageKm)
+      : liveMileageProblem(typedMileage, departure.startMileageKm));
 
   const set = (patch: Partial<typeof values>) => setValues({ ...values, ...patch });
 
@@ -154,6 +158,8 @@ function ArrivalForm({ trip }: { trip: TripDetail }) {
             autoComplete="off"
             value={values.mileage}
             onChange={(event) => set({ mileage: event.target.value })}
+            onFocus={() => setMileageLeft(false)}
+            onBlur={() => setMileageLeft(true)}
             className="font-mono tabular-nums"
             {...invalidProps('arrival-mileage', mileageError)}
           />
