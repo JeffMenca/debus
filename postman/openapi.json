@@ -592,6 +592,38 @@
         ]
       }
     },
+    "/api/administracion/branches/locations": {
+      "get": {
+        "operationId": "administracion_BranchesController_locations",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          }
+        },
+        "security": [],
+        "summary": "",
+        "tags": [
+          "administracion · branches"
+        ]
+      }
+    },
     "/api/administracion/branches/{id}": {
       "get": {
         "operationId": "administracion_BranchesController_get",

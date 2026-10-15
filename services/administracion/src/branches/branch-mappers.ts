@@ -1,4 +1,9 @@
-import type { Branch, BranchChangedPayload, BranchWithAdmins } from '@debus/contracts';
+import type {
+  Branch,
+  BranchChangedPayload,
+  BranchWithAdmins,
+  PublicBranchLocation,
+} from '@debus/contracts';
 import type { Branch as BranchRow, Prisma } from '../generated/prisma/client';
 
 export const WITH_ADMINS = {
@@ -25,6 +30,12 @@ function fields(row: BranchRow) {
 
 export function toBranch(row: BranchRow): Branch {
   return { id: row.id, ...fields(row), active: row.active, version: row.version };
+}
+
+// What anybody may know about a branch: where it is.
+export function toPublicLocation(row: BranchRow): PublicBranchLocation {
+  const { name, municipality, department, latitude, longitude } = fields(row);
+  return { id: row.id, name, municipality, department, latitude, longitude };
 }
 
 export function toBranchWithAdmins(row: BranchRowWithAdmins): BranchWithAdmins {

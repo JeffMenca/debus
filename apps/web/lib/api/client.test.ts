@@ -158,8 +158,24 @@ describe('apiRequest without a session', () => {
   });
 });
 
+describe('apiRequest with a hand-written parser', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('uses anything that parses, not only zod schemas', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue(Response.json({ n: 2 }));
+    const double = { parse: (value: unknown) => (value as { n: number }).n * 2 };
+
+    await expect(apiRequest('/x', double)).resolves.toBe(4);
+  });
+});
+
 describe('noContent', () => {
   afterEach(() => jest.restoreAllMocks());
+
+  it('refuses an answer that has a body', () => {
+    expect(() => noContent.parse({ ok: true })).toThrow('without a body');
+    expect(noContent.parse(null)).toBeNull();
+  });
 
   it('accepts an answer without a body', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));

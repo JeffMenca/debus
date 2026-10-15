@@ -12,6 +12,8 @@ const ACCESS_ENDPOINTS = [
   'links/renew',
 ];
 const PUBLIC_POST = new Set(ACCESS_ENDPOINTS.map((path) => `/api/administracion/auth/${path}`));
+// What a visitor may read: where the branches are, for the map of the home page.
+const PUBLIC_GET = new Set(['/api/administracion/branches/locations']);
 const ROUTE_ROLES: readonly { prefix: string; roles: readonly UserRole[] }[] = [
   { prefix: '/api/system', roles: ['SYSTEM_ADMIN'] },
 ];
@@ -23,6 +25,7 @@ export function isPublicRoute(method: string, url: string): boolean {
   if (method === 'OPTIONS') return true;
   const pathname = canonicalPath(url);
   if (AMBIGUOUS_PATH.test(pathname) || pathname.split('/').includes('..')) return false;
+  if (method === 'GET') return PUBLIC_GET.has(pathname);
   return method === 'POST' && PUBLIC_POST.has(pathname);
 }
 

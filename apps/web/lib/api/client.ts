@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { runtimeEnv } from '@/lib/env';
 import { getSession, getSessionStatus } from '@/lib/auth/session-store';
 import { refreshSession } from '@/lib/auth/session-client';
@@ -6,12 +5,23 @@ import { ApiError, FRIENDLY_NETWORK_MESSAGE, apiErrorFrom, messageOf } from './a
 
 export { ApiError, FRIENDLY_NETWORK_MESSAGE, messageOf };
 
+// What apiRequest needs of a schema: every zod schema has it, and a hand-written one can too, so a
+// screen that must load fast does not have to carry zod.
+export interface Parser<T> {
+  parse(value: unknown): T;
+}
+
 // For answers that carry no body (204): apiRequest hands the schema a null.
-export const noContent = z.null();
+export const noContent: Parser<null> = {
+  parse(value) {
+    if (value !== null) throw new TypeError('Expected an answer without a body');
+    return null;
+  },
+};
 
 export async function apiRequest<T>(
   path: string,
-  schema: z.ZodType<T>,
+  schema: Parser<T>,
   init: RequestInit = {},
 ): Promise<T> {
   return parse(await sendWithRenewal(path, init), schema);
@@ -53,7 +63,7 @@ async function send(path: string, init: RequestInit, accessToken?: string): Prom
   }
 }
 
-async function parse<T>(response: Response, schema: z.ZodType<T>): Promise<T> {
+async function parse<T>(response: Response, schema: Parser<T>): Promise<T> {
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) throw apiErrorFrom(response.status, body);
   return schema.parse(body);

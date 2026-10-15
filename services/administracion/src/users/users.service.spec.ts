@@ -21,7 +21,7 @@ const setup = () => {
   const tx = {
     user: {
       findUnique: jest.fn(),
-      findUniqueOrThrow: jest.fn().mockResolvedValue({ status: 'ACTIVE' }),
+      findUniqueOrThrow: jest.fn().mockResolvedValue({ status: 'ACTIVE', branchId: branch }),
       count: jest.fn().mockResolvedValue(2),
       update: jest.fn().mockResolvedValue({}),
     },
@@ -349,6 +349,76 @@ describe('deactivate the admin of a branch', () => {
     const [lockedAt] = tx.$queryRaw.mock.invocationCallOrder;
     const [countedAt] = tx.user.count.mock.invocationCallOrder;
     expect(lockedAt).toBeLessThan(countedAt!);
+  });
+});
+
+describe('an admin who moved to another branch while waiting for the lock', () => {
+  const other = '9b2c7a10-2222-4c4c-8888-123456789abc';
+  const third = '9b2c7a10-3333-4c4c-8888-123456789abc';
+  const fourth = '9b2c7a10-4444-4c4c-8888-123456789abc';
+  const branchAdmin = { id, role: 'BRANCH_ADMIN', status: 'ACTIVE', branchId: branch };
+  const lockedBranches = (tx: ReturnType<typeof setup>['tx']) =>
+    tx.$queryRaw.mock.calls.map((call: unknown[]) => call[1]);
+
+  it('locks the branch it moved to and counts the admins of that one', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(branchAdmin);
+    tx.user.findUniqueOrThrow.mockResolvedValue({ status: 'ACTIVE', branchId: other });
+    tx.user.count.mockResolvedValue(1);
+
+    await service.deactivate(id);
+
+    expect(lockedBranches(tx)).toEqual([branch, other]);
+    expect(tx.user.count).toHaveBeenCalledWith({
+      where: {
+        role: 'BRANCH_ADMIN',
+        branchId: other,
+        status: { not: 'INACTIVE' },
+        id: { not: id },
+      },
+    });
+  });
+
+  it('follows the admin through another move and settles where the row and the lock agree', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(branchAdmin);
+    tx.user.findUniqueOrThrow
+      .mockResolvedValueOnce({ status: 'ACTIVE', branchId: other })
+      .mockResolvedValueOnce({ status: 'ACTIVE', branchId: third })
+      .mockResolvedValueOnce({ status: 'ACTIVE', branchId: third });
+    tx.user.count.mockResolvedValue(1);
+
+    await service.deactivate(id);
+
+    expect(lockedBranches(tx)).toEqual([branch, other, third]);
+    expect(tx.user.update).toHaveBeenCalled();
+  });
+
+  it('gives up with a clear message when the branch keeps changing', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(branchAdmin);
+    tx.user.findUniqueOrThrow
+      .mockResolvedValueOnce({ status: 'ACTIVE', branchId: other })
+      .mockResolvedValueOnce({ status: 'ACTIVE', branchId: third })
+      .mockResolvedValueOnce({ status: 'ACTIVE', branchId: fourth });
+
+    await expect(service.deactivate(id)).rejects.toThrow(
+      new ConflictException(
+        'Otra persona está cambiando esta cuenta. Intenta de nuevo en unos segundos.',
+      ),
+    );
+    expect(lockedBranches(tx)).toEqual([branch, other, third]);
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it('does not lock again when the branch did not change', async () => {
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValue(branchAdmin);
+    tx.user.count.mockResolvedValue(1);
+
+    await service.deactivate(id);
+
+    expect(lockedBranches(tx)).toEqual([branch]);
   });
 });
 

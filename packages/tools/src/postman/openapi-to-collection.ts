@@ -154,8 +154,9 @@ const rolesOf = (operation: OperationObject): string[] | null => {
 
 // The gateway asks for a session on everything under /api except the account endpoints, and the
 // services document their health as open.
+// A route can opt out of the session of its controller with an empty `security` list.
 const isPublic = (path: string, operation: OperationObject): boolean =>
-  !operation.security && !(path.startsWith('/api/') && path.endsWith('/health'));
+  !operation.security?.length && !(path.startsWith('/api/') && path.endsWith('/health'));
 
 function authFor(path: string, operation: OperationObject, write: boolean): PostmanAuth {
   if (isPublic(path, operation)) return { type: 'noauth' };
@@ -210,11 +211,11 @@ function bodyOf(
   };
 }
 
-function describeOperation(operation: OperationObject, notes: string[]): string {
+function describeOperation(operation: OperationObject, open: boolean, notes: string[]): string {
   const roles = rolesOf(operation);
   const answers = Object.keys(operation.responses ?? {});
   return [
-    roles ? `Roles permitidos: ${roles.join(', ')}.` : 'Cualquier sesión.',
+    roles ? `Roles permitidos: ${roles.join(', ')}.` : open ? 'Público.' : 'Cualquier sesión.',
     answers.length > 0 ? `Respuestas: ${answers.join(', ')}.` : '',
     ...notes,
   ]
@@ -274,6 +275,7 @@ function requestFor(
       ...(body && { body: body.body }),
       description: describeOperation(
         operation,
+        isPublic(path, operation),
         reason
           ? [`No se ejecuta: ${reason}.`]
           : write

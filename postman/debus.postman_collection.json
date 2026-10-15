@@ -4122,7 +4122,7 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "Cualquier sesión.\n\nRespuestas: 200."
+            "description": "Público.\n\nRespuestas: 200."
           },
           "event": [
             {
@@ -4215,7 +4215,7 @@
                 }
               }
             },
-            "description": "Cualquier sesión.\n\nRespuestas: 202, 400, 409.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
+            "description": "Público.\n\nRespuestas: 202, 400, 409.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
           },
           "event": [
             {
@@ -4279,7 +4279,7 @@
                 }
               }
             },
-            "description": "Cualquier sesión.\n\nRespuestas: 200, 400."
+            "description": "Público.\n\nRespuestas: 200, 400."
           },
           "event": [
             {
@@ -4333,7 +4333,7 @@
                 }
               }
             },
-            "description": "Cualquier sesión.\n\nRespuestas: 204, 400, 409, 410.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
+            "description": "Público.\n\nRespuestas: 204, 400, 409, 410.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
           },
           "event": [
             {
@@ -4401,7 +4401,7 @@
                 }
               }
             },
-            "description": "Cualquier sesión.\n\nRespuestas: 202, 400.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
+            "description": "Público.\n\nRespuestas: 202, 400.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
           },
           "event": [
             {
@@ -4468,7 +4468,7 @@
                 }
               }
             },
-            "description": "Cualquier sesión.\n\nRespuestas: 202, 400.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
+            "description": "Público.\n\nRespuestas: 202, 400.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
           },
           "event": [
             {
@@ -4633,6 +4633,54 @@
                 "exec": [
                   "pm.test(\"Responde con un código documentado (201, 400, 409)\", function () {",
                   "  pm.expect([201, 400, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/administracion/branches/locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/administracion/branches/locations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "administracion",
+                "branches",
+                "locations"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Público.\n\nRespuestas: 200, 400."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
                   "});"
                 ]
               }
@@ -5645,7 +5693,7 @@
                 }
               }
             },
-            "description": "Cualquier sesión.\n\nRespuestas: 200, 400, 401, 423."
+            "description": "Público.\n\nRespuestas: 200, 400, 401, 423."
           },
           "event": [
             {
@@ -5695,7 +5743,7 @@
                 }
               }
             },
-            "description": "Cualquier sesión.\n\nRespuestas: 204, 400."
+            "description": "Público.\n\nRespuestas: 204, 400."
           },
           "event": [
             {
@@ -5788,7 +5836,7 @@
                 }
               }
             },
-            "description": "Cualquier sesión.\n\nRespuestas: 200, 400, 401."
+            "description": "Público.\n\nRespuestas: 200, 400, 401."
           },
           "event": [
             {

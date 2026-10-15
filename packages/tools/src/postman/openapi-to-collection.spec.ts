@@ -491,3 +491,33 @@ describe('leftOutReason', () => {
     expect(leftOutReason(method, path)).toBeUndefined();
   });
 });
+
+describe('a route that opts out of the session of its controller', () => {
+  const open: OpenApiDocument = {
+    openapi: '3.0.0',
+    info: { title: 'debus API', version: '1.0' },
+    paths: {
+      '/api/administracion/branches/locations': {
+        get: {
+          tags: ['administracion · branches'],
+          security: [],
+          parameters: [{ name: 'pageSize', in: 'query', required: false, schema: {} }],
+          responses: { '200': { description: 'Done.' }, '400': { description: 'Invalid.' } },
+        },
+      },
+    },
+  };
+  const found = requestsOf(toCollection(open, FLOW).item).find(
+    (item) => item.name === 'GET /api/administracion/branches/locations',
+  );
+
+  it('is sent without a session, as the public routes are', () => {
+    expect(found?.request.auth).toEqual({ type: 'noauth' });
+  });
+
+  it('is described as open to anybody and accepts the 401 of a public route', () => {
+    expect(found?.request.description).toContain('Público.');
+    expect(found?.request.description).not.toContain('Cualquier sesión');
+    expect(scriptOf(found as PostmanRequestItem, 'test')).toContain('[200, 400]');
+  });
+});

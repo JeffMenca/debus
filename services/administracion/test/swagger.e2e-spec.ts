@@ -14,6 +14,7 @@ const ROUTES: [method: 'get' | 'post' | 'patch' | 'delete', path: string, codes:
   ['post', '/auth/logout', ['204', '400']],
   ['get', '/auth/me', ['200', '401']],
   ['get', '/branches', ['200', '400', '401']],
+  ['get', '/branches/locations', ['200', '400']],
   ['get', '/branches/{id}', ['200', '400', '401', '403', '404']],
   ['post', '/branches', ['201', '400', '401', '403', '409']],
   ['patch', '/branches/{id}', ['200', '400', '401', '403', '404', '409']],
@@ -103,6 +104,16 @@ describe('API documentation', () => {
     );
   });
 
+  it('documents the public routes without a session requirement and the others with one', () => {
+    const security = (path: string, method: 'get' | 'post') =>
+      document.paths[path]?.[method]?.security;
+    // The class asks for a bearer token; the open route says it does not need one.
+    expect(security('/branches/locations', 'get')).toEqual([]);
+    expect(security('/branches', 'get')).toEqual([{ bearer: [] }]);
+    expect(security('/branches/{id}', 'get')).toEqual([{ bearer: [] }]);
+    expect(security('/users', 'get')).toEqual([{ bearer: [] }]);
+  });
+
   it('documents the filters of the repair expense list as optional query parameters', () => {
     expect(queryParameters('/repair-expenses')).toEqual(
       expect.arrayContaining([
@@ -135,14 +146,17 @@ describe('API documentation', () => {
     );
   });
 
-  it.each(['/users', '/branches', '/settings'])('documents the paging of %s', (path) => {
-    expect(queryParameters(path)).toEqual(
-      expect.arrayContaining([
-        ['page', false],
-        ['pageSize', false],
-      ]),
-    );
-  });
+  it.each(['/users', '/branches', '/branches/locations', '/settings'])(
+    'documents the paging of %s',
+    (path) => {
+      expect(queryParameters(path)).toEqual(
+        expect.arrayContaining([
+          ['page', false],
+          ['pageSize', false],
+        ]),
+      );
+    },
+  );
 
   it('groups the routes under English tags', () => {
     const tagOf = (path: string, method: 'get' | 'post' | 'patch' | 'delete') =>

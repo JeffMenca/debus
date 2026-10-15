@@ -1,3 +1,4 @@
+import { DEBUS_ENVIRONMENTS } from '@debus/contracts';
 import { LOCAL_RUNTIME_ENV, readRuntimeEnv, runtimeEnv } from './env';
 
 describe('runtime env', () => {
@@ -21,4 +22,10 @@ describe('runtime env', () => {
     window.__DEBUS_ENV__ = { apiUrl: 'https://gw', appEnv: 'production' };
     expect(runtimeEnv().appEnv).toBe('production');
   });
+});
+
+it('accepts exactly the environments of the contract', () => {
+  for (const appEnv of DEBUS_ENVIRONMENTS) {
+    expect(readRuntimeEnv({ APP_ENV: appEnv }).appEnv).toBe(appEnv);
+  }
 });

@@ -5,6 +5,7 @@ import {
   branchChangedPayloadSchema,
   branchSchema,
   branchWithAdminsSchema,
+  publicBranchLocationPageSchema,
 } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -475,6 +476,65 @@ describe('branches', () => {
         ]);
         expect(stored.active && admin.status === 'INACTIVE').toBe(false);
       }
+    });
+  });
+
+  describe('public locations', () => {
+    it('answers a visitor without a session with the active branches and where they are, nothing more', async () => {
+      const active = await createTestBranch(prisma);
+      const inactive = await createTestBranch(prisma, { active: false });
+
+      const response = await request(app.getHttpServer())
+        .get('/branches/locations?pageSize=100')
+        .expect(200);
+
+      expect(response.headers['cache-control']).toBe('public, max-age=300');
+      const page = publicBranchLocationPageSchema.parse(response.body);
+      const found = page.items.find((item) => item.id === active.id);
+      expect(found).toEqual({
+        id: active.id,
+        name: active.name,
+        municipality: active.municipality,
+        department: active.department,
+        latitude: 14.8347,
+        longitude: -91.5181,
+      });
+      expect(page.items.some((item) => item.id === inactive.id)).toBe(false);
+      for (const item of response.body.items) {
+        expect(Object.keys(item).sort()).toEqual([
+          'department',
+          'id',
+          'latitude',
+          'longitude',
+          'municipality',
+          'name',
+        ]);
+      }
+    });
+
+    it('is not mistaken for the route of a branch by id, and pages by name and id', async () => {
+      await createTestBranch(prisma);
+      await createTestBranch(prisma);
+
+      const first = await request(app.getHttpServer())
+        .get('/branches/locations?pageSize=1')
+        .expect(200);
+      const second = await request(app.getHttpServer())
+        .get('/branches/locations?pageSize=1&page=2')
+        .expect(200);
+
+      expect(first.body).toMatchObject({ page: 1, pageSize: 1 });
+      expect(first.body.items).toHaveLength(1);
+      expect(second.body.items[0].id).not.toBe(first.body.items[0].id);
+      expect(first.body.total).toBeGreaterThanOrEqual(2);
+    });
+
+    it('refuses a page size above the maximum', async () => {
+      await request(app.getHttpServer()).get('/branches/locations?pageSize=101').expect(400);
+    });
+
+    it('keeps the list of branches closed to a visitor', async () => {
+      await request(app.getHttpServer()).get('/branches').expect(401);
     });
   });
 });

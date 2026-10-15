@@ -7,6 +7,7 @@ describe('BranchesController', () => {
   const setup = () => {
     const branches = {
       list: jest.fn().mockResolvedValue({ items: [] }),
+      locations: jest.fn().mockResolvedValue({ items: [] }),
       get: jest.fn().mockResolvedValue({ id }),
       create: jest.fn().mockResolvedValue({ id }),
       update: jest.fn().mockResolvedValue({ id }),
@@ -21,6 +22,24 @@ describe('BranchesController', () => {
 
     expect(await controller.list(actor, query)).toEqual({ items: [] });
     expect(branches.list).toHaveBeenCalledWith(actor, query);
+  });
+
+  it('lists the locations of the active branches for anybody', async () => {
+    const { branches, controller } = setup();
+    const query = { page: 1, pageSize: 100 };
+
+    expect(await controller.locations(query)).toEqual({ items: [] });
+    expect(branches.locations).toHaveBeenCalledWith(query);
+  });
+
+  it('lets the browser keep the locations for five minutes', () => {
+    const headers = Reflect.getMetadata('__headers__', BranchesController.prototype.locations);
+    expect(headers).toContainEqual({ name: 'Cache-Control', value: 'public, max-age=300' });
+  });
+
+  it('declares the locations before the route of an id, so "locations" is not read as one', () => {
+    const names = Object.getOwnPropertyNames(BranchesController.prototype);
+    expect(names.indexOf('locations')).toBeLessThan(names.indexOf('get'));
   });
 
   it('gets a branch by id', async () => {

@@ -15,15 +15,19 @@ import {
   type BranchWithAdminsPage,
   CORRELATION_HEADER,
   type CreateBranchRequest,
+  type PageQuery,
+  type PublicBranchLocationPage,
   type UpdateBranchRequest,
   branchListQuerySchema,
   createBranchRequestSchema,
+  pageQuerySchema,
   updateBranchRequestSchema,
 } from '@debus/contracts';
 import {
   Body,
   Controller,
   Get,
+  Header,
   Headers,
   Param,
   ParseUUIDPipe,
@@ -31,7 +35,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BranchesService } from './branches.service';
 
 @ApiTags('branches')
@@ -49,6 +53,20 @@ export class BranchesController {
     @Query(new ZodBody(branchListQuerySchema)) query: BranchListQuery,
   ): Promise<BranchPage | BranchWithAdminsPage> {
     return this.branches.list(actor, query);
+  }
+
+  // Public: the gateway lets it through without a session. Declared before ':id' so it is not read as one.
+  @Get('locations')
+  // The controller asks for a bearer token; this route is open, and the documentation says so.
+  @ApiOperation({ security: [] })
+  @Header('Cache-Control', 'public, max-age=300')
+  @apiSuccess(200)
+  @apiErrors(400)
+  @apiQuery(pageQuerySchema)
+  locations(
+    @Query(new ZodBody(pageQuerySchema)) query: PageQuery,
+  ): Promise<PublicBranchLocationPage> {
+    return this.branches.locations(query);
   }
 
   @Get(':id')

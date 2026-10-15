@@ -25,3 +25,30 @@ it('shrinks the logo only when there are actions to share the row with', () => {
   rerender(<TravelScene actions={<a href="/login">Entrar</a>} />);
   expect(screen.getByText('debus')).toHaveClass('max-sm:text-[22px]');
 });
+
+describe('as the header of a page', () => {
+  it('puts the logo and the actions in a banner that is not inside a section', () => {
+    render(<TravelScene header actions={<a href="/login">Entrar</a>} />);
+
+    const banner = screen.getByRole('banner');
+    expect(banner).toContainElement(screen.getByText('debus'));
+    expect(banner).toContainElement(screen.getByRole('link', { name: 'Entrar' }));
+    expect(banner.closest('section')).toBeNull();
+  });
+
+  it('keeps the title out of the banner, in the scene that follows', () => {
+    render(<TravelScene header />);
+
+    expect(screen.getByRole('banner')).not.toContainElement(
+      screen.getByRole('heading', { level: 1 }),
+    );
+    expect(screen.getByTestId('hero')).toContainElement(screen.getByRole('heading', { level: 1 }));
+  });
+
+  it('leaves the scene of the login as it was: no banner, a section', () => {
+    const { container } = render(<TravelScene actions={<a href="/login">Entrar</a>} />);
+
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+    expect(container.firstElementChild?.tagName).toBe('SECTION');
+  });
+});
