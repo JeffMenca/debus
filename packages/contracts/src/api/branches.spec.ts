@@ -7,6 +7,8 @@ import {
   branchWithAdminsSchema,
   createBranchRequestSchema,
   isInsideGuatemala,
+  publicBranchLocationPageSchema,
+  publicBranchLocationSchema,
   updateBranchRequestSchema,
 } from './branches';
 
@@ -108,5 +110,47 @@ describe('branch list', () => {
       active: 3,
       inactive: 1,
     });
+  });
+});
+
+describe('public branch locations', () => {
+  const location = {
+    id: '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d',
+    name: 'Quetzaltenango',
+    municipality: 'Quetzaltenango',
+    department: 'Quetzaltenango',
+    latitude: 14.8347,
+    longitude: -91.5181,
+  };
+
+  it('carries only what the map of the home page draws', () => {
+    expect(publicBranchLocationSchema.parse(location)).toEqual(location);
+  });
+
+  it('drops anything else, such as the phone, the address or the administrators', () => {
+    const parsed = publicBranchLocationSchema.parse({
+      ...location,
+      phone: '77612233',
+      address: '4a calle 12-30 zona 1',
+      code: 'XEL',
+      admins: [],
+    });
+    expect(parsed).toEqual(location);
+  });
+
+  it('needs every field and a known department', () => {
+    expect(publicBranchLocationSchema.safeParse({ ...location, latitude: undefined }).success).toBe(
+      false,
+    );
+    expect(
+      publicBranchLocationSchema.safeParse({ ...location, department: 'Narnia' }).success,
+    ).toBe(false);
+  });
+
+  it('comes in the page the lists of the API use', () => {
+    expect(
+      publicBranchLocationPageSchema.parse({ items: [location], total: 1, page: 1, pageSize: 100 }),
+    ).toEqual({ items: [location], total: 1, page: 1, pageSize: 100 });
+    expect(publicBranchLocationPageSchema.safeParse({ items: [location] }).success).toBe(false);
   });
 });

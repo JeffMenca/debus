@@ -1,0 +1,5 @@
+{
+  "extends": "@debus/config/tsconfig.node.json",
+  "compilerOptions": { "outDir": "dist", "rootDir": ".", "types": ["node", "jest"] },
+  "include": ["src"]
+}

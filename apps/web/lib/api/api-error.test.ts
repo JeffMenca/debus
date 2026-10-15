@@ -28,10 +28,16 @@ describe('apiErrorFrom', () => {
     ).toBe('c-1');
   });
 
-  it.each([null, 'plain text', { statusCode: 500 }, { message: '' }, { message: 42 }])(
-    'falls back to the connection message for %j',
-    (body) => {
-      expect(apiErrorFrom(500, body).message).toBe(FRIENDLY_NETWORK_MESSAGE);
-    },
-  );
+  it.each([
+    null,
+    'plain text',
+    { statusCode: 500 },
+    { message: '' },
+    { message: 42 },
+    { message: 'x', correlationId: 5 },
+    [],
+    7,
+  ])('falls back to the connection message for %j', (body) => {
+    expect(apiErrorFrom(500, body).message).toBe(FRIENDLY_NETWORK_MESSAGE);
+  });
 });

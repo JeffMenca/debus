@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { USER_STATUSES, emailSchema, fullNameSchema, phoneSchema } from './auth';
-import { pageQuerySchema, pageWithSummarySchema } from './pagination';
+import { pageQuerySchema, pageSchema, pageWithSummarySchema } from './pagination';
 import { searchTermSchema } from '../text';
 
 export const GUATEMALA_DEPARTMENTS = [
@@ -127,3 +127,17 @@ export const branchWithAdminsPageSchema = pageWithSummarySchema(
   branchSummarySchema,
 );
 export type BranchWithAdminsPage = z.infer<typeof branchWithAdminsPageSchema>;
+
+// What a visitor without a session may read: where each active branch is, for the map of the home
+// page. No code, phone, address or people.
+export const publicBranchLocationSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  municipality: z.string(),
+  department: z.enum(GUATEMALA_DEPARTMENTS),
+  latitude: z.number(),
+  longitude: z.number(),
+});
+export type PublicBranchLocation = z.infer<typeof publicBranchLocationSchema>;
+export const publicBranchLocationPageSchema = pageSchema(publicBranchLocationSchema);
+export type PublicBranchLocationPage = z.infer<typeof publicBranchLocationPageSchema>;

@@ -13,6 +13,31 @@ const session = (role: string, fullName = 'Ana López') => ({
   },
 });
 
+// The six branches of the demo data, as the open route of the gateway answers them.
+const BRANCHES = [
+  ['Ciudad de Guatemala', 'Guatemala', 'Guatemala', 14.6349, -90.5069],
+  ['Quetzaltenango', 'Quetzaltenango', 'Quetzaltenango', 14.8347, -91.5181],
+  ['Antigua Guatemala', 'Antigua Guatemala', 'Sacatepéquez', 14.5586, -90.7295],
+  ['Cobán', 'Cobán', 'Alta Verapaz', 15.47, -90.37],
+  ['Huehuetenango', 'Huehuetenango', 'Huehuetenango', 15.3197, -91.4709],
+  ['Flores', 'Flores', 'Petén', 16.93, -89.892],
+].map(([name, municipality, department, latitude, longitude], index) => ({
+  id: `00000000-0000-4000-8000-00000000000${index + 1}`,
+  name,
+  municipality,
+  department,
+  latitude,
+  longitude,
+}));
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/administracion/branches/locations*', (route) =>
+    route.fulfill({
+      json: { items: BRANCHES, total: BRANCHES.length, page: 1, pageSize: 100 },
+    }),
+  );
+});
+
 const restoreSession = (page: Page, role: string, fullName?: string) =>
   page.route('**/api/session/refresh', (route) => route.fulfill({ json: session(role, fullName) }));
 const noSession = (page: Page) =>
@@ -48,6 +73,21 @@ test.describe('home page', () => {
     ]) {
       await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
     }
+    await expectNoHorizontalScroll(page);
+  });
+
+  test('has a banner with the logo and the access links, outside the main region', async ({
+    page,
+  }) => {
+    await noSession(page);
+    await page.goto('/');
+
+    const banner = page.getByRole('banner');
+    await expect(banner).toHaveCount(1);
+    await expect(banner.getByText('debus', { exact: true })).toBeVisible();
+    await expect(banner.getByRole('link', { name: 'Iniciar sesión' })).toBeVisible();
+    await expect(page.getByRole('main').getByRole('banner')).toHaveCount(0);
+    expect(await banner.evaluate((node) => Boolean(node.closest('main, section')))).toBe(false);
     await expectNoHorizontalScroll(page);
   });
 
@@ -164,7 +204,7 @@ test.describe('header without layout jumps', () => {
 
         release();
         // The page has more navigation and another logo further down: the header is the hero's.
-        const scene = page.locator('section').first();
+        const scene = page.getByTestId('hero');
         const actions = scene.locator('nav');
         await expect(actions).toBeVisible();
         await page.waitForTimeout(100);
@@ -224,6 +264,37 @@ test.describe('rest of the home page', () => {
     const before = await busPosition(page);
     await page.waitForTimeout(1500);
     expect(await busPosition(page)).not.toBe(before);
+  });
+
+  test('draws the branches the gateway reports, not a fixed list', async ({ page }) => {
+    await noSession(page);
+    await page.unroute('**/api/administracion/branches/locations*');
+    await page.route('**/api/administracion/branches/locations*', (route) =>
+      route.fulfill({
+        json: { items: BRANCHES.slice(0, 3), total: 3, page: 1, pageSize: 100 },
+      }),
+    );
+    await page.goto('/');
+
+    const map = page.getByRole('img', { name: /^Mapa de Guatemala/ });
+    await map.scrollIntoViewIfNeeded();
+    await expect(map.locator('[data-city]')).toHaveCount(3);
+    await expect(map.locator('[data-city="Antigua Guatemala"]')).toHaveCount(1);
+  });
+
+  test('draws the country alone, with no invented city, when the branches cannot be read', async ({
+    page,
+  }) => {
+    await noSession(page);
+    await page.unroute('**/api/administracion/branches/locations*');
+    await page.route('**/api/administracion/branches/locations*', (route) => route.abort());
+    await page.goto('/');
+
+    const map = page.getByRole('img', { name: 'Mapa de Guatemala.' });
+    await map.scrollIntoViewIfNeeded();
+    await expect(map).toBeVisible();
+    await expect(map.locator('[data-city]')).toHaveCount(0);
+    await expect(map.getByText('MÉXICO')).toBeVisible();
   });
 
   test('keeps the bus of the map still when the visitor prefers reduced motion', async ({
@@ -354,14 +425,13 @@ test.describe('rest of the home page', () => {
     const button = page.getByRole('link', { name: 'Ver más contenido' });
     await expect(button).toBeVisible();
 
-    const scene = (await page.locator('section').first().boundingBox())!;
+    const scene = (await page.getByTestId('hero').boundingBox())!;
     const box = (await button.boundingBox())!;
     expect(Math.abs(box.y + box.height / 2 - (scene.y + scene.height))).toBeLessThan(6);
     expect(Math.abs(box.x + box.width / 2 - (scene.x + scene.width / 2))).toBeLessThan(1);
     // The hero's illustration is hidden from assistive technology, so it is found by its label.
     const bus = (await page
-      .locator('section')
-      .first()
+      .getByTestId('hero')
       .locator('svg[viewBox="0 0 284 134"]')
       .boundingBox())!;
     expect(box.y).toBeGreaterThan(bus.y + bus.height - 1);

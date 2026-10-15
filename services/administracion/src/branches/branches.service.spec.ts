@@ -232,6 +232,46 @@ describe('BranchesService.list', () => {
   });
 });
 
+describe('BranchesService.locations', () => {
+  it('pages the active branches by name and id, with only what the map needs', async () => {
+    const { prisma, service } = setup();
+    prisma.branch.count.mockResolvedValue(21);
+
+    const page = await service.locations({ page: 2, pageSize: 20 });
+
+    expect(prisma.branch.findMany).toHaveBeenCalledWith({
+      where: { active: true },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      skip: 20,
+      take: 20,
+    });
+    expect(prisma.branch.count).toHaveBeenCalledWith({ where: { active: true } });
+    expect(page).toEqual({
+      items: [
+        {
+          id: branchRow.id,
+          name: 'Quetzaltenango',
+          municipality: 'Quetzaltenango',
+          department: 'Quetzaltenango',
+          latitude: 14.8347,
+          longitude: -91.5181,
+        },
+      ],
+      total: 21,
+      page: 2,
+      pageSize: 20,
+    });
+  });
+
+  it('does not read the administrators', async () => {
+    const { prisma, service } = setup();
+
+    await service.locations({ page: 1, pageSize: 100 });
+
+    expect(prisma.branch.findMany.mock.calls[0][0]).not.toHaveProperty('include');
+  });
+});
+
 describe('BranchesService.get', () => {
   it('returns the branch to a system admin', async () => {
     const { service } = setup();

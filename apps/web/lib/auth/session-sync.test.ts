@@ -107,6 +107,40 @@ describe('talking to other tabs', () => {
     other.close();
   });
 
+  it('applies what another tab announced in the order it announced it, even when the session takes longer to read', async () => {
+    const order: string[] = [];
+    const stop = listenToOtherTabs(
+      () => order.push('session'),
+      () => order.push('signed-out'),
+    );
+    const other = otherTab();
+
+    other.post({ type: 'session', session });
+    other.post({ type: 'signed-out' });
+    other.post({ type: 'session', session });
+    await tick();
+    await tick();
+
+    expect(order).toEqual(['session', 'signed-out', 'session']);
+    stop();
+    other.close();
+  });
+
+  it('keeps going after a message that cannot be read', async () => {
+    const onSession = jest.fn();
+    const stop = listenToOtherTabs(onSession, jest.fn());
+    const other = otherTab();
+
+    other.post({ type: 'session', session: { accessToken: 'only-a-token' } });
+    other.post({ type: 'session', session });
+    await tick();
+    await tick();
+
+    expect(onSession).toHaveBeenCalledTimes(1);
+    stop();
+    other.close();
+  });
+
   it('stops listening once cleaned up', async () => {
     const onSignOut = jest.fn();
     const stop = listenToOtherTabs(jest.fn(), onSignOut);

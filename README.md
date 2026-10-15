@@ -12,6 +12,7 @@ Monorepo con pnpm y Turborepo:
 | `packages/contracts` | Nombres y payloads de los eventos                                                                                                |
 | `packages/messaging` | Outbox, inbox idempotente y Pub/Sub                                                                                              |
 | `packages/config`    | tsconfig, ESLint, Prettier y Jest compartidos                                                                                    |
+| `packages/tools`     | Datos de demostración (`pnpm seed`) y colección Postman (`pnpm postman`)                                                         |
 | `infra/`             | Dockerfiles e inicialización de PostgreSQL                                                                                       |
 | `docs/`, `postman/`  | Manuales técnicos y colección de pruebas                                                                                         |
 
@@ -30,15 +31,18 @@ pnpm local                # todo en local: .env, docker, Pub/Sub, migraciones y 
 
 Abre `http://localhost:3000/estado`: muestra si cada servicio responde y permite enviar un aviso de prueba que viaja por Pub/Sub hasta los 7 servicios.
 
-| Comando                 | Qué hace                                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------------------- |
-| `pnpm test:unit`        | Pruebas unitarias de todo el repo y tabla de cobertura (mínimo 85%)                                     |
-| `pnpm test:integration` | Pruebas de integración y tabla de cobertura (mínimo 65%); necesita `pnpm local:setup`                   |
-| `pnpm test:e2e`         | Playwright del web a 1440 y 390 px con el gateway simulado                                              |
-| `pnpm test:e2e:real`    | Playwright contra el stack local real (con `pnpm local` corriendo), un worker, como `admin@debus.local` |
-| `pnpm test:all`         | Unitarias, integración y e2e en orden                                                                   |
-| `pnpm check`            | Lint, typecheck y unitarias (lo que corre la CI)                                                        |
-| `pnpm test:clean`       | Borra los datos de prueba de las bases locales                                                          |
+| Comando                 | Qué hace                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm test:unit`        | Pruebas unitarias de todo el repo y tabla de cobertura (mínimo 85%)                                                                   |
+| `pnpm test:integration` | Pruebas de integración y tabla de cobertura (mínimo 65%); necesita `pnpm local:setup`                                                 |
+| `pnpm test:e2e`         | Playwright del web a 1440 y 390 px con el gateway simulado                                                                            |
+| `pnpm test:e2e:real`    | Playwright contra el stack local real (con `pnpm local` corriendo), un worker, como `admin@debus.local`                               |
+| `pnpm test:all`         | Unitarias, integración y e2e en orden                                                                                                 |
+| `pnpm check`            | Lint, typecheck y unitarias (lo que corre la CI)                                                                                      |
+| `pnpm test:clean`       | Borra los datos de prueba de las bases locales                                                                                        |
+| `pnpm seed`             | Carga los datos de demostración en el stack local (ver "Datos de demostración")                                                       |
+| `pnpm run docs`         | Actualiza los diagramas generados de los manuales (con `--check` solo los compara); `pnpm docs` es un comando de pnpm, no este script |
+| `pnpm postman`          | Genera la colección Postman desde el Swagger del gateway; `pnpm postman:test` la ejecuta (con `pnpm local` y `pnpm seed`)             |
 
 Todas aceptan filtros de turbo, por ejemplo `pnpm test:unit --filter=@debus/flota`. El reporte HTML de cobertura queda en `<paquete>/coverage/lcov-report` (unitarias) y `<paquete>/coverage-integration/lcov-report` (integración).
 
@@ -75,6 +79,28 @@ Varios servicios guardan copias de lo que publican otros y solo las reemplazan p
 2. El workflow llama a la ruta interna `POST /internal/<recurso>/republish` de cada servicio con el token de identidad de la cuenta de despliegue, y el log de cada destino termina con el resumen, por ejemplo `{"republished":N}`. Un destino que no está en la lista falla antes de llamar a ninguno.
 3. Sucursales, choferes, rutas y buses suben en uno su versión y se publican de nuevo (`BranchUpdated`, `DriverUpdated`, `RouteUpdated`, `BusUpdated`) por el outbox. La configuración no cambia nada: cada versión, que es inmutable, se publica otra vez como `SettingsUpdated` con su mismo `versionId`, y las copias la ignoran si ya la tienen. Repetirlo no hace daño. Viajes y gastos no se republican.
 4. El gateway no publica esas rutas. El workflow republica todas las sucursales; las rutas de `administracion` (salvo la configuración, que es global) y de `flota` también aceptan `?branchId=` para una sola sucursal, si alguna vez hace falta llamarlas a mano con el mismo token.
+
+## Datos de demostración
+
+`pnpm seed` (con `pnpm local` corriendo) llena el stack local por la API del gateway: configuración, 6 sucursales con su admin y su cajero, 18 buses con sus choferes, 12 rutas, viajes programados, un viaje completado por bus en el día y gastos de taller. Las cuentas se activan por el mismo enlace de correo que recibiría una persona (Mailpit en local) y usan la contraseña de `SEED_PASSWORD`. Se puede repetir sin duplicar nada y acepta `--only <áreas>` y `--days-ahead <días>`. Las variables y sus valores locales están en `packages/tools/src/seed/run-seed.ts`.
+
+Son datos de demostración, no de prueba: no usan `TEST_BRANCH_PREFIX` y `pnpm test:clean` no los borra. El detalle de las cuentas y de lo que se carga está en [docs/datos-de-prueba.md](docs/datos-de-prueba.md).
+
+En producción se carga con el workflow `seed` (**Actions > seed > Run workflow**), después de `republish`. Nunca corre contra producción sin `--target production` y `SEED_CONFIRM=production`; lee el buzón del equipo por IMAP con `SMTP_USER` y `SMTP_PASSWORD`, y necesita los secretos `SEED_ADMIN_PASSWORD` y `SEED_PASSWORD` y la variable `SEED_ADMIN_EMAIL`.
+
+## Entrega
+
+Dónde está cada entregable que pide el enunciado:
+
+| Entregable                          | Dónde                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Código fuente                       | Este repositorio                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Código compilado                    | Workflow `deliverables` (**Actions > deliverables > Run workflow**, con `version` y `publish`): empaqueta los siete servicios, el gateway y el web, y con `publish` los sube al GitHub Release `v<versión>` junto con `IMAGES.md`. `IMAGES.md` lista solo imágenes que existen en Artifact Registry y el workflow falla si falta alguna: `deploy` construye únicamente lo que cambió en cada commit, así que antes de publicar hay que correr `deploy` con `all=true` sobre el commit del release. Cada paquete se corre con `node dist/main.js` y su `.env` (el web, con `node apps/web/server.js`) |
+| Manuales técnicos por microservicio | [docs/README.md](docs/README.md) y un manual por servicio con diagramas de componentes, tablas y despliegue, eventos, endpoints, variables y cómo probarlo. Los diagramas de tablas y de despliegue, los eventos y los endpoints se generan con `pnpm run docs`; `pnpm run docs --check` los compara en la CI                                                                                                                                                                                                                                                                                        |
+| Colección Postman                   | [postman/debus.postman_collection.json](postman/debus.postman_collection.json), generada del Swagger con `pnpm postman`, con su recorrido y su entorno local; `pnpm postman:test` la corre contra el stack local                                                                                                                                                                                                                                                                                                                                                                                     |
+| Swagger                             | `/docs` del gateway (`http://localhost:4000/docs` en local), con los siete servicios unidos                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Datos para la calificación          | `pnpm seed` y el workflow `seed` ([docs/datos-de-prueba.md](docs/datos-de-prueba.md))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Producción                          | **Por completar antes del 1 nov (F3):** las direcciones reales del web y del gateway. Tienen la forma `https://web-<número>.<región>.run.app` y `https://gateway-<número>.<región>.run.app`, donde el número y la región son las variables `GCP_PROJECT_NUMBER` y `GCP_REGION` de GitHub, que no están en el código.                                                                                                                                                                                                                                                                                 |
 
 ## Convenciones
 

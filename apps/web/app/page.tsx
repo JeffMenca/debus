@@ -11,17 +11,19 @@ import { SiteFooter } from '@/components/home/site-footer';
 export default function HomePage() {
   return (
     <>
-      <main className="relative isolate flex flex-col gap-10 bg-background pb-10 md:gap-16 md:pb-16">
+      <div className="relative isolate flex flex-col gap-10 bg-background pb-10 md:gap-16 md:pb-16">
         <FloatingShapes />
         <div className="relative flex p-4.5 pb-0">
-          <TravelScene actions={<HomeActions />} className="px-4 sm:px-11" />
+          <TravelScene header actions={<HomeActions />} className="px-4 sm:px-11" />
           <ScrollDownButton />
         </div>
-        <BenefitCards />
-        <GuatemalaMap />
-        <Faq />
-        <RentalBand />
-      </main>
+        <main className="flex flex-col gap-10 md:gap-16">
+          <BenefitCards />
+          <GuatemalaMap />
+          <Faq />
+          <RentalBand />
+        </main>
+      </div>
       <SiteFooter />
     </>
   );

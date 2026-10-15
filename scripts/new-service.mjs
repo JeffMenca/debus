@@ -413,29 +413,61 @@ describe('PrismaService', () => {
 });
 `,
     'test/events.e2e-spec.ts': `import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import { createEnvelope, type EventEnvelope } from '@debus/contracts';
 import { EventPublisher, Outbox } from '@debus/messaging';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { type IsolatedSchema, isolatedSchema } from './support/isolated-schema';
 
 const push = (value: unknown) => ({
   message: { data: Buffer.from(JSON.stringify(value)).toString('base64'), messageId: '1' },
   subscription: 'test',
 });
 
+// Both groups work on a schema of their own: a flush claims every pending row of the outbox it
+// sees, so on the shared schema it would also take (and mark as published) the rows that the local
+// stack has not sent yet, and the stack would take the rows of the test.
+let isolated: IsolatedSchema;
+
+beforeAll(async () => {
+  isolated = await isolatedSchema('events');
+});
+
+afterAll(async () => {
+  await isolated.drop();
+});
+
+async function createApp(
+  customize: (builder: TestingModuleBuilder) => TestingModuleBuilder = (builder) => builder,
+): Promise<INestApplication> {
+  const builder = Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(PrismaService)
+    .useValue(isolated.client);
+  const app = (await customize(builder).compile()).createNestApplication();
+  await app.init();
+  return app;
+}
+
+const currentSchemaOf = async (prisma: PrismaService): Promise<string | undefined> => {
+  const rows = await prisma.$queryRawUnsafe<{ name: string }[]>('SELECT current_schema() AS name');
+  return rows[0]?.name;
+};
+
 describe('Pub/Sub push endpoint', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
-    await app.init();
+    app = await createApp();
   });
 
   afterAll(async () => {
     await app.close();
+  });
+
+  it('runs on a schema of its own', async () => {
+    expect(await currentSchemaOf(app.get(PrismaService))).toBe(isolated.schema);
   });
 
   it('records a probe exactly once even when delivered twice', async () => {
@@ -490,18 +522,18 @@ describe('Outbox with the service database client', () => {
         return 'message-id';
       },
     };
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(EventPublisher)
-      .useValue(publisher)
-      .compile();
-    app = moduleRef.createNestApplication();
-    await app.init();
+    app = await createApp((builder) =>
+      builder.overrideProvider(EventPublisher).useValue(publisher),
+    );
     prisma = app.get(PrismaService);
   });
 
   afterAll(async () => {
-    await prisma.outboxEvent.deleteMany();
     await app.close();
+  });
+
+  it('runs on a schema of its own', async () => {
+    expect(await currentSchemaOf(prisma)).toBe(isolated.schema);
   });
 
   // Publishing takes longer than Prisma's interactive transaction timeout (5 s) in total.
@@ -510,7 +542,16 @@ describe('Outbox with the service database client', () => {
     const added = await prisma.$transaction(async (tx) => {
       const ids: string[] = [];
       for (const correlationId of ['first', 'second', 'rejected']) {
-        ids.push((await outbox.add(tx, 'ProbeSent', { requestedAt: new Date().toISOString() }, correlationId)).eventId);
+        ids.push(
+          (
+            await outbox.add(
+              tx,
+              'ProbeSent',
+              { requestedAt: new Date().toISOString() },
+              correlationId,
+            )
+          ).eventId,
+        );
       }
       return ids;
     });
@@ -521,7 +562,9 @@ describe('Outbox with the service database client', () => {
     expect([...published].sort()).toEqual(added.slice(0, 2).sort());
     const rows = await prisma.outboxEvent.findMany();
     const byCorrelation = (correlationId: string) =>
-      rows.find((row) => (row.envelope as { correlationId?: string }).correlationId === correlationId);
+      rows.find(
+        (row) => (row.envelope as { correlationId?: string }).correlationId === correlationId,
+      );
     expect(byCorrelation('first')?.publishedAt).not.toBeNull();
     expect(byCorrelation('second')?.publishedAt).not.toBeNull();
     expect(byCorrelation('rejected')).toMatchObject({
@@ -548,6 +591,78 @@ describe('Outbox with the service database client', () => {
     expect(rows.filter((row) => row.attempts === 0 && row.claimedUntil === null)).toHaveLength(2);
   });
 });
+`,
+    'test/support/isolated-schema.ts': `import { execFileSync } from 'node:child_process';
+import { testSchema } from '@debus/config/test-data';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '../../src/generated/prisma/client';
+
+export interface IsolatedSchema {
+  schema: string;
+  /** A client whose ORM queries and raw SQL both go to the schema. */
+  client: PrismaClient;
+  /** Drops the schema and disconnects the client. */
+  drop(): Promise<void>;
+}
+
+const databaseUrl = (schema?: string): string => {
+  const url = new URL(process.env.DATABASE_URL ?? '');
+  if (schema) url.searchParams.set('schema', schema);
+  return url.toString();
+};
+
+// The migrations create the schema and fill it.
+export function migrateSchema(schema: string): void {
+  execFileSync(process.execPath, [require.resolve('prisma/build/index.js'), 'migrate', 'deploy'], {
+    cwd: process.cwd(),
+    env: { ...process.env, DATABASE_URL: databaseUrl(schema) },
+    stdio: 'pipe',
+  });
+}
+
+export function schemaClient(schema: string): PrismaClient {
+  return new PrismaClient({
+    adapter: new PrismaPg(
+      { connectionString: databaseUrl(), options: \`-c search_path=\${schema}\`, max: 5 },
+      { schema },
+    ),
+  });
+}
+
+// The ORM names the schema in every query it generates, and the raw SQL of the service finds its
+// tables through the search path: both must point at the throwaway schema, or a test meant to be
+// isolated would change the shared one. The query reads no table, so a client that fails it stops
+// the run before anything is written.
+export async function assertCurrentSchema(client: PrismaClient, schema: string): Promise<void> {
+  const current = await client.$queryRawUnsafe<{ name: string }[]>(
+    'SELECT current_schema() AS name',
+  );
+  if (current[0]?.name !== schema) {
+    throw new Error(\`The raw SQL runs on the current schema \${current[0]?.name}, not on \${schema}\`);
+  }
+}
+
+// A migrated schema of its own, for tests that must never see or change what the local stack keeps
+// in the shared one. A run that dies leaves it behind and \`pnpm test:clean\` drops it.
+export async function isolatedSchema(label: string): Promise<IsolatedSchema> {
+  const schema = testSchema(label);
+  const client = schemaClient(schema);
+  const drop = async () => {
+    try {
+      await client.$executeRawUnsafe(\`DROP SCHEMA IF EXISTS \${schema} CASCADE\`);
+    } finally {
+      await client.$disconnect();
+    }
+  };
+  try {
+    migrateSchema(schema);
+    await assertCurrentSchema(client, schema);
+  } catch (error) {
+    await drop().catch(() => undefined);
+    throw error;
+  }
+  return { schema, client, drop };
+}
 `,
   });
 }
