@@ -42,7 +42,7 @@ Cargar de nuevo no duplica nada: cada paso busca lo que ya existe y solo crea lo
 
 Cosas que conviene saber de la operación del día (`operations`):
 
-- **Viajes pasados**: antes de programar, quita los viajes que siguen "programados" con la hora ya pasada (los de cargas anteriores que nadie ejecutó, y los de la mañana del día de la carga). Así no quedan viajes que parecen no haberse realizado. Los que salieron o llegaron nunca se tocan; si el servicio se niega a eliminar uno, se deja y se avisa.
+- **Viajes pasados**: antes de programar, quita los viajes del seed (viajes regulares a las 06:00 o las 14:00 en las rutas que abre el seed) que siguen "programados" con la hora ya pasada: los de cargas anteriores que nadie ejecutó y los de la mañana del día de la carga. Así no quedan viajes que parecen no haberse realizado. Nunca toca alquileres, viajes de otro horario ni los que salieron o llegaron; si el servicio se niega a eliminar uno, se deja y se avisa. Un viaje pasado con boletos vendidos se elimina igual y sus boletos se reembolsan, así que conviene avisar al equipo de ventas antes de la carga del 29 oct.
 - **Viaje del día**: la API no deja programar en el pasado, así que el viaje se programa unos minutos hacia adelante y después se registra su salida unas horas antes y su llegada un minuto antes. Por eso su hora programada es posterior a su salida y su llegada reales; los reportes usan los registros reales.
 - **Madrugada**: la salida se registra como pronto un minuto después de la medianoche de Guatemala, para que el viaje sea del día de la carga. Entre las 00:00 y las 00:02 no hay tiempo para un viaje y se deja sin hacer (se avisa).
 

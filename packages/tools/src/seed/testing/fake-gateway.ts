@@ -40,6 +40,8 @@ export class FakeGateway implements Gateway {
   readonly trips: Row[] = [];
   readonly expenses: Row[] = [];
   readonly settings: Row[] = [];
+  // The most rows a page may carry, whatever the request asks for.
+  maxPageSize = 100;
   readonly passwords = new Map<string, string>([['admin@debus.local', 'clave-admin-1']]);
   readonly forgot: string[] = [];
   private next = 1;
@@ -351,7 +353,14 @@ export class FakeGateway implements Gateway {
         return (!range.gte || at >= range.gte.getTime()) && (!range.lt || at < range.lt.getTime());
       })
       .map((trip) => ({ ...trip, departure: undefined, arrival: undefined }));
-    return { items, total: items.length, page: 1, pageSize: 100 };
+    const pageSize = Math.min(Number(q.get('pageSize') ?? 100), this.maxPageSize);
+    const page = Number(q.get('page') ?? 1);
+    return {
+      items: items.slice((page - 1) * pageSize, page * pageSize),
+      total: items.length,
+      page,
+      pageSize,
+    };
   }
 
   private deleteTrip(id: string | undefined): void {

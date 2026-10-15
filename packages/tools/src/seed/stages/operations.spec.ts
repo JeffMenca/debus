@@ -253,6 +253,74 @@ describe('runOperations', () => {
       expect(report.counts['past trips']?.removed).toBe(SEED_ROUTES.length * 3 - 1);
     });
 
+    describe('only touches what the seed scheduled', () => {
+      const addPast = async (extra: Record<string, unknown>) => {
+        const world = await afterTwoDays();
+        const template = world.gateway.trips.find((trip) => trip.status === 'SCHEDULED');
+        if (!template) throw new Error('no scheduled trip to copy');
+        const trip = {
+          ...template,
+          id: '00000000-0000-4000-8000-0000000fffff',
+          status: 'SCHEDULED',
+          departureAt: '2026-10-20T15:30:00.000Z',
+          estimatedArrivalAt: '2026-10-20T17:30:00.000Z',
+          ...extra,
+        };
+        world.gateway.trips.push(trip);
+        await runOperations(world.later);
+        return world.gateway.trips.some((candidate) => candidate.id === trip.id);
+      };
+
+      it('leaves a rental trip alone', async () => {
+        // 06:00 in Guatemala on a seed route, but a rental.
+        expect(await addPast({ type: 'RENTAL', departureAt: '2026-10-20T12:00:00.000Z' })).toBe(
+          true,
+        );
+      });
+
+      it('leaves alone a regular trip that is not at one of the hours the seed schedules', async () => {
+        expect(await addPast({ departureAt: '2026-10-20T15:30:00.000Z' })).toBe(true);
+      });
+
+      it('leaves alone a trip on a route the seed did not open', async () => {
+        const world = await afterTwoDays();
+        const template = world.gateway.trips.find((trip) => trip.status === 'SCHEDULED');
+        world.gateway.trips.push({
+          ...template,
+          id: '00000000-0000-4000-8000-0000000ffffe',
+          routeId: '00000000-0000-4000-8000-0000000aaaaa',
+          departureAt: '2026-10-20T12:00:00.000Z',
+          estimatedArrivalAt: '2026-10-20T14:00:00.000Z',
+        } as (typeof world.gateway.trips)[number]);
+        await runOperations(world.later);
+        expect(
+          world.gateway.trips.some((trip) => trip.id === '00000000-0000-4000-8000-0000000ffffe'),
+        ).toBe(true);
+      });
+
+      it('still removes a regular trip of the seed at its hour', async () => {
+        expect(await addPast({ departureAt: '2026-10-20T20:00:00.000Z' })).toBe(false);
+      });
+    });
+
+    it('reads every page of past trips, also when the first ones cannot be removed', async () => {
+      const { gateway, later } = await afterTwoDays();
+      gateway.maxPageSize = 5;
+      later.daysAhead = 0;
+      gateway.failNext(
+        /DELETE \/api\/viajes\/trips\//,
+        new GatewayError(409, 'Este viaje ya tiene boletos vendidos.'),
+        7,
+      );
+      const report = await runOperations(later);
+      expect(report.counts['past trips']).toEqual({
+        created: 0,
+        existing: 0,
+        removed: SEED_ROUTES.length * 3 - 7,
+        skipped: 7,
+      });
+    });
+
     it('does not remove a trip scheduled for later today', async () => {
       const { gateway, later } = await afterTwoDays();
       await runOperations(later);

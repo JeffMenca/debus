@@ -14,7 +14,7 @@ import {
   type TripDetail,
 } from '@debus/contracts';
 import { ADMINISTRACION, FLOTA, PAGE, VIAJES, withQuery } from '../api';
-import { SEED_BRANCHES, repairsFor } from '../catalog';
+import { SEED_BRANCHES, repairsFor, routesFrom } from '../catalog';
 import type { SeedContext } from '../context';
 import { addDays } from '../dates';
 import { GatewayError, type Session } from '../gateway-client';
@@ -45,7 +45,7 @@ const COPY_PENDING = pendingCopy(
 );
 const BUS_COPY_PENDING = pendingCopy('No encontramos ese bus en tu sucursal.');
 
-const isConflict = (error: unknown): boolean =>
+const isConflict = (error: unknown): error is GatewayError =>
   error instanceof GatewayError && error.status === 409 && !isPendingRegistration(error);
 const cents = (amount: number): number => Math.round(amount * 100) / 100;
 const hours = (distanceKm: number): number => distanceKm / CRUISE_KM_PER_HOUR;
@@ -146,39 +146,63 @@ async function scheduleOnAny(
   return false;
 }
 
+// Every page of the scheduled trips in a range, read before anything is deleted so the pages do not move.
 async function scheduledTrips(
   ctx: SeedContext,
   session: Session,
   range: { from?: string; to: string },
 ): Promise<Trip[]> {
-  const page = await ctx.client.request(
-    session,
-    'GET',
-    withQuery(`${VIAJES}/trips`, { ...PAGE, ...range, status: 'SCHEDULED' }),
-    undefined,
-    tripPageSchema,
-  );
-  return page.items;
+  const trips: Trip[] = [];
+  for (let page = 1; ; page++) {
+    const result = await ctx.client.request(
+      session,
+      'GET',
+      withQuery(`${VIAJES}/trips`, { ...PAGE, page, ...range, status: 'SCHEDULED' }),
+      undefined,
+      tripPageSchema,
+    );
+    trips.push(...result.items);
+    if (result.items.length === 0 || page * result.pageSize >= result.total) return trips;
+  }
 }
 
+// Guatemala is always UTC-6, so the hour of a slot is the same all year.
+const GUATEMALA_UTC_OFFSET_HOURS = 6;
+const SLOT_HOURS = new Set(SLOTS.map((slot) => Number(slot.slice(0, 2))));
+const isSlot = (departureAt: string): boolean => {
+  const at = new Date(departureAt);
+  const hour = (at.getUTCHours() - GUATEMALA_UTC_OFFSET_HOURS + 24) % 24;
+  return SLOT_HOURS.has(hour) && at.getUTCMinutes() === 0;
+};
+
 // A trip nobody ran stays "scheduled" in the past for good, and it would show as a trip that never
-// happened. The ones whose time has passed are removed, which the API allows while they have not left.
-async function removePastTrips(ctx: SeedContext, tally: Tally, session: Session): Promise<void> {
+// happened. The ones the seed scheduled (regular trips at its hours on its routes) whose time has
+// passed are removed, which the API allows while they have not left. Rentals and anything somebody
+// scheduled by hand are never touched.
+async function removePastTrips(
+  ctx: SeedContext,
+  tally: Tally,
+  session: Session,
+  fleet: BranchFleet,
+  code: string,
+): Promise<void> {
   const kind = 'past trips';
-  const yesterday = addDays(ctx.today, -1);
-  const past = (trip: Trip): boolean => Date.parse(trip.departureAt) < ctx.now().getTime();
-  const attempted = new Set<string>();
-  // Page after page of earlier days, then the trips of today that already left their hour.
-  for (let more = true; more;) {
-    const stale = (await scheduledTrips(ctx, session, { to: yesterday })).filter(
-      (trip) => !attempted.has(trip.id),
-    );
-    more = stale.length > 0;
-    for (const trip of stale) await removeTrip(ctx, tally, session, trip, attempted, kind);
-  }
+  const destinations = new Set(routesFrom(code).map((route) => ctx.branchIds.get(route.to)));
+  const routeIds = new Set(
+    fleet.routes
+      .filter((route) => destinations.has(route.destinationBranchId))
+      .map((route) => route.id),
+  );
+  const removable = (trip: Trip): boolean =>
+    trip.type === 'REGULAR' &&
+    trip.routeId !== null &&
+    routeIds.has(trip.routeId) &&
+    isSlot(trip.departureAt) &&
+    Date.parse(trip.departureAt) < ctx.now().getTime();
+  const earlier = await scheduledTrips(ctx, session, { to: addDays(ctx.today, -1) });
   const today = await scheduledTrips(ctx, session, { from: ctx.today, to: ctx.today });
-  for (const trip of today.filter(past)) {
-    await removeTrip(ctx, tally, session, trip, attempted, kind);
+  for (const trip of [...earlier, ...today].filter(removable)) {
+    await removeTrip(ctx, tally, session, trip, kind);
   }
 }
 
@@ -187,10 +211,8 @@ async function removeTrip(
   tally: Tally,
   session: Session,
   trip: Trip,
-  attempted: Set<string>,
   kind: string,
 ): Promise<void> {
-  attempted.add(trip.id);
   try {
     await ctx.client.request(session, 'DELETE', `${VIAJES}/trips/${trip.id}`);
     tally.removed(kind);
@@ -198,7 +220,7 @@ async function removeTrip(
     if (!isConflict(error)) throw error;
     tally.skipped(kind);
     ctx.log(
-      `The trip of ${trip.originName} to ${trip.destinationName} could not be removed: ${(error as Error).message}`,
+      `The trip of ${trip.originName} to ${trip.destinationName} could not be removed: ${error.message}`,
     );
   }
 }
@@ -395,7 +417,7 @@ export async function runOperations(ctx: SeedContext): Promise<SeedReport> {
     const session = await branchAdminSession(ctx, code);
     const fleet = await loadFleet(ctx, session);
     ctx.log(`Operations of ${code}: ${fleet.buses.length} buses, ${fleet.routes.length} routes`);
-    await removePastTrips(ctx, tally, session);
+    await removePastTrips(ctx, tally, session, fleet, code);
     await scheduleAhead(ctx, tally, session, fleet);
     await completeToday(ctx, tally, session, fleet);
     await addRepairs(ctx, tally, session, fleet);
