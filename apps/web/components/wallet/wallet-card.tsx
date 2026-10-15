@@ -1,9 +1,11 @@
 'use client';
 
 import { Wallet } from 'lucide-react';
+import { AccountPending } from '@/components/account/account-pending';
 import { ErrorAlert } from '@/components/data/error-alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCountUp } from '@/hooks/use-count-up';
+import { isAccountPending } from '@/lib/account/account-state';
 import { messageOf } from '@/lib/api/client';
 import { formatQuetzales } from '@/lib/format';
 import { useWallet } from '@/lib/wallet/wallet-api';
@@ -63,7 +65,11 @@ export function WalletCard() {
       </div>
       {wallet.isError && (
         <div className="relative text-foreground">
-          <ErrorAlert message={messageOf(wallet.error)} onRetry={() => wallet.refetch()} />
+          {isAccountPending(wallet.error) ? (
+            <AccountPending onRetry={() => wallet.refetch()} />
+          ) : (
+            <ErrorAlert message={messageOf(wallet.error)} onRetry={() => wallet.refetch()} />
+          )}
         </div>
       )}
     </section>

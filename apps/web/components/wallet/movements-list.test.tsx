@@ -52,7 +52,8 @@ describe('MovementsList', () => {
     expect(String(fetchMock.mock.calls[0]![0])).toContain('kind=TOP_UP&page=2&pageSize=20');
     await userEvent.click(screen.getByRole('button', { name: 'Página siguiente' }));
     expect(onChange).toHaveBeenCalledWith({ page: 3 });
-    await userEvent.click(screen.getByRole('tab', { name: 'Boletos' }));
+    await userEvent.click(screen.getByRole('combobox', { name: 'Tipo de movimiento' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Boletos' }));
     expect(onChange).toHaveBeenCalledWith({ kind: 'TICKET' });
   });
 

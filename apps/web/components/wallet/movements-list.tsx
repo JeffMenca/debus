@@ -3,8 +3,15 @@
 import { type WalletMovement, pageCount } from '@debus/contracts';
 import { Minus, Plus } from 'lucide-react';
 import { ErrorAlert } from '@/components/data/error-alert';
-import { StatusTabs } from '@/components/data/status-tabs';
 import { TablePagination } from '@/components/data/table-pagination';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageInRange } from '@/hooks/use-page-in-range';
 import type { MovementKindFilter } from '@/lib/account/account-view-params';
@@ -68,12 +75,27 @@ export function MovementsList({ query, onChange }: MovementsListProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <StatusTabs
-        label="Tipo de movimiento"
-        value={query.kind}
-        options={KIND_OPTIONS}
-        onChange={(kind) => onChange({ kind })}
-      />
+      {/* A select, not tabs: five kinds do not fit side by side on a phone. */}
+      <div className="flex items-center gap-3">
+        <Label htmlFor="movement-kind" className="shrink-0">
+          Tipo de movimiento
+        </Label>
+        <Select
+          value={query.kind}
+          onValueChange={(kind) => onChange({ kind: kind as MovementKindFilter })}
+        >
+          <SelectTrigger id="movement-kind" className="w-full bg-card sm:w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {KIND_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div
         className={cn(
           'rounded-3xl bg-card px-6 py-2 transition-opacity',

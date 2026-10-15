@@ -9,16 +9,18 @@ import { DateField } from '@/components/forms/date-field';
 import { Button } from '@/components/ui/button';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { isAccountPending } from '@/lib/account/account-state';
 import { messageOf } from '@/lib/api/client';
 import { formatQuetzales } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TOP_UP, TOP_UP_PRESETS, parseTopUpAmount, topUpLabel } from '@/lib/wallet/top-up';
-import { useTopUp } from '@/lib/wallet/wallet-api';
+import { useTopUp, useWallet } from '@/lib/wallet/wallet-api';
 
 const AMOUNT_PROBLEM = 'Escribe un monto mayor a Q 0, con hasta dos decimales y hasta Q 100,000.';
 
 export function TopUpCard({ today = todayInGuatemala() }: { today?: string }) {
   const topUp = useTopUp();
+  const pending = isAccountPending(useWallet().error);
   const [amountText, setAmountText] = useState(String(DEFAULT_TOP_UP));
   const [paidOn, setPaidOn] = useState(today);
   // A failed top-up is retried with the same key; any change makes it a different top-up.
@@ -97,9 +99,12 @@ export function TopUpCard({ today = todayInGuatemala() }: { today?: string }) {
           />
         </div>
         {topUp.isError && <FormAlert tone="error">{messageOf(topUp.error)}</FormAlert>}
+        {pending && (
+          <p className="text-sm text-mango-700">Podrás recargar en cuanto tu cuenta esté lista.</p>
+        )}
         <Button
           type="submit"
-          disabled={topUp.isPending}
+          disabled={topUp.isPending || pending}
           className="bg-foreground text-background hover:bg-foreground/90"
         >
           <Plus aria-hidden strokeWidth={1.75} className="size-[18px]" />

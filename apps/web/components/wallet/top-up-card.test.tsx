@@ -51,6 +51,16 @@ describe('TopUpCard', () => {
     expect(toast.success).toHaveBeenCalledWith(expect.stringMatching(/Recargaste Q\s?200\.00/));
   });
 
+  it('waits for the account to be ready before letting the person top up', async () => {
+    mockClientesApi({ 'GET /wallet': () => apiError(404, 'Estamos preparando tu cuenta.') });
+    renderCard();
+
+    expect(
+      await screen.findByText(/Podrás recargar en cuanto tu cuenta esté lista/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Recargar Q/ })).toBeDisabled();
+  });
+
   it('asks for a valid amount before sending anything', async () => {
     const sent = captureTopUps();
     renderCard();

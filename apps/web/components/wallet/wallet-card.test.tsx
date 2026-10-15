@@ -18,6 +18,13 @@ describe('WalletCard', () => {
     expect(screen.getByText('Saldo disponible')).toBeInTheDocument();
   });
 
+  it('shows other problems as an error', async () => {
+    mockClientesApi({ 'GET /wallet': () => apiError(503, 'El servicio no respondió.') });
+    renderCard();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El servicio no respondió.');
+  });
+
   it('explains when the account is still being prepared and lets the person retry', async () => {
     let calls = 0;
     mockClientesApi({
@@ -30,7 +37,8 @@ describe('WalletCard', () => {
     });
     renderCard();
 
-    expect(await screen.findByText(/preparando tu cuenta/)).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent(/preparando tu cuenta/);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
 
     expect(await screen.findByText(/Q\s?0\.00/, { selector: '.sr-only' })).toBeInTheDocument();

@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { ErrorAlert } from '@/components/data/error-alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { isAccountPending } from '@/lib/account/account-state';
 import { formatDpi, formatNit } from '@/lib/account/formats';
 import { useProfile } from '@/lib/account/profile-api';
 import { messageOf } from '@/lib/api/client';
 import { formatPhone, initialsOf } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { AccountPending } from './account-pending';
 import { ProfileDialog } from './profile-dialog';
 
 function Detail({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
@@ -43,9 +45,12 @@ export function ProfileCard() {
         )}
       </div>
       {profile.isPending && <Skeleton className="h-40 w-full" />}
-      {profile.isError && (
-        <ErrorAlert message={messageOf(profile.error)} onRetry={() => profile.refetch()} />
-      )}
+      {profile.isError &&
+        (isAccountPending(profile.error) ? (
+          <AccountPending onRetry={() => profile.refetch()} />
+        ) : (
+          <ErrorAlert message={messageOf(profile.error)} onRetry={() => profile.refetch()} />
+        ))}
       {data && (
         <>
           <div className="flex min-w-0 items-center gap-3.5">

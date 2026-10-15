@@ -21,9 +21,11 @@ import {
 } from '@/components/ui/dialog';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { formatDpi, formatNit } from '@/lib/account/formats';
 import { useUpdateProfile } from '@/lib/account/profile-api';
 import { ApiError, messageOf } from '@/lib/api/client';
 import { FIELD_MESSAGES } from '@/lib/auth/form-messages';
+import { formatPhone } from '@/lib/format';
 
 type FormInput = z.input<typeof updateProfileRequestSchema>;
 type FieldName = keyof FormInput;
@@ -45,9 +47,10 @@ function ProfileForm({ profile, onDone }: { profile: ClientProfile; onDone: () =
   } = useForm<FormInput, unknown, UpdateProfileRequest>({
     resolver: zodResolver(updateProfileRequestSchema),
     defaultValues: {
-      dpi: profile.dpi ?? '',
-      phone: profile.phone ?? '',
-      nit: profile.nit ?? '',
+      // Written as the card shows them; the schema drops the separators again when saving.
+      dpi: profile.dpi ? formatDpi(profile.dpi) : '',
+      phone: profile.phone ? formatPhone(profile.phone) : '',
+      nit: profile.nit ? formatNit(profile.nit) : '',
       address: profile.address ?? '',
     },
   });

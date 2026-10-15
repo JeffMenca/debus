@@ -34,6 +34,18 @@ describe('ProfileCard', () => {
     expect(await screen.findAllByText('Sin registrar')).toHaveLength(4);
   });
 
+  it('opens the form with the data written the way the card shows it', async () => {
+    mockClientesApi({ 'GET /profile': () => Response.json(profile()) });
+    renderCard();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar' }));
+    const dialog = await screen.findByRole('dialog');
+
+    expect(within(dialog).getByLabelText(/NIT/)).toHaveValue('4521837-6');
+    expect(within(dialog).getByLabelText('DPI')).toHaveValue('2734 51920 0901');
+    expect(within(dialog).getByLabelText('Teléfono')).toHaveValue('5512-3489');
+  });
+
   it('edits the profile and shows the saved data', async () => {
     let sent: unknown;
     mockClientesApi({
@@ -89,7 +101,8 @@ describe('ProfileCard', () => {
     });
     renderCard();
 
-    expect(await screen.findByText('Estamos preparando tu cuenta.')).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent(/preparando tu cuenta/);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument();
   });
 });

@@ -86,7 +86,9 @@ test.describe('account page', () => {
     await expect(page).toHaveURL(/pagina=2/);
     await expect(page.getByText('Recarga 24')).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Boletos' }).last().click();
+    await expect(page.getByRole('combobox', { name: 'Tipo de movimiento' })).toHaveText('Todos');
+    await page.getByRole('combobox', { name: 'Tipo de movimiento' }).click();
+    await page.getByRole('option', { name: 'Boletos' }).click();
     await expect(page).toHaveURL(/tipo=boletos/);
     await expect(page).not.toHaveURL(/pagina=/);
     await expect(page.getByText('Boleto Quetzaltenango - Guatemala')).toBeVisible();
