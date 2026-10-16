@@ -94,3 +94,15 @@ model TicketSeat {
   @@index([ticketId])
   @@map("ticket_seats")
 }
+
+// Copy of the NIT of each client profile (ProfileUpdated). Not unique: a NIT can move from one
+// client to another and their events may arrive out of order, so the newest copy wins.
+model ClientNit {
+  clientId  String   @id @map("client_id") @db.Uuid
+  nit       String?
+  fullName  String   @map("full_name")
+  updatedAt DateTime @map("updated_at") @db.Timestamptz(3)
+
+  @@index([nit])
+  @@map("client_nits")
+}

@@ -56,6 +56,20 @@ describe('events clientes consumes', () => {
     expect(profile.wallet?.balance.toNumber()).toBe(0);
   });
 
+  it('tells ventas the NIT of a new profile once, however many times the event arrives', async () => {
+    const nit = `6${Date.now()}`.slice(0, 12);
+    const payload = registered({
+      profile: { dpi: '2734519200901', phone: '55123489', nit, address: null },
+    });
+
+    await bus.deliver('UserRegistered', payload);
+    await bus.deliver('UserRegistered', payload);
+
+    expect(await profiles.announced(payload.userId)).toEqual([
+      expect.objectContaining({ clientId: payload.userId, nit, fullName: 'Ana Méndez' }),
+    ]);
+  });
+
   it('gives staff a profile with the client fields empty', async () => {
     const payload = registered({ role: 'CASHIER', branchId: randomUUID(), profile: null });
 
@@ -78,6 +92,9 @@ describe('events clientes consumes', () => {
     expect(
       await prisma.clientProfile.findUniqueOrThrow({ where: { userId: payload.userId } }),
     ).toMatchObject({ nit: null });
+    expect(await profiles.announced(payload.userId)).toEqual([
+      expect.objectContaining({ nit: null }),
+    ]);
   });
 
   it('keeps the settings versions and answers the one in force on a date', async () => {

@@ -10,6 +10,7 @@ import {
   Route,
   Settings2,
   Tags,
+  Ticket,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -45,13 +46,18 @@ const SYSTEM_ADMIN: NavGroup[] = [
 ];
 
 const BRANCH_PANEL: NavItem = { label: 'Panel', href: '/sucursal', icon: LayoutGrid };
+const COUNTER: NavItem = { label: 'Ventanilla', href: '/sucursal/ventanilla', icon: Ticket };
 
-const BRANCH_STAFF: NavGroup[] = [{ label: 'Operación', items: [BRANCH_PANEL] }];
+const BRANCH_STAFF: NavGroup[] = [{ label: 'Operación', items: [BRANCH_PANEL, COUNTER] }];
 
 const BRANCH_ADMIN: NavGroup[] = [
   {
     label: 'Operación',
-    items: [BRANCH_PANEL, { label: 'Viajes', href: '/sucursal/viajes', icon: CalendarDays }],
+    items: [
+      BRANCH_PANEL,
+      { label: 'Viajes', href: '/sucursal/viajes', icon: CalendarDays },
+      COUNTER,
+    ],
   },
   {
     label: 'Flota',

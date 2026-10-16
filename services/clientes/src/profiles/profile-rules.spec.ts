@@ -1,4 +1,5 @@
-import { toProfileRow } from './profile-rules';
+import { profileUpdatedPayloadSchema } from '@debus/contracts';
+import { toProfileRow, toProfileUpdated } from './profile-rules';
 
 const base = {
   userId: '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a',
@@ -28,5 +29,24 @@ describe('toProfileRow', () => {
       nit: null,
       address: null,
     });
+  });
+});
+
+describe('toProfileUpdated', () => {
+  it('tells ventas the NIT the profile holds now, as the contract expects', () => {
+    const payload = toProfileUpdated({
+      userId: base.userId,
+      fullName: base.fullName,
+      nit: '45218376',
+      updatedAt: new Date('2026-10-18T15:30:00.000Z'),
+    });
+
+    expect(payload).toEqual({
+      clientId: base.userId,
+      nit: '45218376',
+      fullName: base.fullName,
+      updatedAt: '2026-10-18T15:30:00.000Z',
+    });
+    expect(profileUpdatedPayloadSchema.safeParse(payload).success).toBe(true);
   });
 });

@@ -1,9 +1,11 @@
 import type { ClientProfile, UpdateProfileRequest } from '@debus/contracts';
+import { Outbox, REQUEST_FLUSH } from '@debus/messaging';
 import { isRecordMissing, isUniqueViolation } from '@debus/server';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { ClientProfile as ProfileRow } from '../generated/prisma/client';
 import { MESSAGES } from '../messages';
 import { PrismaService } from '../prisma/prisma.service';
+import { toProfileUpdated } from './profile-rules';
 
 function toProfile(row: ProfileRow): ClientProfile {
   return {
@@ -20,7 +22,10 @@ function toProfile(row: ProfileRow): ClientProfile {
 
 @Injectable()
 export class ProfilesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: Outbox,
+  ) {}
 
   async get(userId: string): Promise<ClientProfile> {
     const row = await this.prisma.clientProfile.findUnique({ where: { userId } });
@@ -29,17 +34,26 @@ export class ProfilesService {
     return toProfile(row);
   }
 
-  async update(userId: string, request: UpdateProfileRequest): Promise<ClientProfile> {
+  async update(
+    userId: string,
+    request: UpdateProfileRequest,
+    correlationId?: string,
+  ): Promise<ClientProfile> {
     try {
-      const row = await this.prisma.clientProfile.update({
-        where: { userId },
-        data: {
-          dpi: request.dpi,
-          phone: request.phone,
-          nit: request.nit ?? null,
-          address: request.address ?? null,
-        },
+      const row = await this.prisma.$transaction(async (tx) => {
+        const saved = await tx.clientProfile.update({
+          where: { userId },
+          data: {
+            dpi: request.dpi,
+            phone: request.phone,
+            nit: request.nit ?? null,
+            address: request.address ?? null,
+          },
+        });
+        await this.outbox.add(tx, 'ProfileUpdated', toProfileUpdated(saved), correlationId);
+        return saved;
       });
+      await this.outbox.flush(REQUEST_FLUSH);
       return toProfile(row);
     } catch (error) {
       if (isUniqueViolation(error)) throw new ConflictException(MESSAGES.nitTaken);

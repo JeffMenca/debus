@@ -31,9 +31,15 @@ export function toTripRow(trip: TripOnSale) {
 }
 
 // A trip is on sale until its scheduled departure; the filters narrow the departure day and text.
-export function onSaleWhere(query: AvailableTripListQuery, now: Date): Prisma.TripWhereInput {
+// A counter only sells the trips leaving from its own branch.
+export function onSaleWhere(
+  query: AvailableTripListQuery,
+  now: Date,
+  branchId?: string,
+): Prisma.TripWhereInput {
   return {
     departureAt: { gt: now, ...guatemalaDayRange(query.from, query.to) },
+    ...(branchId && { branchId }),
     ...(query.q && { searchText: { contains: escapeLikePattern(query.q) } }),
   };
 }

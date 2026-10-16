@@ -43,6 +43,7 @@ const definitions = {
   TicketSold: { publisher: 'ventas', consumers: ['reportes', 'notificaciones', 'clientes'] },
   RefundRequested: { publisher: 'ventas', consumers: ['clientes'] },
   RentalPaid: { publisher: 'clientes', consumers: ['viajes', 'reportes', 'notificaciones'] },
+  ProfileUpdated: { publisher: 'clientes', consumers: ['ventas'] },
   ProbeSent: { publisher: 'gateway', consumers: [...BACKEND_SERVICES], diagnostic: true },
 } satisfies Record<string, EventDefinition>;
 

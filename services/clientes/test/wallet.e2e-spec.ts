@@ -172,5 +172,9 @@ describe('profile and wallet API', () => {
     expect(conflict.body.message).toBe('Ese NIT ya está registrado en otra cuenta.');
     const profile = await request(server()).get('/profile').set(identityHeaders(clientId));
     expect(profile.body.nit).toBe('1234567K');
+    // Only the saved edit reaches ventas; the refused one leaves nothing behind.
+    expect(await profiles.announced(clientId)).toEqual([
+      expect.objectContaining({ clientId, nit: '1234567K' }),
+    ]);
   });
 });

@@ -13,9 +13,9 @@ describe('ProfilesController', () => {
     const body = { dpi: '2734519200901', phone: '55123489' };
 
     expect(await controller.get(actor)).toBe('profile');
-    await controller.update(actor, body);
+    await controller.update(actor, body, 'c-1');
 
     expect(profiles.get).toHaveBeenCalledWith(actor.userId);
-    expect(profiles.update).toHaveBeenCalledWith(actor.userId, body);
+    expect(profiles.update).toHaveBeenCalledWith(actor.userId, body, 'c-1');
   });
 });
