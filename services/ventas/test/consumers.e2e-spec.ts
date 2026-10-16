@@ -3,13 +3,13 @@ import { InMemoryEventBus } from '@debus/messaging';
 import type { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
-import { scheduledTrip, testTrips } from './support/trips';
+import { type TestTrips, scheduledTrip, testTrips } from './support/trips';
 
 describe('events ventas consumes', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let bus: InMemoryEventBus;
-  let trips: ReturnType<typeof testTrips>;
+  let trips: TestTrips;
 
   beforeAll(async () => {
     app = await createTestApp();

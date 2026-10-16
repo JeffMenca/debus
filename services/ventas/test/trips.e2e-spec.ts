@@ -5,12 +5,12 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
-import { inHours, testTrips } from './support/trips';
+import { type TestTrips, inHours, testTrips } from './support/trips';
 
 describe('trips on sale and their seat map', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let trips: ReturnType<typeof testTrips>;
+  let trips: TestTrips;
   // A word only this run's trips carry, so trips of the local stack never get in the way.
   const token = `ruta${Date.now().toString(36)}`;
   const client = identityHeaders(randomUUID(), 'CLIENT');
@@ -69,7 +69,7 @@ describe('trips on sale and their seat map', () => {
   });
 
   it('searches without accents and narrows the departure to whole days', async () => {
-    const departureAt = new Date(Date.now() + 96 * 3_600_000);
+    const departureAt = new Date(inHours(96));
     const day = departureAt.toLocaleDateString('en-CA', { timeZone: 'America/Guatemala' });
     const tripId = await trips.create({ departureAt: departureAt.toISOString() });
     await prisma.trip.update({

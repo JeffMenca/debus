@@ -6,13 +6,13 @@ import {
   SeatReservationsService,
 } from '../src/seats/seat-reservations.service';
 import { createTestApp } from './support/app';
-import { inHours, testTrips } from './support/trips';
+import { type TestTrips, inHours, testTrips } from './support/trips';
 
 describe('reserving seats while others buy the same ones', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let reservations: SeatReservationsService;
-  let trips: ReturnType<typeof testTrips>;
+  let trips: TestTrips;
 
   const reservation = (tripId: string, seats: number[]): SeatReservation => ({
     ticketId: randomUUID(),

@@ -12,19 +12,21 @@ import { MESSAGES } from '../messages';
 import { PrismaService } from '../prisma/prisma.service';
 import { onSaleWhere } from './trip-rules';
 
-const toAvailableTrip = (row: Trip & { _count: { seats: number } }): AvailableTrip => ({
-  tripId: row.tripId,
-  routeId: row.routeId,
-  branchId: row.branchId,
-  originLabel: row.originLabel,
-  destinationLabel: row.destinationLabel,
-  departureAt: row.departureAt.toISOString(),
-  estimatedArrivalAt: row.estimatedArrivalAt.toISOString(),
-  ticketPrice: row.ticketPrice.toNumber(),
-  busPlate: row.busPlate,
-  capacity: row.capacity,
-  freeSeats: row.capacity - row._count.seats,
-});
+function toAvailableTrip(row: Trip & { _count: { seats: number } }): AvailableTrip {
+  return {
+    tripId: row.tripId,
+    routeId: row.routeId,
+    branchId: row.branchId,
+    originLabel: row.originLabel,
+    destinationLabel: row.destinationLabel,
+    departureAt: row.departureAt.toISOString(),
+    estimatedArrivalAt: row.estimatedArrivalAt.toISOString(),
+    ticketPrice: row.ticketPrice.toNumber(),
+    busPlate: row.busPlate,
+    capacity: row.capacity,
+    freeSeats: row.capacity - row._count.seats,
+  };
+}
 
 @Injectable()
 export class TripsService {

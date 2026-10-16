@@ -2,12 +2,12 @@ import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
-import { testTrips } from './support/trips';
+import { type TestTrips, testTrips } from './support/trips';
 
 describe('the ventas schema', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let trips: ReturnType<typeof testTrips>;
+  let trips: TestTrips;
 
   const ticket = (tripId: string) =>
     prisma.ticket.create({

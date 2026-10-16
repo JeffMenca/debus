@@ -16,6 +16,8 @@ export const scheduledTrip = (over: Partial<typeof exampleTripScheduled> = {}) =
   ...over,
 });
 
+export type TestTrips = ReturnType<typeof testTrips>;
+
 // Every trip a test creates is remembered here and removed with its tickets and seats.
 export function testTrips(prisma: PrismaService) {
   const created: string[] = [];
