@@ -7,12 +7,16 @@ import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
+import { SeatsModule } from './seats/seats.module';
+import { TripsModule } from './trips/trips.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule.forRoot({ pinoHttp: httpLoggerOptions() }),
     HealthModule,
+    SeatsModule,
+    TripsModule,
     PrismaModule,
     MessagingModule.forRoot({
       service: 'ventas',
