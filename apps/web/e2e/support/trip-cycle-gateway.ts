@@ -172,6 +172,7 @@ export function createTripCycle(fleet: TripsFleet, trips: Trip[], seed: TripCycl
         departure: { ...parsed.data, recordedByRole: actingAs.role },
       });
       trip.status = 'IN_TRANSIT';
+      trip.departedAt = parsed.data.departedAt;
       return reply(201, detailOf(trip));
     },
 
@@ -284,6 +285,7 @@ export function createTripCycle(fleet: TripsFleet, trips: Trip[], seed: TripCycl
         estimatedArrivalAt: input.estimatedArrivalAt,
         ticketPrice: null,
         capacity: bus.capacity,
+        departedAt: null,
       };
       trips.push(created);
       Object.assign(rental, { status: 'ASSIGNED', tripId: created.id });

@@ -13,12 +13,15 @@ const TEST_NAME = '{{testBranchPrefix}}Postman {{runId}}';
 // the copy another service needs may be a few seconds away.
 const PENDING =
   'Estamos terminando de registrar|Elige otra sucursal|Aún no tenemos|Aún no hay monto|Elige una ruta activa|No encontramos ese bus|Tu sucursal no está activa';
+// flota learns that a trip ended or was deleted through events too, so a bus or driver whose last
+// trip just finished may still look busy for a moment.
+const TRIPS_CLOSING = 'tiene viajes programados o en camino';
 const MAX_ATTEMPTS = 25;
 const WAIT_MS = 2000;
 
-function tryAgainWhilePending(checks: string[]): string[] {
+function tryAgainWhilePending(checks: string[], pendingPattern = PENDING): string[] {
   return [
-    `var pending = /${PENDING}/;`,
+    `var pending = /${pendingPattern}/;`,
     "var attemptsKey = 'retry ' + pm.info.requestName;",
     'var attempts = Number(pm.collectionVariables.get(attemptsKey) || 0);',
     `if (pm.response.code === 409 && pending.test(pm.response.text()) && attempts < ${MAX_ATTEMPTS}) {`,
@@ -472,14 +475,17 @@ const STEPS: Step[] = [
     'testRepairExpenseId',
     'test',
   ),
-  act(
-    'Desactivar el bus de prueba',
-    'POST',
-    '/api/flota/buses/:id/deactivate',
-    'testBusId',
-    'test',
-    204,
-  ),
+  {
+    ...act(
+      'Desactivar el bus de prueba',
+      'POST',
+      '/api/flota/buses/:id/deactivate',
+      'testBusId',
+      'test',
+      204,
+    ),
+    test: tryAgainWhilePending(status(204), TRIPS_CLOSING),
+  },
   act(
     'Reactivar el bus de prueba',
     'POST',
@@ -488,14 +494,17 @@ const STEPS: Step[] = [
     'test',
     204,
   ),
-  act(
-    'Desactivar el chofer de prueba',
-    'POST',
-    '/api/flota/drivers/:id/deactivate',
-    'testDriverId',
-    'test',
-    204,
-  ),
+  {
+    ...act(
+      'Desactivar el chofer de prueba',
+      'POST',
+      '/api/flota/drivers/:id/deactivate',
+      'testDriverId',
+      'test',
+      204,
+    ),
+    test: tryAgainWhilePending(status(204), TRIPS_CLOSING),
+  },
   act(
     'Reactivar el chofer de prueba',
     'POST',

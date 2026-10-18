@@ -5,6 +5,7 @@ import {
   tripDeletedPayloadSchema,
   tripDepartedPayloadSchema,
   tripDetailSchema,
+  tripPageSchema,
   todayInGuatemala,
 } from '@debus/contracts';
 import { FakeServiceClient, identityHeaders, ServiceHttpClient } from '@debus/server';
@@ -204,6 +205,22 @@ describe('trip cycle', () => {
       expect(await prisma.tripDeparture.count({ where: { tripId } })).toBe(1);
       expect(await prisma.tripArrival.count({ where: { tripId } })).toBe(1);
     });
+  });
+
+  it('lists a trip on the road with its real departure, not only the scheduled one', async () => {
+    const { tripId } = await scheduleTrip();
+    const departedAt = minutesAgo(30);
+    await http()
+      .post(`/trips/${tripId}/departure`)
+      .set(admin())
+      .send({ departedAt, startMileageKm: 1000 })
+      .expect(201);
+
+    const list = tripPageSchema.parse(
+      (await http().get('/trips?status=IN_TRANSIT&pageSize=100').set(admin()).expect(200)).body,
+    );
+
+    expect(list.items.find((trip) => trip.id === tripId)?.departedAt).toBe(departedAt);
   });
 
   it('lets exactly one of ten simultaneous departures win', async () => {

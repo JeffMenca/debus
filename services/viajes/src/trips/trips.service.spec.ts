@@ -432,6 +432,7 @@ describe('TripsService.list and get', () => {
           lt: new Date('2999-10-21T06:00:00.000Z'),
         },
       },
+      include: { departure: { select: { departedAt: true } } },
       orderBy: [{ departureAt: 'asc' }, { id: 'asc' }],
       skip: 10,
       take: 10,

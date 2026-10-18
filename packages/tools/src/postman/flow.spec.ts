@@ -591,6 +591,49 @@ describe('FLOW', () => {
       });
     });
 
+    describe('while flota has not heard that the trips ended', () => {
+      const STILL_BUSY =
+        'Este bus tiene viajes programados o en camino. Podrás desactivarlo cuando terminen o se eliminen.';
+
+      it.each(['Desactivar el bus de prueba', 'Desactivar el chofer de prueba'])(
+        '%s tries again, without failing, and gives up after 25 attempts',
+        (name) => {
+          const step = stepNamed(name);
+          const waiting = sandbox(
+            { message: STILL_BUSY },
+            { status: 409, text: JSON.stringify({ message: STILL_BUSY }), requestName: name },
+          );
+          waiting.run(execOf(step, 'test'));
+          expect(waiting.nextRequests).toEqual([name]);
+          expect(waiting.failed()).toEqual([]);
+          const tired = sandbox(
+            { message: STILL_BUSY },
+            {
+              status: 409,
+              text: STILL_BUSY,
+              requestName: name,
+              variables: { [`retry ${name}`]: 25 },
+            },
+          );
+          tired.run(execOf(step, 'test'));
+          expect(tired.nextRequests).toEqual([]);
+          expect(tired.failed()).not.toHaveLength(0);
+          const done = sandbox(null, { status: 204, requestName: name });
+          done.run(execOf(step, 'test'));
+          expect(done.failed()).toEqual([]);
+        },
+      );
+
+      it('does not wait for that when it schedules a trip', () => {
+        const busy = sandbox(
+          { message: STILL_BUSY },
+          { status: 409, text: STILL_BUSY, requestName: 'x' },
+        );
+        busy.run(execOf(stepNamed('Programar un viaje de prueba'), 'test'));
+        expect(busy.nextRequests).toEqual([]);
+      });
+    });
+
     it('asks for the departure and arrival times when it sends them', () => {
       const trip = sandbox(null, {});
       trip.run(execOf(stepNamed('Programar un viaje de prueba'), 'prerequest'));

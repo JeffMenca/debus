@@ -43,6 +43,8 @@ export const tripSchema = z.object({
   estimatedArrivalAt: z.iso.datetime(),
   ticketPrice: z.number().nullable(),
   capacity: z.number().int().positive(),
+  // The real departure recorded when the bus left; null while it has not.
+  departedAt: z.iso.datetime().nullable(),
 });
 export type Trip = z.infer<typeof tripSchema>;
 

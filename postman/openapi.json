@@ -4288,6 +4288,109 @@
         ]
       }
     },
+    "/api/ventas/trips": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.",
+        "operationId": "ventas_TripsController_list",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "ventas · trips"
+        ]
+      }
+    },
+    "/api/ventas/trips/{tripId}/seats": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.",
+        "operationId": "ventas_TripsController_seatMap",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "ventas · trips"
+        ]
+      }
+    },
     "/api/ventas/dead-letters": {
       "get": {
         "description": "Allowed roles: SYSTEM_ADMIN.",

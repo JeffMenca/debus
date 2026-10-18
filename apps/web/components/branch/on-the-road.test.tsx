@@ -81,6 +81,30 @@ it('marks how far along the road each bus is', () => {
   );
 });
 
+it('shows the real departure hour and measures the road from it, not from the schedule', () => {
+  setup({
+    items: [
+      trip({
+        id: 'c',
+        status: 'IN_TRANSIT',
+        destinationName: 'Cobán',
+        busPlate: 'C900ABC',
+        // Scheduled for 14:00 in Guatemala, but it left at 05:00
+        departureAt: '2026-10-20T20:00:00.000Z',
+        departedAt: '2026-10-20T11:00:00.000Z',
+        estimatedArrivalAt: '2026-10-20T21:00:00.000Z',
+      }),
+    ],
+  });
+
+  expect(screen.getByRole('listitem', { name: /Cobán/ })).toHaveTextContent('salió 05:00');
+  // 13:00 UTC is 2 of the 10 hours between the real departure and the estimated arrival
+  expect(screen.getByRole('progressbar', { name: 'Avance de C-900ABC' })).toHaveAttribute(
+    'aria-valuenow',
+    '20',
+  );
+});
+
 it('calls a rental by its name', () => {
   setup();
 
