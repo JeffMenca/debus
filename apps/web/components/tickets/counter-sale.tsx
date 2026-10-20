@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { messageOf } from '@/lib/api/client';
 import { formatQuetzales } from '@/lib/format';
-import { useCounterSale, useSeatMap } from '@/lib/tickets/counter-api';
+import { useCounterSale } from '@/lib/tickets/counter-api';
 import {
   type BuyerForm,
   type BuyerProblems,
@@ -24,8 +24,9 @@ import {
   toCounterSaleRequest,
   toggleSeat,
 } from '@/lib/tickets/counter-sale';
+import { useSeatMap } from '@/lib/tickets/trips-api';
 import { CounterReceipt } from './counter-receipt';
-import { CounterTripCard } from './counter-trip-card';
+import { TripTicketCard } from './trip-ticket-card';
 
 interface CounterSaleProps {
   tripId: string;
@@ -111,7 +112,7 @@ export function CounterSale({ tripId, today = todayInGuatemala(), onBack }: Coun
           </section>
 
           <aside className="flex flex-col gap-4 lg:sticky lg:top-4">
-            <CounterTripCard trip={map.data} />
+            <TripTicketCard trip={map.data} />
             <form
               noValidate
               onSubmit={submit}

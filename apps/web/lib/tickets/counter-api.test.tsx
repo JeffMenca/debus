@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { queryWrapper } from '../../test-support/query-wrapper';
-import { availableTrip, availableTripPage, seatMap, soldTicket } from '../../test-support/tickets';
-import { useCounterSale, useCounterTrips, useSeatMap } from './counter-api';
+import { availableTrip, availableTripPage, soldTicket } from '../../test-support/tickets';
+import { useCounterSale, useCounterTrips } from './counter-api';
 
 const API = 'http://localhost:4000/api/ventas';
 const KEY = '3f2e4d1c-8b0a-4f8e-9d6c-5b4a3f2e4d1c';
@@ -26,17 +26,6 @@ describe('useCounterTrips', () => {
   });
 });
 
-describe('useSeatMap', () => {
-  it('reads the seats of the trip', async () => {
-    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(Response.json(seatMap()));
-    const { wrapper } = queryWrapper();
-    const { result } = renderHook(() => useSeatMap('trip-1'), { wrapper });
-
-    await waitFor(() => expect(result.current.data).toEqual(seatMap()));
-    expect(fetchMock).toHaveBeenCalledWith(`${API}/trips/trip-1/seats`, expect.anything());
-  });
-});
-
 describe('useCounterSale', () => {
   const request = { tripId: 'trip-1', seats: [9, 10], paidOn: '2026-10-18', nit: 'CF' };
 
@@ -57,6 +46,7 @@ describe('useCounterSale', () => {
     expect(init).toMatchObject({ method: 'POST', body: JSON.stringify(request) });
     expect((init!.headers as Record<string, string>)['idempotency-key']).toBe(KEY);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['counter'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['on-sale'] });
   });
 
   it('keeps the seats as they are when the answer never arrived, so the retry sends the same sale', async () => {
@@ -85,5 +75,6 @@ describe('useCounterSale', () => {
     });
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['counter'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['on-sale'] });
   });
 });
