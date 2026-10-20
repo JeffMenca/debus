@@ -91,7 +91,8 @@ test.describe('counter', () => {
     await sellRow(page, 'Guatemala').click();
     await page.getByRole('button', { name: 'Asiento 8', exact: true }).click();
     await page.getByRole('button', { name: /Cobrar Q\s?85\.00/ }).click();
-    await expect(page.getByRole('alert')).toBeVisible();
+    // Next adds its own role="alert" (the route announcer) outside main.
+    await expect(page.getByRole('main').getByRole('alert')).toBeVisible();
     await page.getByRole('button', { name: /Cobrar Q\s?85\.00/ }).click();
 
     await expect(page.getByRole('heading', { name: 'Boleto vendido' })).toBeVisible();
