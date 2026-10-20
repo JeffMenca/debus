@@ -47,7 +47,8 @@ const MESSAGES = {
   driverNotFound: 'No encontramos ese chofer en tu sucursal.',
   driverInactive: 'Ese chofer está desactivado.',
   driverBusy: 'Ese chofer ya tiene un viaje en ese horario.',
-  upstream: 'El servicio no respondió. Intenta de nuevo en unos segundos.',
+  fleetUnavailable:
+    'No pudimos revisar si el bus y el chofer están libres. No se guardó nada; intenta de nuevo en unos segundos.',
   notFound: 'No encontramos ese viaje.',
 } as const;
 
@@ -123,7 +124,7 @@ export async function mockTripsGateway(page: Page, fleet: TripsFleet, seed: Trip
       const driver = fleet.drivers.find((item) => item.id === input.driverId);
       if (!driver) return error(route, 409, MESSAGES.driverNotFound);
       if (!driver.active) return error(route, 409, MESSAGES.driverInactive);
-      if (seed.fleetDown) return error(route, 503, MESSAGES.upstream);
+      if (seed.fleetDown) return error(route, 503, MESSAGES.fleetUnavailable);
       const live = trips.filter((trip) => trip.status !== 'COMPLETED');
       if (live.some((trip) => trip.busId === bus.id && overlaps(trip, input))) {
         return error(route, 409, MESSAGES.busBusy);
@@ -147,6 +148,7 @@ export async function mockTripsGateway(page: Page, fleet: TripsFleet, seed: Trip
         estimatedArrivalAt: input.estimatedArrivalAt,
         ticketPrice: planned.ticketPrice,
         capacity: bus.capacity,
+        departedAt: null,
       };
       trips.push(created);
       return fulfillJson(route, 201, created);
@@ -178,5 +180,6 @@ export const sampleTrip = (overrides: Partial<Trip> = {}): Trip => ({
   estimatedArrivalAt: instantAt(1, '14:30'),
   ticketPrice: 85,
   capacity: 40,
+  departedAt: null,
   ...overrides,
 });

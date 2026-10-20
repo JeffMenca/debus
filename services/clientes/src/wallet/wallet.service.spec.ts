@@ -26,6 +26,7 @@ const movementRow = (over: Record<string, unknown> = {}) => ({
   createdAt: updatedAt,
   ...over,
 });
+const email = 'ana.lopez@debus.test';
 const prismaError = (code: string) => Object.assign(new Error(code), { code });
 const debit = {
   clientId,
@@ -51,6 +52,7 @@ function setup() {
   const prisma = {
     $transaction: jest.fn(async (work: (client: typeof tx) => unknown) => work(tx)),
     wallet: { findUnique: jest.fn().mockResolvedValue(wallet(100)) },
+    clientProfile: { findUnique: jest.fn().mockResolvedValue({ email }) },
     walletMovement: {
       findUnique: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
@@ -148,6 +150,7 @@ describe('WalletService', () => {
     expect(await service.debit(ticketId, debit)).toEqual({
       movementId: 'b1a2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
       balance: 70,
+      email,
     });
   });
 
@@ -178,7 +181,83 @@ describe('WalletService', () => {
         balanceAfter: new Prisma.Decimal(70),
       }),
     });
-    expect(result).toEqual({ movementId: expect.any(String), balance: 70 });
+    expect(result).toEqual({ movementId: expect.any(String), balance: 70, email });
+  });
+
+  it('answers a new debit with the email of the profile of the client', async () => {
+    const { prisma, service } = setup();
+
+    const result = await service.debit(ticketId, debit);
+
+    expect(prisma.clientProfile.findUnique).toHaveBeenCalledWith({
+      where: { userId: clientId },
+      select: { email: true },
+    });
+    expect(result.email).toBe(email);
+  });
+
+  it('answers a repeated debit with the same email', async () => {
+    const { tx, service } = setup();
+    tx.walletMovement.findUnique.mockResolvedValue(
+      movementRow({
+        kind: 'TICKET',
+        amount: new Prisma.Decimal(-30),
+        balanceAfter: new Prisma.Decimal(70),
+        reference: ticketId,
+        idempotencyKey: ticketId,
+        fingerprint: `TICKET|3000|2026-10-14|${ticketId}`,
+      }),
+    );
+
+    const result = await service.debit(ticketId, debit);
+
+    expect(result).toMatchObject({ balance: 70, email });
+    expect(tx.wallet.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses a new debit after its payBy without touching the balance', async () => {
+    const { tx, service } = setup();
+
+    const error = await service
+      .debit(ticketId, { ...debit, payBy: '2020-01-01T00:00:00.000Z' })
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(UnprocessableEntityException);
+    expect(error).toMatchObject({ message: 'Se terminó el tiempo para pagar esta compra.' });
+    expect(tx.wallet.updateMany).not.toHaveBeenCalled();
+    expect(tx.walletMovement.create).not.toHaveBeenCalled();
+  });
+
+  it('answers a debit already applied with the same movement even after its payBy', async () => {
+    const { tx, service } = setup();
+    tx.walletMovement.findUnique.mockResolvedValue(
+      movementRow({
+        kind: 'TICKET',
+        amount: new Prisma.Decimal(-30),
+        balanceAfter: new Prisma.Decimal(70),
+        reference: ticketId,
+        idempotencyKey: ticketId,
+        fingerprint: `TICKET|3000|2026-10-14|${ticketId}`,
+      }),
+    );
+
+    const result = await service.debit(ticketId, { ...debit, payBy: '2020-01-01T00:00:00.000Z' });
+
+    expect(result).toMatchObject({
+      movementId: 'b1a2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+      balance: 70,
+    });
+  });
+
+  it('applies a debit whose payBy has not arrived, and keeps it out of the fingerprint', async () => {
+    const { tx, service } = setup();
+    tx.wallet.findUniqueOrThrow.mockResolvedValue(wallet(70));
+
+    await service.debit(ticketId, { ...debit, payBy: '2999-01-01T00:00:00.000Z' });
+
+    expect(tx.walletMovement.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ fingerprint: `TICKET|3000|2026-10-14|${ticketId}` }),
+    });
   });
 
   it('refuses a debit the balance does not cover, or without a wallet', async () => {

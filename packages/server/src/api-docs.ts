@@ -1,5 +1,6 @@
 import { HttpCode, applyDecorators } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
+import { z } from 'zod';
 
 const DESCRIPTIONS = {
   400: 'Invalid data or invalid link.',
@@ -8,6 +9,7 @@ const DESCRIPTIONS = {
   404: 'The requested resource does not exist.',
   409: 'Conflict with the current state: it already exists, was already used or cannot be changed.',
   410: 'The link has expired.',
+  422: 'The request was understood but cannot be carried out in the current state.',
   423: 'Account temporarily locked after failed attempts.',
   429: 'Too many emails sent to this account in the last hour.',
   502: 'Another service answered with an error.',
@@ -33,6 +35,33 @@ export type DocumentedSuccess = keyof typeof SUCCESS;
 
 // Sets the status the route answers and documents it in one place, so both never disagree. Nest
 // only documents the success response when no other response is declared, so it is declared too.
-export function apiSuccess(status: DocumentedSuccess): MethodDecorator {
-  return applyDecorators(HttpCode(status), ApiResponse({ status, description: SUCCESS[status] }));
+// With a schema, the shape of the answer is documented as well.
+export function apiSuccess(status: DocumentedSuccess, schema?: z.ZodType): MethodDecorator {
+  return applyDecorators(
+    HttpCode(status),
+    ApiResponse({
+      status,
+      description: SUCCESS[status],
+      ...(schema && {
+        schema: z.toJSONSchema(schema, { io: 'output' }) as Record<string, unknown>,
+      }),
+    }),
+  );
+}
+
+// Documents another success status that a route may answer with, next to the one it sets by default.
+export function apiAlsoSuccess(
+  status: DocumentedSuccess,
+  description: string,
+  schema?: z.ZodType,
+): MethodDecorator {
+  return applyDecorators(
+    ApiResponse({
+      status,
+      description,
+      ...(schema && {
+        schema: z.toJSONSchema(schema, { io: 'output' }) as Record<string, unknown>,
+      }),
+    }),
+  );
 }

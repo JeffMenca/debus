@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { MOCKED_API_URL } from './e2e/support/mocked-api';
 
 const port = Number(process.env.PORT ?? 3100);
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${port}`;
@@ -25,6 +26,8 @@ export default defineConfig({
     : {
         command: `pnpm build && pnpm start --port ${port}`,
         url: `${baseURL}/api/health`,
+        // next start keeps a variable the process already has over apps/web/.env.
+        env: process.env.E2E_REAL_API ? {} : { API_URL: MOCKED_API_URL },
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
       },

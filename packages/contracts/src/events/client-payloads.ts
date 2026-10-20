@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { fullNameSchema } from '../api/auth';
 import { distanceKmSchema } from '../api/fleet';
 import { moneySchema } from '../api/settings';
 import { isLaterInstant, isoDateSchema } from '../dates';
@@ -26,3 +27,13 @@ export const rentalPaidPayloadSchema = z
     message: 'return must be after departure',
   });
 export type RentalPaidPayload = z.infer<typeof rentalPaidPayloadSchema>;
+
+// clientes publishes it when a profile is created or edited; ventas links the counter sales made
+// with that NIT to the client. The NIT is normalized and null when the profile has none.
+export const profileUpdatedPayloadSchema = z.object({
+  clientId: z.uuid(),
+  nit: z.string().min(1).max(20).nullable(),
+  fullName: fullNameSchema,
+  updatedAt: z.iso.datetime(),
+});
+export type ProfileUpdatedPayload = z.infer<typeof profileUpdatedPayloadSchema>;

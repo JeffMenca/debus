@@ -6,6 +6,8 @@ import {
   type BranchWithAdmins,
   type BranchWithAdminsPage,
   type CreateBranchRequest,
+  type PageQuery,
+  type PublicBranchLocationPage,
   type UpdateBranchRequest,
   pageArgs,
   toPage,
@@ -22,7 +24,13 @@ import { MESSAGES } from '../accounts/messages';
 import { AdminEvents } from '../common/admin-events';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { WITH_ADMINS, toBranch, toBranchPayload, toBranchWithAdmins } from './branch-mappers';
+import {
+  WITH_ADMINS,
+  toBranch,
+  toBranchPayload,
+  toBranchWithAdmins,
+  toPublicLocation,
+} from './branch-mappers';
 import { canViewBranch } from './branch-rules';
 import { branchCountWhere, branchListWhere, toBranchStatusCounts } from './branch-scope';
 
@@ -68,6 +76,16 @@ export class BranchesService {
       ...toPage(rows.map(toBranchWithAdmins), total, query),
       summary: { statusCounts: toBranchStatusCounts(byActive) },
     };
+  }
+
+  // Open to visitors without a session: only the active branches and only where they are.
+  async locations(query: PageQuery): Promise<PublicBranchLocationPage> {
+    const where = { active: true };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.branch.findMany({ where, orderBy: BY_NAME, ...pageArgs(query) }),
+      this.prisma.branch.count({ where }),
+    ]);
+    return toPage(rows.map(toPublicLocation), total, query);
   }
 
   async get(actor: Identity, id: string): Promise<Branch> {

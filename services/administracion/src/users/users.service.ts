@@ -34,6 +34,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { toStatusCounts } from './user-counts';
 import { userCountWhere, userListWhere } from './user-scope';
 
+const BRANCH_LOCK_ATTEMPTS = 3;
+
 export function toManagedUser(user: User): ManagedUser {
   return {
     id: user.id,
@@ -212,16 +214,25 @@ export class UsersService {
   private async lockPeers(tx: Prisma.TransactionClient, user: User): Promise<User> {
     if (user.role === 'SYSTEM_ADMIN') {
       await lockActiveSystemAdmins(tx);
-    } else if (user.role === 'BRANCH_ADMIN' && user.branchId) {
-      await lockBranchAdmins(tx, user.branchId);
-    } else {
-      return user;
+      const current = await tx.user.findUniqueOrThrow({
+        where: { id: user.id },
+        select: { status: true },
+      });
+      return { ...user, ...current };
     }
-    const current = await tx.user.findUniqueOrThrow({
-      where: { id: user.id },
-      select: { status: true, branchId: true },
-    });
-    return { ...user, ...current };
+    if (user.role !== 'BRANCH_ADMIN' || !user.branchId) return user;
+    // The branch read before the lock may be stale: lock again until the row and the lock agree.
+    let branchId: string | null = user.branchId;
+    for (let attempt = 0; attempt < BRANCH_LOCK_ATTEMPTS && branchId; attempt++) {
+      await lockBranchAdmins(tx, branchId);
+      const current = await tx.user.findUniqueOrThrow({
+        where: { id: user.id },
+        select: { status: true, branchId: true },
+      });
+      if (current.branchId === branchId) return { ...user, ...current };
+      branchId = current.branchId;
+    }
+    throw new ConflictException(MESSAGES.busy);
   }
 
   private async assertKeepsBranchAdmin(tx: Prisma.TransactionClient, user: User): Promise<void> {

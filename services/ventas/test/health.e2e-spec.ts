@@ -20,7 +20,11 @@ describe('GET /health', () => {
     const response = await request(app.getHttpServer()).get('/health');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ status: 'ok', service: 'ventas' });
+    expect(response.body).toEqual({
+      status: 'ok',
+      service: 'ventas',
+      circuits: expect.any(Array),
+    });
   });
 
   it('answers unknown routes with the shared error shape and the correlation id', async () => {

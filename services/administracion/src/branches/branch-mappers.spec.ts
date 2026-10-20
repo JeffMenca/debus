@@ -1,5 +1,5 @@
 import { Prisma } from '../generated/prisma/client';
-import { toBranch, toBranchPayload, toBranchWithAdmins } from './branch-mappers';
+import { toBranch, toBranchPayload, toBranchWithAdmins, toPublicLocation } from './branch-mappers';
 
 const row = {
   id: '9b2c7a10-1111-4c4c-8888-123456789abc',
@@ -65,5 +65,23 @@ describe('branch mappers', () => {
       latitude: 14.8347,
       active: true,
     });
+  });
+});
+
+describe('toPublicLocation', () => {
+  it('keeps only the name, the town and the coordinates of the branch', () => {
+    const location = toPublicLocation({ ...row, users: [{ email: 'luis@correo.com' }] } as never);
+
+    expect(location).toEqual({
+      id: row.id,
+      name: 'Quetzaltenango',
+      municipality: 'Quetzaltenango',
+      department: 'Quetzaltenango',
+      latitude: 14.8347,
+      longitude: -91.5181,
+    });
+    expect(Object.keys(location)).not.toEqual(
+      expect.arrayContaining(['phone', 'address', 'code', 'admins']),
+    );
   });
 });

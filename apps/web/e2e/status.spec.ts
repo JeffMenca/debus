@@ -17,12 +17,24 @@ const units = [
 ];
 const backends = units.slice(1);
 
-async function mockGateway(page: Page) {
+type Circuit = {
+  target: string;
+  state: 'closed' | 'open' | 'half-open';
+  failures: number;
+  retryAt: string | null;
+};
+
+async function mockGateway(page: Page, circuits: Record<string, Circuit[]> = {}) {
   await page.route('**/api/system/status', (route) =>
     fulfillJson(route, 200, {
       environment: 'local',
       checkedAt: new Date().toISOString(),
-      units: units.map((unit) => ({ unit, status: 'up', latencyMs: 12 })),
+      units: units.map((unit) => ({
+        unit,
+        status: 'up',
+        latencyMs: 12,
+        ...(circuits[unit] && { circuits: circuits[unit] }),
+      })),
     }),
   );
   await page.route('**/api/system/probes', (route) => fulfillJson(route, 202, { probeId }));
@@ -47,6 +59,51 @@ test('shows every service online and the probe delivered (mocked gateway)', asyn
   await expect(page.getByText('En línea')).toHaveCount(8);
   await page.getByRole('button', { name: 'Enviar aviso de prueba' }).click();
   await expect(page.getByText('Recibido')).toHaveCount(7);
+  await expectNoHorizontalScroll(page);
+});
+
+test('shows which connection between services is paused and until when (mocked gateway)', async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(realApi, 'runs only without a real gateway');
+  await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+  await mockGateway(page, {
+    ventas: [
+      { target: 'clientes', state: 'open', failures: 5, retryAt: '2026-10-19T16:32:05.000Z' },
+      { target: 'viajes', state: 'closed', failures: 0, retryAt: null },
+    ],
+  });
+  await page.goto('/admin/estado');
+
+  const ventas = page.getByRole('listitem').filter({ hasText: 'Conexión con Clientes' }).first();
+  await expect(ventas.getByText('Conexión con Clientes')).toBeVisible();
+  await expect(ventas.getByText('En pausa hasta 10:32:05')).toBeVisible();
+  await expect(ventas.getByText('Conexión con Viajes')).toBeVisible();
+  await expect(ventas.getByText('Normal')).toBeVisible();
+  await expect(page.getByText(/Conexión con/)).toHaveCount(2);
+  await expectNoHorizontalScroll(page);
+});
+
+test('a connection that is being tested pulses unless the person asked for less motion (mocked gateway)', async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(realApi, 'runs only without a real gateway');
+  await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+  await mockGateway(page, {
+    ventas: [
+      { target: 'clientes', state: 'half-open', failures: 5, retryAt: '2026-10-19T16:32:05.000Z' },
+    ],
+  });
+  const dot = () => page.getByText('Probando de nuevo').locator('span').first();
+
+  await page.goto('/admin/estado');
+  await expect(page.getByText('Probando de nuevo')).toBeVisible();
+  await expect(dot()).not.toHaveCSS('animation-name', 'none');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(dot()).toHaveCSS('animation-name', 'none');
   await expectNoHorizontalScroll(page);
 });
 

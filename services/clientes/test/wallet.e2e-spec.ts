@@ -28,6 +28,17 @@ describe('profile and wallet API', () => {
       occurredOn: '2026-10-14',
     });
 
+  const debitBy = (clientId: string, amount: number, reference: string, payBy: string) =>
+    request(server()).post(WALLET_DEBIT_PATH).set('idempotency-key', reference).send({
+      clientId,
+      amount,
+      kind: 'TICKET',
+      reference,
+      description: 'Boleto de prueba',
+      occurredOn: '2026-10-14',
+      payBy,
+    });
+
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
@@ -105,6 +116,50 @@ describe('profile and wallet API', () => {
     expect(await prisma.walletMovement.count({ where: { clientId } })).toBe(1);
   });
 
+  it('answers a debit with the email of the client, the first time and when it is repeated', async () => {
+    const clientId = await profiles.create({ balance: 100 });
+    const { email } = await prisma.clientProfile.findUniqueOrThrow({ where: { userId: clientId } });
+    const ticketId = randomUUID();
+
+    const first = await debit(clientId, 30, ticketId).expect(200);
+    const again = await debit(clientId, 30, ticketId).expect(200);
+
+    expect(first.body).toMatchObject({ balance: 70, email });
+    expect(again.body).toEqual(first.body);
+  });
+
+  it('refuses a new debit after its payBy and leaves the balance as it was', async () => {
+    const clientId = await profiles.create({ balance: 100 });
+    const reference = randomUUID();
+
+    const response = await debitBy(clientId, 30, reference, '2020-01-01T00:00:00.000Z').expect(422);
+
+    expect(response.body.message).toBe('Se terminó el tiempo para pagar esta compra.');
+    const wallet = await prisma.wallet.findUniqueOrThrow({ where: { clientId } });
+    expect(wallet.balance.toNumber()).toBe(100);
+    expect(await prisma.walletMovement.count({ where: { clientId } })).toBe(0);
+  });
+
+  it('answers a debit that was applied in time again after its payBy, with one movement', async () => {
+    const clientId = await profiles.create({ balance: 100 });
+    const { email } = await prisma.clientProfile.findUniqueOrThrow({ where: { userId: clientId } });
+    const reference = randomUUID();
+    const soon = new Date(Date.now() + 60_000).toISOString();
+    const first = await debitBy(clientId, 30, reference, soon).expect(200);
+
+    const late = await debitBy(clientId, 30, reference, '2020-01-01T00:00:00.000Z').expect(200);
+
+    expect(late.body).toEqual(first.body);
+    expect(late.body.email).toBe(email);
+    expect(await prisma.walletMovement.count({ where: { clientId } })).toBe(1);
+  });
+
+  it('refuses a payBy that is not an ISO date and time', async () => {
+    const clientId = await profiles.create({ balance: 100 });
+
+    await debitBy(clientId, 30, randomUUID(), 'tomorrow').expect(400);
+  });
+
   it('refuses a debit whose key is not the reference it pays, or for nobody', async () => {
     const clientId = await profiles.create({ balance: 100 });
 
@@ -172,5 +227,9 @@ describe('profile and wallet API', () => {
     expect(conflict.body.message).toBe('Ese NIT ya está registrado en otra cuenta.');
     const profile = await request(server()).get('/profile').set(identityHeaders(clientId));
     expect(profile.body.nit).toBe('1234567K');
+    // Only the saved edit reaches ventas; the refused one leaves nothing behind.
+    expect(await profiles.announced(clientId)).toEqual([
+      expect.objectContaining({ clientId, nit: '1234567K' }),
+    ]);
   });
 });

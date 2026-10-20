@@ -1,8 +1,10 @@
 import {
   BACKEND_SERVICES,
   type BackendService,
+  type ServiceHealth,
   type SystemStatus,
   type UnitHealth,
+  serviceHealthSchema,
 } from '@debus/contracts';
 import { Injectable } from '@nestjs/common';
 import { GatewayConfig } from '../config/gateway-config';
@@ -28,10 +30,20 @@ export class SystemStatusService {
 
   private async health(service: BackendService, correlationId: string): Promise<UnitHealth> {
     const started = Date.now();
-    const up = await this.client
-      .get(service, '/health', correlationId)
-      .then((response) => response.ok)
-      .catch(() => false);
-    return { unit: service, status: up ? 'up' : 'down', latencyMs: Date.now() - started };
+    const response = await this.client.get(service, '/health', correlationId).catch(() => null);
+    const circuits = response?.ok ? await this.circuitsOf(response) : undefined;
+    return {
+      unit: service,
+      status: response?.ok ? 'up' : 'down',
+      latencyMs: Date.now() - started,
+      ...(circuits && { circuits }),
+    };
+  }
+
+  // A revision that does not report circuits yet, or a body that is not JSON, only loses the connections.
+  private async circuitsOf(response: Response): Promise<ServiceHealth['circuits'] | undefined> {
+    const body: unknown = await response.json().catch(() => null);
+    const parsed = serviceHealthSchema.safeParse(body);
+    return parsed.success ? parsed.data.circuits : undefined;
   }
 }

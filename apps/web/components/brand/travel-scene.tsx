@@ -41,11 +41,17 @@ interface TravelSceneProps {
   className?: string;
   // Shown on the right of the logo row, e.g. the sign-in links of the home page.
   actions?: ReactNode;
+  // The logo row is the banner of the page: the scene is then a plain block, because a header
+  // inside a section is not a banner.
+  header?: boolean;
 }
 
-export function TravelScene({ className, actions }: TravelSceneProps) {
+export function TravelScene({ className, actions, header = false }: TravelSceneProps) {
+  const Root = header ? 'div' : 'section';
+  const Bar = header ? 'header' : 'div';
   return (
-    <section
+    <Root
+      data-testid={header ? 'hero' : undefined}
       className={cn(
         'relative flex min-h-[620px] flex-1 flex-col gap-7 overflow-hidden rounded-[32px] bg-coral-100 px-11 py-10',
         className,
@@ -82,10 +88,10 @@ export function TravelScene({ className, actions }: TravelSceneProps) {
         </svg>
       </div>
 
-      <div className="relative z-[2] flex animate-arrive flex-wrap items-center justify-between gap-2 min-[380px]:flex-nowrap motion-reduce:animate-none">
+      <Bar className="relative z-[2] flex animate-arrive flex-wrap items-center justify-between gap-2 min-[380px]:flex-nowrap motion-reduce:animate-none">
         <Logo compact={Boolean(actions)} />
         {actions}
-      </div>
+      </Bar>
       <div className="relative z-[2] flex max-w-[540px] animate-arrive flex-col gap-4 [animation-delay:120ms] motion-reduce:animate-none">
         <h1 className="font-display text-[clamp(46px,5.4vw,76px)] leading-[0.95] font-bold text-balance text-foreground">
           Tu próximo viaje empieza aquí.
@@ -120,6 +126,6 @@ export function TravelScene({ className, actions }: TravelSceneProps) {
           <Bus width={320} tone="indigo" />
         </div>
       </div>
-    </section>
+    </Root>
   );
 }

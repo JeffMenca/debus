@@ -1,0 +1,51 @@
+name: seed
+
+# Loads the demo data into production through the public API, the way a person would: every
+# account gets its password through the email link that reaches the team inbox. Run it by hand
+# after a republish. Running it again is safe: it only adds what is missing and the trips of the day.
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Comma separated areas (structure, accounts, fleet, operations, clients, sales, rentals); empty = all'
+        required: false
+        default: ''
+      days_ahead:
+        description: 'Days of trips to leave scheduled'
+        required: false
+        default: '7'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seed
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Seed production
+        env:
+          ONLY: ${{ inputs.only }}
+          DAYS_AHEAD: ${{ inputs.days_ahead }}
+          SEED_API_URL: https://gateway-${{ vars.GCP_PROJECT_NUMBER }}.${{ vars.GCP_REGION }}.run.app
+          SEED_CONFIRM: production
+          SEED_ADMIN_EMAIL: ${{ vars.SEED_ADMIN_EMAIL }}
+          SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+          SEED_PASSWORD: ${{ secrets.SEED_PASSWORD }}
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        run: |
+          args=(--target production --days-ahead "${DAYS_AHEAD:-7}")
+          if [ -n "$ONLY" ]; then args+=(--only "$ONLY"); fi
+          pnpm seed "${args[@]}"

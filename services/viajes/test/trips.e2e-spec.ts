@@ -110,6 +110,7 @@ describe('scheduling a trip', () => {
   });
 
   it('answers with the friendly text when flota does not answer', async () => {
+    const before = await prisma.trip.count();
     flota.respond('flota', 'GET', '/internal/availability', new ServiceUnavailableError());
 
     const response = await http()
@@ -119,8 +120,9 @@ describe('scheduling a trip', () => {
       .expect(503);
 
     expect(response.body.message).toBe(
-      'El servicio no respondió. Intenta de nuevo en unos segundos.',
+      'No pudimos revisar si el bus y el chofer están libres. No se guardó nada; intenta de nuevo en unos segundos.',
     );
+    expect(await prisma.trip.count()).toBe(before);
   });
 
   it('refuses a retired route without calling flota', async () => {

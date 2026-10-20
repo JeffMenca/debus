@@ -1,4 +1,7 @@
+import { CircuitOpenError, ServiceRejectedError, ServiceUnavailableError } from '@debus/server';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { FleetClient } from './fleet-client';
+import { TRIP_MESSAGES } from './trip-messages';
 
 const query = {
   branchId: '9b2c7a10-1111-4c4c-8888-123456789abc',
@@ -30,5 +33,24 @@ describe('FleetClient', () => {
     await new FleetClient(http as never).availability({ ...query, ignoreTripId: undefined });
 
     expect(http.get.mock.calls[0][1]).not.toContain('ignoreTripId');
+  });
+
+  it.each([
+    ['does not answer', new ServiceUnavailableError()],
+    ['has its circuit open', new CircuitOpenError('flota', new Date())],
+  ])('tells the person nothing was saved when flota %s', async (_case, failure) => {
+    const http = { get: jest.fn().mockRejectedValue(failure) };
+
+    const error = await new FleetClient(http as never).availability(query).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ServiceUnavailableException);
+    expect(error).toMatchObject({ status: 503, message: TRIP_MESSAGES.fleetUnavailable });
+  });
+
+  it('lets any other failure through untouched', async () => {
+    const rejected = new ServiceRejectedError(404, { message: 'no' });
+    const http = { get: jest.fn().mockRejectedValue(rejected) };
+
+    await expect(new FleetClient(http as never).availability(query)).rejects.toBe(rejected);
   });
 });

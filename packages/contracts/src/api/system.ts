@@ -1,10 +1,31 @@
 import { z } from 'zod';
 import { BACKEND_SERVICES, DEBUS_ENVIRONMENTS, DEPLOY_UNITS } from '../topology';
 
+export const CIRCUIT_STATES = ['closed', 'open', 'half-open'] as const;
+export type CircuitState = (typeof CIRCUIT_STATES)[number];
+
+// The state of the connection of one service towards a peer it calls.
+export const circuitSchema = z.object({
+  target: z.enum(BACKEND_SERVICES),
+  state: z.enum(CIRCUIT_STATES),
+  failures: z.number().int().nonnegative(),
+  retryAt: z.iso.datetime().nullable(),
+});
+export type Circuit = z.infer<typeof circuitSchema>;
+
+// What every service answers on /health.
+export const serviceHealthSchema = z.object({
+  status: z.literal('ok'),
+  service: z.enum(BACKEND_SERVICES),
+  circuits: z.array(circuitSchema),
+});
+export type ServiceHealth = z.infer<typeof serviceHealthSchema>;
+
 export const unitHealthSchema = z.object({
   unit: z.enum(DEPLOY_UNITS),
   status: z.enum(['up', 'down']),
   latencyMs: z.number().int().nonnegative(),
+  circuits: z.array(circuitSchema).optional(),
 });
 export type UnitHealth = z.infer<typeof unitHealthSchema>;
 

@@ -9,14 +9,14 @@ import {
 } from './registry';
 
 describe('event registry', () => {
-  it('declares the 21 business event types plus the diagnostic probe', () => {
+  it('declares the 22 business event types plus the diagnostic probe', () => {
     const business = EVENT_TYPES.filter((type) => !EVENT_REGISTRY[type].diagnostic);
 
-    expect(business).toHaveLength(21);
+    expect(business).toHaveLength(22);
     expect(EVENT_REGISTRY.ProbeSent.diagnostic).toBe(true);
   });
 
-  it('declares exactly the 22 agreed event names, in registry order', () => {
+  it('declares exactly the 23 agreed event names, in registry order', () => {
     expect(EVENT_TYPES).toEqual([
       'BranchCreated',
       'BranchUpdated',
@@ -39,6 +39,7 @@ describe('event registry', () => {
       'TicketSold',
       'RefundRequested',
       'RentalPaid',
+      'ProfileUpdated',
       'ProbeSent',
     ]);
   });
@@ -67,6 +68,11 @@ describe('event registry', () => {
     expect(publisherOf('ProbeSent')).toBe('gateway');
   });
 
+  it('tells ventas the NIT of every client profile, to link counter sales', () => {
+    expect(publisherOf('ProfileUpdated')).toBe('clientes');
+    expect(consumersOf('ProfileUpdated')).toEqual(['ventas']);
+  });
+
   it('lists what each consumer listens to', () => {
     expect(eventsConsumedBy('clientes')).toEqual(
       expect.arrayContaining([
@@ -90,6 +96,6 @@ describe('event registry', () => {
         'SettingsUpdated',
       ]),
     );
-    expect(eventDrivenShare()).toBeCloseTo(21 / 24);
+    expect(eventDrivenShare()).toBeCloseTo(22 / 25);
   });
 });

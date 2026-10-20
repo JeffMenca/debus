@@ -180,9 +180,10 @@ test.describe('trips', () => {
     await dialog.getByRole('button', { name: 'Programar', exact: true }).click();
 
     await expect(dialog.getByRole('alert')).toHaveText(
-      'El servicio no respondió. Intenta de nuevo en unos segundos.',
+      'No pudimos revisar si el bus y el chofer están libres. No se guardó nada; intenta de nuevo en unos segundos.',
     );
     await expect(dialog).toBeVisible();
+    await expectNoHorizontalScroll(page);
   });
 
   test('keeps days, state, search and page in the address after a reload', async ({

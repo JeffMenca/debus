@@ -1,18 +1,43 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import { queryWrapper } from '../../test-support/query-wrapper';
 import { GuatemalaMap } from './guatemala-map';
 
-const CITIES = [
-  'Ciudad de Guatemala',
-  'Quetzaltenango',
-  'Cobán',
-  'Puerto Barrios',
-  'Flores',
-  'Antigua',
-];
+// The branches come from the API: these are the six of the demo data.
+const BRANCHES = [
+  ['Ciudad de Guatemala', 'Guatemala', 'Guatemala', 14.6349, -90.5069],
+  ['Quetzaltenango', 'Quetzaltenango', 'Quetzaltenango', 14.8347, -91.5181],
+  ['Antigua Guatemala', 'Antigua Guatemala', 'Sacatepéquez', 14.5586, -90.7295],
+  ['Cobán', 'Cobán', 'Alta Verapaz', 15.47, -90.37],
+  ['Huehuetenango', 'Huehuetenango', 'Huehuetenango', 15.3197, -91.4709],
+  ['Flores', 'Flores', 'Petén', 16.93, -89.892],
+].map(([name, municipality, department, latitude, longitude], index) => ({
+  id: `00000000-0000-4000-8000-00000000000${index + 1}`,
+  name,
+  municipality,
+  department,
+  latitude,
+  longitude,
+}));
+const CITIES = BRANCHES.map((branch) => String(branch.name));
+
+beforeEach(() =>
+  jest
+    .spyOn(global, 'fetch')
+    .mockResolvedValue(
+      Response.json({ items: BRANCHES, total: BRANCHES.length, page: 1, pageSize: 100 }),
+    ),
+);
+afterEach(() => jest.restoreAllMocks());
+// The map is placed over the country once the branches arrive.
+async function renderMap() {
+  const view = render(<GuatemalaMap />, { wrapper: queryWrapper().wrapper });
+  await waitFor(() => expect(view.container.querySelector('[data-city]')).not.toBeNull());
+  return view;
+}
 
 describe('GuatemalaMap', () => {
-  it('titles the section and says what the map is for, without promising routes or prices', () => {
-    render(<GuatemalaMap />);
+  it('titles the section and says what the map is for, without promising routes or prices', async () => {
+    await renderMap();
 
     expect(
       screen.getByRole('heading', { level: 2, name: 'Conectamos todo el país' }),
@@ -25,8 +50,8 @@ describe('GuatemalaMap', () => {
     expect(document.body.textContent).not.toMatch(/Q\s?\d|\d/);
   });
 
-  it('adds three rows with an icon each, so the column beside the map is not empty', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('adds three rows with an icon each, so the column beside the map is not empty', async () => {
+    const { container } = await renderMap();
 
     const rows = screen.getAllByRole('listitem');
     expect(rows.map((row) => within(row).getByRole('heading', { level: 3 }).textContent)).toEqual([
@@ -49,8 +74,8 @@ describe('GuatemalaMap', () => {
     }
   });
 
-  it('centers the text against the map, and puts it above the map on small screens', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('centers the text against the map, and puts it above the map on small screens', async () => {
+    const { container } = await renderMap();
 
     expect(container.querySelector('section')).toHaveClass('items-center');
     const [text, map] = Array.from(container.querySelector('section')!.children);
@@ -58,15 +83,15 @@ describe('GuatemalaMap', () => {
     expect(map).toContainElement(screen.getByRole('img'));
   });
 
-  it('is one image for assistive technology, described with the six cities', () => {
-    render(<GuatemalaMap />);
+  it('is one image for assistive technology, described with the six cities', async () => {
+    await renderMap();
 
     const map = screen.getByRole('img', { name: /^Mapa de Guatemala/ });
     for (const city of CITIES) expect(map).toHaveAccessibleName(expect.stringContaining(city));
   });
 
-  it('marks the six cities', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('marks the six cities', async () => {
+    const { container } = await renderMap();
 
     const marked = Array.from(container.querySelectorAll('[data-city]')).map((city) =>
       city.getAttribute('data-city'),
@@ -74,8 +99,8 @@ describe('GuatemalaMap', () => {
     expect(marked).toEqual(CITIES);
   });
 
-  it('draws the country in white with a lilac edge over its neighbors and the sea, all by token', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('draws the country in white with a lilac edge over its neighbors and the sea, all by token', async () => {
+    const { container } = await renderMap();
 
     const country = container.querySelectorAll('path.fill-card.stroke-lilac-300');
     expect(country).toHaveLength(1);
@@ -86,8 +111,8 @@ describe('GuatemalaMap', () => {
     expect(container.innerHTML).not.toMatch(/\bborder\b/);
   });
 
-  it('joins the capital with the other cities by dashed curves', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('joins the capital with the other cities by dashed curves', async () => {
+    const { container } = await renderMap();
 
     const curves = container.querySelectorAll('path[data-route]');
     expect(curves).toHaveLength(5);
@@ -97,8 +122,8 @@ describe('GuatemalaMap', () => {
     }
   });
 
-  it('sends a small mango bus along one of the curves', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('sends a small mango bus along one of the curves', async () => {
+    const { container } = await renderMap();
 
     const bus = container.querySelector('[data-testid="map-bus"]') as SVGElement;
     expect(bus).toHaveClass('animate-drive-along');
@@ -110,8 +135,8 @@ describe('GuatemalaMap', () => {
     expect(bus.querySelector('rect')).toHaveClass('fill-mango-300');
   });
 
-  it('stops every animation when the visitor prefers reduced motion', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('stops every animation when the visitor prefers reduced motion', async () => {
+    const { container } = await renderMap();
 
     const animated = container.querySelectorAll('[class*="animate-"]');
     expect(animated.length).toBeGreaterThan(5);
@@ -120,22 +145,22 @@ describe('GuatemalaMap', () => {
     }
   });
 
-  it('keeps the bus halfway along its curve while it is not animated', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('keeps the bus halfway along its curve while it is not animated', async () => {
+    const { container } = await renderMap();
 
     const bus = container.querySelector('[data-testid="map-bus"]') as SVGElement;
     expect(bus).toHaveClass('[offset-distance:50%]');
   });
 
-  it('keeps the bus icon of the pin at a size of the icon scale', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('keeps the bus icon of the pin at a size of the icon scale', async () => {
+    const { container } = await renderMap();
 
     const icon = container.querySelector('[data-testid="map-bus"] svg')!;
     expect(['16', '20', '24']).toContain(icon.getAttribute('width'));
   });
 
-  it('draws the neighbor names in a solid token color, readable on their fill', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('draws the neighbor names in a solid token color, readable on their fill', async () => {
+    const { container } = await renderMap();
 
     const names = Array.from(container.querySelectorAll('text.fill-muted-foreground'));
     expect(names.map((name) => name.textContent)).toEqual([
@@ -147,8 +172,8 @@ describe('GuatemalaMap', () => {
     expect(container.innerHTML).not.toMatch(/fill-muted-foreground\/\d/);
   });
 
-  it('grows the labels as the map shrinks, so they keep a readable size', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('grows the labels as the map shrinks, so they keep a readable size', async () => {
+    const { container } = await renderMap();
 
     expect(container.firstElementChild?.querySelector('.\\@container')).not.toBeNull();
     const city = container.querySelector('[data-city] text')!;
@@ -159,8 +184,8 @@ describe('GuatemalaMap', () => {
     }
   });
 
-  it('does not repeat the seat icon of the benefits above: the row about buying uses a phone', () => {
-    const { container } = render(<GuatemalaMap />);
+  it('does not repeat the seat icon of the benefits above: the row about buying uses a phone', async () => {
+    const { container } = await renderMap();
 
     const icons = Array.from(container.querySelectorAll('li svg'));
     expect(icons.map((icon) => icon.getAttribute('class')?.match(/lucide-[a-z-]+/)?.[0])).toEqual([

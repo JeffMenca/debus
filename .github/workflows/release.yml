@@ -109,7 +109,7 @@ jobs:
             --image "$REGISTRY/$UNIT-migrate:$TAG" \
             --region "$GCP_REGION" \
             --service-account "debus-$UNIT@$GCP_PROJECT_ID.iam.gserviceaccount.com" \
-            --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
+            --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_PREFIX }}-$UNIT" \
             --set-secrets "DATABASE_URL=$UNIT-database-url:latest" \
             --execute-now --wait
 
@@ -126,7 +126,7 @@ jobs:
                  --min-instances 0 --max-instances "$MAX_INSTANCES"
                  --set-env-vars "$(node scripts/cloud-run-env.mjs "$UNIT" "$TARGET_ENV")")
           if [ -f "services/$UNIT/prisma/migrations/migration_lock.toml" ]; then
-            flags+=(--set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" --set-secrets "DATABASE_URL=$UNIT-database-url:latest")
+            flags+=(--set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_PREFIX }}-$UNIT" --set-secrets "DATABASE_URL=$UNIT-database-url:latest")
           fi
           if [ "$UNIT" = "gateway" ] || [ "$UNIT" = "web" ]; then flags+=(--allow-unauthenticated); else flags+=(--no-allow-unauthenticated); fi
           gcloud run deploy "$UNIT" "${flags[@]}"
@@ -148,6 +148,21 @@ jobs:
           url="https://$UNIT-$GCP_PROJECT_NUMBER.$GCP_REGION.run.app"
           job="$UNIT-outbox-flush"
           args=(--location "$GCP_REGION" --schedule "* * * * *" --uri "$url/outbox/flush" --http-method POST
+                --oidc-service-account-email "pubsub-invoker@$GCP_PROJECT_ID.iam.gserviceaccount.com"
+                --oidc-token-audience "$url")
+          if gcloud scheduler jobs describe "$job" --location "$GCP_REGION" >/dev/null 2>&1; then
+            gcloud scheduler jobs update http "$job" "${args[@]}"
+          else
+            gcloud scheduler jobs create http "$job" "${args[@]}"
+          fi
+
+      # Settles the purchases that ventas left in doubt and frees the counter tickets that never finished.
+      - name: Schedule purchase recovery
+        if: matrix.unit == 'ventas'
+        run: |
+          url="https://$UNIT-$GCP_PROJECT_NUMBER.$GCP_REGION.run.app"
+          job="$UNIT-purchase-recovery"
+          args=(--location "$GCP_REGION" --schedule "* * * * *" --uri "$url/internal/purchases/recover" --http-method POST
                 --oidc-service-account-email "pubsub-invoker@$GCP_PROJECT_ID.iam.gserviceaccount.com"
                 --oidc-token-audience "$url")
           if gcloud scheduler jobs describe "$job" --location "$GCP_REGION" >/dev/null 2>&1; then

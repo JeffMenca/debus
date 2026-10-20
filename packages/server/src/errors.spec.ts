@@ -7,6 +7,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { HttpExceptionFilter, correlationOf, errorResponse } from './errors';
+import { CircuitOpenError } from './service-errors';
 import { SERVER_MESSAGES } from './messages';
 
 describe('errorResponse', () => {
@@ -135,6 +136,17 @@ describe('HttpExceptionFilter with failures of other services', () => {
 
     expect(failed.json).toHaveBeenCalledWith(
       expect.objectContaining({ message: SERVER_MESSAGES.generic }),
+    );
+  });
+
+  it('shows a paused circuit as a 503 with the text that explains the pause', () => {
+    const { arg, status, json } = host();
+
+    new HttpExceptionFilter().catch(new CircuitOpenError('clientes', new Date()), arg);
+
+    expect(status).toHaveBeenCalledWith(503);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 503, message: SERVER_MESSAGES.paused }),
     );
   });
 });

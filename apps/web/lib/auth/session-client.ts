@@ -1,4 +1,4 @@
-import { type WebSession, webSessionSchema } from '@debus/contracts';
+import type { WebSession } from '@debus/contracts';
 import { ApiError, FRIENDLY_NETWORK_MESSAGE, apiErrorFrom } from '@/lib/api/api-error';
 import {
   announceSession,
@@ -7,6 +7,13 @@ import {
   withRefreshLock,
 } from './session-sync';
 import { clearSession, getSession, markUnavailable, setSession } from './session-store';
+
+// The schema comes with zod, which a visitor who is not signed in never needs: the first screen
+// of the site does not carry it, and it is loaded when an answer has a session to read.
+async function readSession(body: unknown): Promise<WebSession> {
+  const { webSessionSchema } = await import('@debus/contracts');
+  return webSessionSchema.parse(body);
+}
 
 let pending: Promise<WebSession | null> | null = null;
 // Counts sessions adopted from other tabs, so a waiting refresh can tell one arrived.
@@ -37,7 +44,7 @@ export async function signIn(email: string, password: string): Promise<WebSessio
   const response = await post('/api/session/login', { email, password });
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) throw apiErrorFrom(response.status, body);
-  const session = webSessionSchema.parse(body);
+  const session = await readSession(body);
   setSession(session);
   announceSession(session);
   return session;
@@ -62,7 +69,7 @@ export function refreshSession(): Promise<WebSession | null> {
           markUnavailable();
           return null;
         }
-        const session = webSessionSchema.parse(await response.json());
+        const session = await readSession(await response.json());
         setSession(session);
         announceSession(session);
         return session;

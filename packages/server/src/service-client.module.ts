@@ -5,7 +5,14 @@ import {
   SERVICE_AUTH_OPTIONS,
   googleIdTokenSource,
 } from './identity-tokens';
+import { circuitOptionsFromEnv } from './circuit-breaker';
 import { ServiceHttpClient, serviceUrlsFromEnv } from './service-client';
+
+export const serviceClientFromEnv = (
+  tokens: Pick<IdentityTokens, 'headersFor'>,
+  env: Record<string, string | undefined>,
+): ServiceHttpClient =>
+  new ServiceHttpClient(tokens, serviceUrlsFromEnv(env), { circuit: circuitOptionsFromEnv(env) });
 
 // One call in the AppModule of a service that calls peers: URLs and auth come from its environment.
 @Module({})
@@ -26,8 +33,7 @@ export class ServiceClientModule {
         {
           provide: ServiceHttpClient,
           inject: [IdentityTokens],
-          useFactory: (tokens: IdentityTokens) =>
-            new ServiceHttpClient(tokens, serviceUrlsFromEnv(process.env)),
+          useFactory: (tokens: IdentityTokens) => serviceClientFromEnv(tokens, process.env),
         },
       ],
       exports: [ServiceHttpClient],

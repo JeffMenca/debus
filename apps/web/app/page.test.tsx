@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { clearSession, getSessionStatus, setSession } from '@/lib/auth/session-store';
+import { queryWrapper } from '../test-support/query-wrapper';
 import HomePage from './page';
 
 // The store keeps its state between tests, so the "checking" state is forced instead.
@@ -37,7 +38,7 @@ const footer = () => screen.getByRole('contentinfo');
 describe('HomePage', () => {
   it('shows no account links while the session is being checked', () => {
     mockStatus.mockReturnValue('unknown');
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
 
     // Only the scroll-down button, which is for everybody, is there.
     expect(screen.getAllByRole('link').map((link) => link.getAttribute('aria-label'))).toEqual([
@@ -46,9 +47,20 @@ describe('HomePage', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
+  it('puts the logo and the access links in the banner of the page, outside the main region', () => {
+    act(() => clearSession());
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
+
+    const banner = screen.getByRole('banner');
+    expect(screen.getByRole('main')).not.toContainElement(banner);
+    expect(within(banner).getByText('debus')).toBeInTheDocument();
+    expect(banner).toContainElement(header());
+    expect(screen.getAllByRole('banner')).toHaveLength(1);
+  });
+
   it('presents the brand promise and the benefits', () => {
     act(() => clearSession());
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
 
     expect(
       screen.getByRole('heading', { level: 1, name: 'Tu próximo viaje empieza aquí.' }),
@@ -58,7 +70,7 @@ describe('HomePage', () => {
 
   it('offers a visitor the login and the sign-up, with a single primary action', () => {
     act(() => clearSession());
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
 
     const logIn = within(header()).getByRole('link', { name: 'Iniciar sesión' });
     const signUp = within(header()).getByRole('link', { name: 'Crear cuenta' });
@@ -73,7 +85,7 @@ describe('HomePage', () => {
 
   it('sends staff to their own panel', () => {
     act(() => setSession(session('BRANCH_ADMIN')));
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
 
     expect(within(header()).getByRole('link', { name: 'Ir a mi panel' })).toHaveAttribute(
       'href',
@@ -90,7 +102,7 @@ describe('HomePage', () => {
 
   it('greets a client by first name and does not offer a panel', () => {
     act(() => setSession(session('CLIENT')));
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
 
     expect(screen.getByText('Hola, Ana')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Hola, Ana. Ir a mi cuenta' })).toHaveAttribute(
@@ -103,7 +115,7 @@ describe('HomePage', () => {
 
   it('greets a client whose name is a single word', () => {
     act(() => setSession(session('CLIENT', '  Ana ')));
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
 
     expect(screen.getByText('Hola, Ana')).toBeInTheDocument();
   });
@@ -111,7 +123,7 @@ describe('HomePage', () => {
   it('closes the session and stays on the home page', async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     act(() => setSession(session('CLIENT')));
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
 
     await userEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
 
@@ -127,7 +139,7 @@ describe('HomePage', () => {
   it('moves the keyboard focus to the login link after signing out', async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     act(() => setSession(session('CLIENT')));
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
     screen.getByRole('button', { name: 'Cerrar sesión' }).focus();
 
     await userEvent.keyboard('{Enter}');
@@ -138,7 +150,7 @@ describe('HomePage', () => {
 
   it('tells the story from top to bottom, with one h1 and the footer last', () => {
     act(() => clearSession());
-    const { container } = render(<HomePage />);
+    const { container } = render(<HomePage />, { wrapper: queryWrapper().wrapper });
 
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(
@@ -160,7 +172,7 @@ describe('HomePage', () => {
 
   it('puts the scroll-down button on the hero, for every kind of visitor, pointing at the benefits', () => {
     act(() => clearSession());
-    const { unmount } = render(<HomePage />);
+    const { unmount } = render(<HomePage />, { wrapper: queryWrapper().wrapper });
     expect(screen.getByRole('link', { name: 'Ver más contenido' })).toHaveAttribute(
       'href',
       '#beneficios',
@@ -169,23 +181,23 @@ describe('HomePage', () => {
     unmount();
 
     act(() => setSession(session('CLIENT')));
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
     expect(screen.getByRole('link', { name: 'Ver más contenido' })).toBeInTheDocument();
   });
 
   it('keeps the questions before the rental band and the decorative circles out of the tree', () => {
     act(() => clearSession());
-    const { container } = render(<HomePage />);
+    const { container } = render(<HomePage />, { wrapper: queryWrapper().wrapper });
 
     const faq = screen.getByRole('heading', { name: 'Preguntas frecuentes' });
     const rental = screen.getByRole('heading', { name: '¿Viajas en grupo?' });
     expect(faq.compareDocumentPosition(rental) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(container.querySelectorAll('main > [aria-hidden="true"].-z-10')).toHaveLength(1);
+    expect(container.querySelectorAll('div > [aria-hidden="true"].-z-10')).toHaveLength(1);
   });
 
   it('offers a visitor the rental quote through the sign-up, and nobody else', async () => {
     act(() => clearSession());
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
     const quote = 'Crea tu cuenta para pedir tu cotización';
 
     expect(screen.getByRole('link', { name: quote })).toHaveAttribute('href', '/registro');
@@ -196,7 +208,7 @@ describe('HomePage', () => {
   it('shows the year in the footer', () => {
     jest.useFakeTimers().setSystemTime(new Date('2031-03-04T12:00:00Z'));
     act(() => clearSession());
-    render(<HomePage />);
+    render(<HomePage />, { wrapper: queryWrapper().wrapper });
     jest.useRealTimers();
 
     expect(within(footer()).getByText('© 2031 debus. Hecho en Guatemala.')).toBeInTheDocument();

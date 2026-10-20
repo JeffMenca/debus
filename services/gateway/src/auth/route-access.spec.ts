@@ -36,6 +36,27 @@ describe('isPublicRoute', () => {
     expect(isPublicRoute('POST', '//api/administracion//auth/login')).toBe(true);
   });
 
+  it('opens the locations of the active branches to a visitor, to GET only', () => {
+    const path = '/api/administracion/branches/locations';
+    expect(isPublicRoute('GET', path)).toBe(true);
+    expect(isPublicRoute('GET', `${path}?page=1&pageSize=100`)).toBe(true);
+    expect(isPublicRoute('GET', `${path}/`)).toBe(true);
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']) {
+      expect(isPublicRoute(method, path)).toBe(false);
+    }
+  });
+
+  it('keeps the rest of the branches private', () => {
+    expect(isPublicRoute('GET', '/api/administracion/branches')).toBe(false);
+    expect(
+      isPublicRoute('GET', '/api/administracion/branches/9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d'),
+    ).toBe(false);
+    expect(isPublicRoute('GET', '/api/administracion/branches/locations/extra')).toBe(false);
+    expect(isPublicRoute('GET', '/api/administracion/branches/locations/..%2Fusers')).toBe(false);
+    expect(isPublicRoute('GET', '/api/flota/branches/locations')).toBe(false);
+    expect(isPublicRoute('POST', '/api/administracion/branches')).toBe(false);
+  });
+
   it('keeps CORS preflights open and protects the system diagnostics', () => {
     expect(isPublicRoute('OPTIONS', '/api/flota/buses')).toBe(true);
     expect(isPublicRoute('OPTIONS', '/api/system/status')).toBe(true);

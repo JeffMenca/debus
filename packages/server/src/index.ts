@@ -1,6 +1,7 @@
 export * from './messages';
 export * from './identity';
 export * from './zod';
+export * from './idempotency';
 export * from './api-docs';
 export * from './prisma-errors';
 export * from './errors';
@@ -10,3 +11,5 @@ export * from './service-client.module';
 export * from './testing/fake-service-client';
 export * from './testing/identity-headers';
 export * from './republish';
+export * from './service-errors';
+export * from './circuit-breaker';

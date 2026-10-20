@@ -28,6 +28,7 @@ describe('navigation', () => {
         [
           ['Panel', '/sucursal'],
           ['Viajes', '/sucursal/viajes'],
+          ['Ventanilla', '/sucursal/ventanilla'],
         ],
       ],
       [
@@ -63,7 +64,7 @@ describe('navigation', () => {
   it('shows the cashier only the screens that exist', () => {
     expect(
       navigationFor('CASHIER').flatMap((group) => group.items.map((item) => item.href)),
-    ).toEqual(['/sucursal']);
+    ).toEqual(['/sucursal', '/sucursal/ventanilla']);
     expect(navigationFor('CLIENT')).toEqual([]);
   });
 

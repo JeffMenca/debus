@@ -54,11 +54,16 @@ export const availableTripPageSchema = pageSchema(availableTripSchema);
 export type AvailableTripPage = z.infer<typeof availableTripPageSchema>;
 
 // Bounded by the bus capacity, so it is never paginated.
+// It carries the trip too, so the screen that sells its seats needs nothing else.
 export const seatMapSchema = z.object({
   tripId: z.uuid(),
+  originLabel: z.string(),
+  destinationLabel: z.string(),
+  busPlate: z.string(),
   capacity: z.number().int().positive(),
   ticketPrice: z.number().positive(),
   departureAt: z.iso.datetime(),
+  estimatedArrivalAt: z.iso.datetime(),
   taken: z.array(seatNumberSchema),
 });
 export type SeatMap = z.infer<typeof seatMapSchema>;
@@ -95,6 +100,41 @@ export const ticketSchema = z.object({
   soldAt: z.iso.datetime(),
 });
 export type Ticket = z.infer<typeof ticketSchema>;
+
+// A purchase is the record of paying a ticket with the wallet; unlike the ticket, it survives a failure.
+export const PURCHASE_STATUSES = ['PENDING', 'CONFIRMED', 'FAILED'] as const;
+export type PurchaseStatus = (typeof PURCHASE_STATUSES)[number];
+export const PURCHASE_FAILURES = [
+  'INSUFFICIENT_BALANCE',
+  'PAYMENT_EXPIRED',
+  'WALLET_NOT_READY',
+  'WALLET_UNAVAILABLE',
+  'PAYMENT_REJECTED',
+  'TRIP_CANCELLED',
+] as const;
+export type PurchaseFailure = (typeof PURCHASE_FAILURES)[number];
+
+// The ticket exists only once the purchase is confirmed; pending and failed ones explain themselves in message.
+export const purchaseSchema = z
+  .object({
+    ticketId: z.uuid(),
+    tripId: z.uuid(),
+    status: z.enum(PURCHASE_STATUSES),
+    seats: z.array(seatNumberSchema),
+    amount: z.number().positive(),
+    paidOn: isoDateSchema,
+    failure: z.enum(PURCHASE_FAILURES).nullable(),
+    message: z.string().nullable(),
+    ticket: ticketSchema.nullable(),
+  })
+  .refine(
+    ({ status, failure, message, ticket }) =>
+      status === 'CONFIRMED'
+        ? ticket !== null && failure === null
+        : ticket === null && message !== null && (status === 'FAILED') === (failure !== null),
+    { message: 'the ticket, the failure and the message must match the status' },
+  );
+export type Purchase = z.infer<typeof purchaseSchema>;
 
 export const ticketListQuerySchema = datedSearchQuerySchema;
 export type TicketListQuery = z.infer<typeof ticketListQuerySchema>;

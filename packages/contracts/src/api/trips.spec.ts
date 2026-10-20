@@ -108,6 +108,7 @@ describe('trip cycle requests', () => {
       estimatedArrivalAt: '2026-10-20T15:45:00.000Z',
       ticketPrice: 85,
       capacity: 40,
+      departedAt: '2026-10-20T11:34:00.000Z',
       distanceKm: 201,
       busActive: true,
       driverActive: true,

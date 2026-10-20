@@ -1,4 +1,5 @@
 import {
+  CORRELATION_HEADER,
   type ClientProfile,
   type UpdateProfileRequest,
   updateProfileRequestSchema,
@@ -11,7 +12,7 @@ import {
   apiErrors,
   apiSuccess,
 } from '@debus/server';
-import { Body, Controller, Get, Put } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProfilesService } from './profiles.service';
 
@@ -36,7 +37,8 @@ export class ProfilesController {
   update(
     @CurrentIdentity() actor: Identity,
     @Body(new ZodBody(updateProfileRequestSchema)) body: UpdateProfileRequest,
+    @Headers(CORRELATION_HEADER) correlationId?: string,
   ): Promise<ClientProfile> {
-    return this.profiles.update(actor.userId, body);
+    return this.profiles.update(actor.userId, body, correlationId);
   }
 }

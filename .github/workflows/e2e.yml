@@ -16,12 +16,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - name: Run Postman collection
+      # Only the health checks: they need no session and write nothing, so they are safe in production.
+      - name: Run the health checks of the Postman collection
         env:
           API_URL: https://gateway-${{ vars.GCP_PROJECT_NUMBER }}.${{ vars.GCP_REGION }}.run.app
-        run: |
-          if [ ! -f postman/debus.postman_collection.json ]; then echo "Collection not generated yet"; exit 0; fi
-          npx --yes newman run postman/debus.postman_collection.json --env-var "baseUrl=$API_URL" --reporters cli
+        run: npx --yes newman@6.2.2 run postman/debus.postman_collection.json --folder "Salud" --env-var "baseUrl=$API_URL" --reporters cli
 
   web:
     if: (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') && vars.GCP_PROJECT_NUMBER != ''

@@ -18,10 +18,16 @@ const prismaError = (code: string) => Object.assign(new Error(code), { code });
 
 describe('ProfilesService', () => {
   const setup = () => {
+    const tx = { clientProfile: { update: jest.fn() } };
     const prisma = {
-      clientProfile: { findUnique: jest.fn().mockResolvedValue(row), update: jest.fn() },
+      clientProfile: {
+        findUnique: jest.fn().mockResolvedValue(row),
+        update: tx.clientProfile.update,
+      },
+      $transaction: jest.fn((work: (client: typeof tx) => Promise<unknown>) => work(tx)),
     };
-    return { prisma, service: new ProfilesService(prisma as never) };
+    const outbox = { add: jest.fn().mockResolvedValue({}), flush: jest.fn().mockResolvedValue({}) };
+    return { prisma, tx, outbox, service: new ProfilesService(prisma as never, outbox as never) };
   };
 
   it('answers the profile without internal fields', async () => {
@@ -63,8 +69,32 @@ describe('ProfilesService', () => {
     expect(saved.nit).toBe('45218376');
   });
 
+  it('tells ventas the new NIT in the same transaction, then publishes it right away', async () => {
+    const { tx, outbox, service } = setup();
+    tx.clientProfile.update.mockResolvedValue({ ...row, nit: '45218376' });
+
+    await service.update(
+      userId,
+      { dpi: '2734519200901', phone: '55123489', nit: '45218376' },
+      'c-1',
+    );
+
+    expect(outbox.add).toHaveBeenCalledWith(
+      tx,
+      'ProfileUpdated',
+      {
+        clientId: userId,
+        nit: '45218376',
+        fullName: 'Ana Méndez',
+        updatedAt: '2026-10-14T16:00:00.000Z',
+      },
+      'c-1',
+    );
+    expect(outbox.flush).toHaveBeenCalledWith({ limit: 10, budgetMs: 2000 });
+  });
+
   it('refuses a NIT another account holds and a profile that does not exist', async () => {
-    const { prisma, service } = setup();
+    const { prisma, outbox, service } = setup();
     const update = { dpi: '2734519200901', phone: '55123489' };
 
     prisma.clientProfile.update.mockRejectedValueOnce(prismaError('P2002'));
@@ -73,5 +103,7 @@ describe('ProfilesService', () => {
     await expect(service.update(userId, update)).rejects.toThrow(NotFoundException);
     prisma.clientProfile.update.mockRejectedValueOnce(new Error('down'));
     await expect(service.update(userId, update)).rejects.toThrow('down');
+    expect(outbox.add).not.toHaveBeenCalled();
+    expect(outbox.flush).not.toHaveBeenCalled();
   });
 });
