@@ -93,20 +93,28 @@ test.describe('real counter sale', () => {
     await row.getByRole('button', { name: /Vender/ }).click();
     await expect(branch.getByRole('button', { name: 'Asiento 3, ocupado' })).toBeDisabled();
 
-    // The sale is confirmed and announced once, for the reports and the email.
+    // The sale is confirmed and announced for the reports and the email.
     const sold = queryLocal(
       'ventas',
       `SELECT t.status || ' ' || t.nit || ' ' || t.total FROM tickets t
        JOIN trips r ON r.trip_id = t.trip_id WHERE r.bus_plate = '${plate}'`,
     );
     expect(sold).toEqual(['CONFIRMED CF 140.00']);
-    expect(
-      queryLocal(
-        'ventas',
-        `SELECT count(*) FROM outbox WHERE type = 'TicketSold'
-         AND envelope->'payload'->>'busId' IN (SELECT bus_id::text FROM trips WHERE bus_plate = '${plate}')`,
-      ),
-    ).toEqual(['1']);
+    // Once published, an outbox row keeps no payload: the read model of reportes shows the one announcement.
+    const [ticketId] = queryLocal(
+      'ventas',
+      `SELECT t.id FROM tickets t JOIN trips r ON r.trip_id = t.trip_id WHERE r.bus_plate = '${plate}'`,
+    );
+    await expect
+      .poll(
+        () =>
+          queryLocal(
+            'reportes',
+            `SELECT count(*) FROM branch_report_ticket_sales WHERE id = '${ticketId}'`,
+          ),
+        { timeout: ACTION_TIMEOUT },
+      )
+      .toEqual(['1']);
     await context.close();
   });
 });
