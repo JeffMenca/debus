@@ -4,7 +4,6 @@ import {
   GENERIC_BUYER,
   type SoldTicket,
   buyerNameFor,
-  readIdempotencyKey,
   sameSale,
   toTicket,
   toTicketSoldPayload,
@@ -42,14 +41,6 @@ const sold: SoldTicket = {
     createdAt: new Date('2026-10-16T12:00:00.000Z'),
   },
 };
-
-describe('readIdempotencyKey', () => {
-  it('takes a uuid and refuses anything else', () => {
-    expect(readIdempotencyKey(sold.id)).toBe(sold.id);
-    expect(() => readIdempotencyKey(undefined)).toThrow();
-    expect(() => readIdempotencyKey('abc')).toThrow();
-  });
-});
 
 describe('sameSale', () => {
   const request = { tripId, seats: [10, 9] };

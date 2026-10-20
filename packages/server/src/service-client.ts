@@ -3,17 +3,17 @@ import {
   BACKEND_SERVICES,
   type BackendService,
   CORRELATION_HEADER,
+  type Circuit,
   serviceUrlVariable,
 } from '@debus/contracts';
-import {
-  BadGatewayException,
-  HttpException,
-  Logger,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { BadGatewayException, Logger } from '@nestjs/common';
 import type { z } from 'zod';
+import { CircuitBreaker, type CircuitOptions, isCircuitFailure } from './circuit-breaker';
 import type { IdentityTokens } from './identity-tokens';
 import { SERVER_MESSAGES } from './messages';
+import { ServiceRejectedError, ServiceUnavailableError } from './service-errors';
+
+export { CircuitOpenError, ServiceRejectedError, ServiceUnavailableError } from './service-errors';
 
 export const SERVICE_TIMEOUT_MS = 3000;
 export const READ_RETRIES = 2;
@@ -22,22 +22,6 @@ export const IDEMPOTENCY_HEADER = 'idempotency-key';
 export interface ServiceCallOptions {
   correlationId?: string;
   idempotencyKey?: string;
-}
-
-export class ServiceUnavailableError extends ServiceUnavailableException {
-  constructor() {
-    super(SERVER_MESSAGES.upstream);
-  }
-}
-
-// A 4xx keeps its status and the peer's message, so the caller can turn it into its own rule.
-export class ServiceRejectedError extends HttpException {
-  constructor(
-    status: number,
-    readonly body: unknown,
-  ) {
-    super((body as { message?: string } | null)?.message ?? SERVER_MESSAGES.generic, status);
-  }
 }
 
 const isRetryableStatus = (status: number) => status === 429 || status >= 500;
@@ -60,11 +44,31 @@ export function serviceUrlsFromEnv(
 export class ServiceHttpClient {
   private readonly logger = new Logger(ServiceHttpClient.name);
 
+  // One breaker per peer: a peer that is down is not called again until it had time to recover.
+  private readonly breakers = new Map<BackendService, CircuitBreaker>();
+
   constructor(
     private readonly tokens: Pick<IdentityTokens, 'headersFor'>,
     private readonly urls: Partial<Record<BackendService, string>>,
-    private readonly options: { retryDelayMs?: number } = {},
-  ) {}
+    private readonly options: { retryDelayMs?: number; circuit?: CircuitOptions } = {},
+  ) {
+    for (const service of BACKEND_SERVICES) {
+      if (!urls[service]) continue;
+      this.breakers.set(
+        service,
+        new CircuitBreaker(service, options.circuit, (circuit) => this.logChange(circuit)),
+      );
+    }
+  }
+
+  // True only while the circuit is open: once the pause is over the next call goes through as a probe.
+  isOpen(service: BackendService): boolean {
+    return this.breakers.get(service)?.state() === 'open';
+  }
+
+  circuits(): Circuit[] {
+    return [...this.breakers.values()].map((breaker) => breaker.snapshot());
+  }
 
   get<T>(
     service: BackendService,
@@ -102,13 +106,17 @@ export class ServiceHttpClient {
     retries: number,
   ): Promise<T> {
     const base = this.urls[service];
-    if (!base) throw new Error(`No URL configured for ${service}`);
+    const breaker = this.breakers.get(service);
+    if (!base || !breaker) throw new Error(`No URL configured for ${service}`);
     for (let attempt = 0; ; attempt++) {
+      breaker.admit();
       let cause: unknown;
       const response = await this.send(base, path, init, options).catch((error: unknown) => {
         cause = error;
         return null;
       });
+      if (isCircuitFailure(response?.status ?? null)) breaker.failed();
+      else breaker.succeeded();
       const last = attempt >= retries;
       if (!response || isRetryableStatus(response.status)) {
         this.logFailure(service, path, options, response?.status, cause);
@@ -128,6 +136,11 @@ export class ServiceHttpClient {
       }
       await delay((this.options.retryDelayMs ?? 200) * 2 ** attempt);
     }
+  }
+
+  private logChange(circuit: Circuit): void {
+    const verb = { open: 'opened', 'half-open': 'half-open', closed: 'closed' }[circuit.state];
+    this.logger.warn({ service: circuit.target, failures: circuit.failures }, `Circuit ${verb}`);
   }
 
   // One line per failed attempt, so a 503 on the screen can be traced to its cause; the query is left out.

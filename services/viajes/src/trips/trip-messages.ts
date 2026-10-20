@@ -12,6 +12,8 @@ export const TRIP_MESSAGES = {
   driverInactive: 'Ese chofer está desactivado.',
   driverLicenseExpired: 'La licencia de ese chofer estará vencida el día del viaje.',
   driverBusy: 'Ese chofer ya tiene un viaje en ese horario.',
+  fleetUnavailable:
+    'No pudimos revisar si el bus y el chofer están libres. No se guardó nada; intenta de nuevo en unos segundos.',
   tripContended: 'Otro viaje se está programando justo ahora. Intenta de nuevo en unos segundos.',
   tripNotFound: 'No encontramos ese viaje.',
   alreadyDeparted: 'La salida de este viaje ya fue registrada.',

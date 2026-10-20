@@ -1,11 +1,13 @@
 import { Logger } from '@nestjs/common';
 import { z } from 'zod';
+import { SERVER_MESSAGES } from './messages';
 import {
   ServiceHttpClient,
   ServiceRejectedError,
   ServiceUnavailableError,
   serviceUrlsFromEnv,
 } from './service-client';
+import { CircuitOpenError } from './service-errors';
 
 const tokens = {
   headersFor: jest.fn().mockResolvedValue({ 'x-serverless-authorization': 'Bearer t' }),
@@ -178,6 +180,163 @@ describe('ServiceHttpClient', () => {
     const client = new ServiceHttpClient(tokens as never, {});
 
     await expect(client.get('flota', '/x', schema)).rejects.toThrow('No URL configured for flota');
+  });
+});
+
+describe('ServiceHttpClient circuit breaker', () => {
+  const realFetch = global.fetch;
+  const fetchMock = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>();
+  const peers = { flota: 'http://flota', viajes: 'http://viajes' } as never;
+  const clock = { now: 1_000_000 };
+  const options = {
+    retryDelayMs: 0,
+    circuit: { failureThreshold: 5, openMs: 30_000, now: () => clock.now },
+  };
+  const down = () => fetchMock.mockRejectedValue(new TypeError('fetch failed'));
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    clock.now = 1_000_000;
+    tokens.headersFor.mockResolvedValue({ 'x-serverless-authorization': 'Bearer t' });
+    global.fetch = fetchMock as typeof fetch;
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  async function openFlota(client: ServiceHttpClient) {
+    down();
+    for (let i = 0; i < 5; i++) {
+      await client.post('flota', '/x', {}, schema, { idempotencyKey: 'k' }).catch(() => null);
+    }
+    fetchMock.mockClear();
+  }
+
+  it('opens after 5 failed attempts and then answers without calling the peer', async () => {
+    const client = new ServiceHttpClient(tokens as never, peers, options);
+    await openFlota(client);
+
+    const error = await client.get('flota', '/x', schema).catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(CircuitOpenError);
+    expect(error).toMatchObject({ status: 503, message: SERVER_MESSAGES.paused });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(client.isOpen('flota')).toBe(true);
+  });
+
+  it('stops retrying a read when the circuit opens halfway', async () => {
+    const client = new ServiceHttpClient(tokens as never, peers, {
+      ...options,
+      circuit: { ...options.circuit, failureThreshold: 2 },
+    });
+    down();
+
+    const error = await client.get('flota', '/x', schema).catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(CircuitOpenError);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a separate circuit for each peer', async () => {
+    const client = new ServiceHttpClient(tokens as never, peers, options);
+    await openFlota(client);
+    fetchMock.mockReset().mockResolvedValue(json({ ok: true }));
+
+    await expect(client.get('viajes', '/x', schema)).resolves.toEqual({ ok: true });
+
+    expect(client.isOpen('flota')).toBe(true);
+    expect(client.isOpen('viajes')).toBe(false);
+  });
+
+  it.each([
+    ['a 422', () => json({ message: 'no' }, 422)],
+    ['a 404', () => json({ message: 'no' }, 404)],
+    ['a 401', () => json({ message: 'no' }, 401)],
+    ['an answer that breaks the contract', () => json({ ok: 'no' })],
+  ])('does not count %s as a failure', async (_case, answer) => {
+    const client = new ServiceHttpClient(tokens as never, peers, options);
+
+    for (let calls = 0; calls < 6; calls++) {
+      fetchMock.mockResolvedValueOnce(answer());
+      await client.get('flota', '/x', schema).catch(() => null);
+    }
+
+    expect(client.isOpen('flota')).toBe(false);
+    expect(client.circuits()[0]).toMatchObject({ target: 'flota', state: 'closed', failures: 0 });
+  });
+
+  it('counts a failure to build the headers and does not leave the probe stuck', async () => {
+    const client = new ServiceHttpClient(tokens as never, peers, options);
+    tokens.headersFor.mockRejectedValue(new Error('no token'));
+    for (let i = 0; i < 5; i++) await client.get('flota', '/x', schema).catch(() => null);
+    expect(client.isOpen('flota')).toBe(true);
+    clock.now += 30_000;
+
+    await client.get('flota', '/x', schema).catch(() => null);
+
+    expect(client.isOpen('flota')).toBe(true);
+    expect(client.circuits()[0]?.state).toBe('open');
+    clock.now += 30_000;
+    tokens.headersFor.mockResolvedValue({});
+    fetchMock.mockResolvedValue(json({ ok: true }));
+    await expect(client.get('flota', '/x', schema)).resolves.toEqual({ ok: true });
+    expect(client.circuits()[0]?.state).toBe('closed');
+  });
+
+  it('lets one probe through after the pause and closes when it works', async () => {
+    const client = new ServiceHttpClient(tokens as never, peers, options);
+    await openFlota(client);
+    clock.now += 30_000;
+    fetchMock.mockResolvedValue(json({ ok: true }));
+
+    expect(client.isOpen('flota')).toBe(false);
+    await expect(client.get('flota', '/x', schema)).resolves.toEqual({ ok: true });
+
+    expect(client.circuits()[0]).toMatchObject({ state: 'closed', failures: 0, retryAt: null });
+  });
+
+  it('lists only the peers that have a URL, in the order of the services', () => {
+    const client = new ServiceHttpClient(
+      tokens as never,
+      { viajes: 'http://viajes', flota: 'http://flota' } as never,
+      options,
+    );
+
+    expect(client.circuits().map((circuit) => circuit.target)).toEqual(['flota', 'viajes']);
+    expect(client.isOpen('clientes')).toBe(false);
+  });
+
+  it('shows the pause in the circuits list with the time it will try again', async () => {
+    const client = new ServiceHttpClient(tokens as never, peers, options);
+    await openFlota(client);
+
+    expect(client.circuits()[0]).toEqual({
+      target: 'flota',
+      state: 'open',
+      failures: 5,
+      retryAt: new Date(clock.now + 30_000).toISOString(),
+    });
+    clock.now += 30_000;
+    expect(client.circuits()[0]?.state).toBe('half-open');
+  });
+
+  it('logs each change of state in English with the service and the failures', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const client = new ServiceHttpClient(tokens as never, peers, options);
+    await openFlota(client);
+    clock.now += 30_000;
+    fetchMock.mockResolvedValue(json({ ok: true }));
+    await client.get('flota', '/x?secret=1', schema);
+
+    const lines = warn.mock.calls
+      .filter(([, message]) => String(message).startsWith('Circuit'))
+      .map(([context, message]) => [message, context]);
+    expect(lines).toEqual([
+      ['Circuit opened', { service: 'flota', failures: 5 }],
+      ['Circuit half-open', { service: 'flota', failures: 5 }],
+      ['Circuit closed', { service: 'flota', failures: 0 }],
+    ]);
+    warn.mockRestore();
   });
 });
 

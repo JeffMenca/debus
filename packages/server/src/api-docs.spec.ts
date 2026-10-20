@@ -57,6 +57,22 @@ describe('apiErrors 502 and 503', () => {
   });
 });
 
+describe('apiErrors 422', () => {
+  it('documents a request the service understood but refused to carry out', () => {
+    class Controller {
+      @apiErrors(422)
+      handler() {}
+    }
+
+    const responses = Reflect.getMetadata(
+      DECORATORS.API_RESPONSE,
+      Controller.prototype.handler,
+    ) as Record<string, { description: string }>;
+
+    expect(responses['422']?.description).toMatch(/understood|refus|cannot/i);
+  });
+});
+
 describe('apiSuccess', () => {
   it('documents the success status next to the errors', () => {
     class Controller {

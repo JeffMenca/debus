@@ -1,10 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
-import {
-  isSameIntent,
-  movementFingerprint,
-  readIdempotencyKey,
-  signedAmount,
-} from './wallet-rules';
+import { isSameIntent, movementFingerprint, signedAmount } from './wallet-rules';
 
 const topUp = { kind: 'TOP_UP' as const, amount: 100.1, occurredOn: '2026-10-14', reference: null };
 const key = '3f2e4d1c-8b0a-4f8e-9d6c-5b4a3f2e4d1c';
@@ -34,11 +28,5 @@ describe('wallet rules', () => {
     expect(signedAmount('REFUND', 50)).toBe(50);
     expect(signedAmount('TICKET', 50)).toBe(-50);
     expect(signedAmount('RENTAL', 50)).toBe(-50);
-  });
-
-  it('requires an idempotency key that is a uuid', () => {
-    expect(readIdempotencyKey(key)).toBe(key);
-    expect(() => readIdempotencyKey(undefined)).toThrow(BadRequestException);
-    expect(() => readIdempotencyKey('abc')).toThrow(BadRequestException);
   });
 });

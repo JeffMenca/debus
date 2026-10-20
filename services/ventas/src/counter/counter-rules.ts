@@ -1,7 +1,5 @@
-import { type Ticket, type TicketSoldPayload, idempotencyKeySchema } from '@debus/contracts';
-import { BadRequestException } from '@nestjs/common';
+import type { Ticket, TicketSoldPayload } from '@debus/contracts';
 import type { Prisma } from '../generated/prisma/client';
-import { MESSAGES } from '../messages';
 
 export const GENERIC_BUYER = 'Consumidor final';
 
@@ -11,12 +9,6 @@ export const SOLD_TICKET_INCLUDE = {
   seats: { select: { seatNumber: true }, orderBy: { seatNumber: 'asc' } },
 } satisfies Prisma.TicketInclude;
 export type SoldTicket = Prisma.TicketGetPayload<{ include: typeof SOLD_TICKET_INCLUDE }>;
-
-export function readIdempotencyKey(raw: string | undefined): string {
-  const parsed = idempotencyKeySchema.safeParse(raw);
-  if (!parsed.success) throw new BadRequestException(MESSAGES.keyMissing);
-  return parsed.data;
-}
 
 const seatNumbers = (ticket: SoldTicket): number[] => ticket.seats.map((seat) => seat.seatNumber);
 

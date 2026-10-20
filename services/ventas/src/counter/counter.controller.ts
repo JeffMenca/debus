@@ -17,13 +17,14 @@ import {
   apiErrors,
   apiQuery,
   apiSuccess,
+  readIdempotencyKey,
   requireBranch,
 } from '@debus/server';
 import { Body, Controller, Get, Headers, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import { MESSAGES } from '../messages';
 import { TripsService } from '../trips/trips.service';
 import { CounterSalesService } from './counter-sales.service';
-import { readIdempotencyKey } from './counter-rules';
 
 // Branch staff sell in cash at the counter, only the trips that leave from their branch.
 @ApiTags('counter')
@@ -58,6 +59,11 @@ export class CounterController {
     @Headers(IDEMPOTENCY_HEADER) key?: string,
     @Headers(CORRELATION_HEADER) correlationId?: string,
   ): Promise<Ticket> {
-    return this.sales.sell(actor, readIdempotencyKey(key), body, correlationId);
+    return this.sales.sell(
+      actor,
+      readIdempotencyKey(key, MESSAGES.keyMissing),
+      body,
+      correlationId,
+    );
   }
 }

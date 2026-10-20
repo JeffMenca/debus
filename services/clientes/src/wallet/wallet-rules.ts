@@ -1,6 +1,4 @@
-import { type WalletMovementKind, idempotencyKeySchema } from '@debus/contracts';
-import { BadRequestException } from '@nestjs/common';
-import { MESSAGES } from '../messages';
+import type { WalletMovementKind } from '@debus/contracts';
 
 export interface MovementIntent {
   kind: WalletMovementKind;
@@ -28,10 +26,4 @@ const CREDITS: readonly WalletMovementKind[] = ['TOP_UP', 'REFUND'];
 
 export function signedAmount(kind: WalletMovementKind, amount: number): number {
   return CREDITS.includes(kind) ? amount : -amount;
-}
-
-export function readIdempotencyKey(raw: string | undefined): string {
-  const parsed = idempotencyKeySchema.safeParse(raw);
-  if (!parsed.success) throw new BadRequestException(MESSAGES.keyMissing);
-  return parsed.data;
 }

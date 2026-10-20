@@ -8,6 +8,7 @@ const DESCRIPTIONS = {
   404: 'The requested resource does not exist.',
   409: 'Conflict with the current state: it already exists, was already used or cannot be changed.',
   410: 'The link has expired.',
+  422: 'The request was understood but cannot be carried out in the current state.',
   423: 'Account temporarily locked after failed attempts.',
   429: 'Too many emails sent to this account in the last hour.',
   502: 'Another service answered with an error.',

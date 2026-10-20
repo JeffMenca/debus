@@ -1,6 +1,10 @@
-import type { BackendService } from '@debus/contracts';
+import type { BackendService, Circuit } from '@debus/contracts';
 import type { z } from 'zod';
-import type { ServiceCallOptions, ServiceHttpClient } from '../service-client';
+import {
+  CircuitOpenError,
+  type ServiceCallOptions,
+  type ServiceHttpClient,
+} from '../service-client';
 
 type Method = 'GET' | 'POST';
 
@@ -16,9 +20,26 @@ const keyOf = (method: Method, service: BackendService, path: string) =>
   `${method} ${service} ${path.split('?')[0]}`;
 
 // Stands in for ServiceHttpClient in tests: answers what was registered and records every call.
-export class FakeServiceClient implements Pick<ServiceHttpClient, 'get' | 'post'> {
+export class FakeServiceClient implements Pick<
+  ServiceHttpClient,
+  'get' | 'post' | 'isOpen' | 'circuits'
+> {
   readonly calls: RecordedCall[] = [];
   private readonly responses = new Map<string, unknown>();
+  private readonly open = new Set<BackendService>();
+
+  // Calls to a service with an open circuit fail at once and are not recorded: they never left.
+  openCircuit(service: BackendService): void {
+    this.open.add(service);
+  }
+
+  isOpen(service: BackendService): boolean {
+    return this.open.has(service);
+  }
+
+  circuits(): Circuit[] {
+    return [];
+  }
 
   // An Error is thrown instead of returned, to simulate a peer that fails.
   respond(service: BackendService, method: Method, path: string, answer: unknown): void {
@@ -52,6 +73,7 @@ export class FakeServiceClient implements Pick<ServiceHttpClient, 'get' | 'post'
     options: ServiceCallOptions | undefined,
     schema: z.ZodType<T>,
   ): T {
+    if (this.open.has(service)) throw new CircuitOpenError(service, new Date());
     this.calls.push({ service, method, path, body, options });
     const key = keyOf(method, service, path);
     if (!this.responses.has(key)) {

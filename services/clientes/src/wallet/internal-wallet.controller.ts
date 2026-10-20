@@ -4,10 +4,17 @@ import {
   type WalletDebitRequest,
   walletDebitRequestSchema,
 } from '@debus/contracts';
-import { IDEMPOTENCY_HEADER, ZodBody, apiBody, apiErrors, apiSuccess } from '@debus/server';
+import {
+  IDEMPOTENCY_HEADER,
+  ZodBody,
+  apiBody,
+  apiErrors,
+  apiSuccess,
+  readIdempotencyKey,
+} from '@debus/server';
 import { Body, Controller, Headers, Post } from '@nestjs/common';
 import { ApiHeader, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { readIdempotencyKey } from './wallet-rules';
+import { MESSAGES } from '../messages';
 import { WalletService } from './wallet.service';
 
 // Called by ventas with the identity token of its service account; there is no user and the
@@ -27,6 +34,6 @@ export class InternalWalletController {
     @Body(new ZodBody(walletDebitRequestSchema)) body: WalletDebitRequest,
     @Headers(IDEMPOTENCY_HEADER) key?: string,
   ): Promise<WalletDebit> {
-    return this.wallet.debit(readIdempotencyKey(key), body);
+    return this.wallet.debit(readIdempotencyKey(key, MESSAGES.keyMissing), body);
   }
 }

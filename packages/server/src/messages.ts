@@ -7,4 +7,7 @@ export const SERVER_MESSAGES = {
   notFound: 'No encontramos lo que buscas.',
   upstream: 'El servicio no respondió. Intenta de nuevo en unos segundos.',
   generic: 'Algo salió mal. Intenta de nuevo en unos segundos.',
+  paused:
+    'Una parte del sistema está fallando y pausamos los intentos unos segundos para que se recupere. Intenta de nuevo en un momento.',
+  keyMissing: 'No pudimos identificar la operación. Recarga la página e intenta de nuevo.',
 } as const;
