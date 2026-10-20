@@ -65,4 +65,69 @@ describe('the ventas schema', () => {
 
     expect(await prisma.ticketSeat.count({ where: { tripId } })).toBe(0);
   });
+
+  describe('purchases', () => {
+    const created: string[] = [];
+    const purchase = (over: Record<string, unknown> = {}) => {
+      const id = randomUUID();
+      created.push(id);
+      return prisma.purchase.create({
+        data: {
+          id,
+          clientId: randomUUID(),
+          tripId: randomUUID(),
+          seats: [3, 4],
+          amount: 170,
+          description: 'Boleto Quetzaltenango - Guatemala, asientos 3 y 4',
+          paidOn: new Date('2026-10-20'),
+          payBy: new Date('2026-10-20T16:10:00.000Z'),
+          status: 'PENDING',
+          ...over,
+        },
+      });
+    };
+    afterAll(async () => {
+      await prisma.purchase.deleteMany({ where: { id: { in: created } } });
+    });
+
+    it('records a pending purchase with no ticket and no trip copy behind it', async () => {
+      const row = await purchase();
+
+      expect(row).toMatchObject({
+        status: 'PENDING',
+        failure: null,
+        debitAttempts: 0,
+        lastError: null,
+        lockedUntil: null,
+        seats: [3, 4],
+      });
+    });
+
+    it('requires a failure for a failed purchase and forbids it for any other', async () => {
+      await expect(purchase({ status: 'FAILED', failure: null })).rejects.toThrow(
+        /purchases_failure_matches_status/,
+      );
+      await expect(purchase({ status: 'PENDING', failure: 'PAYMENT_EXPIRED' })).rejects.toThrow(
+        /purchases_failure_matches_status/,
+      );
+      await expect(purchase({ status: 'CONFIRMED', failure: 'PAYMENT_EXPIRED' })).rejects.toThrow(
+        /purchases_failure_matches_status/,
+      );
+      await expect(
+        purchase({ status: 'FAILED', failure: 'INSUFFICIENT_BALANCE' }),
+      ).resolves.toMatchObject({ failure: 'INSUFFICIENT_BALANCE' });
+      await expect(purchase({ status: 'CONFIRMED' })).resolves.toMatchObject({
+        status: 'CONFIRMED',
+      });
+    });
+
+    it('survives the removal of the trip copy it refers to', async () => {
+      const tripId = await trips.create();
+      const row = await purchase({ tripId });
+
+      await prisma.trip.delete({ where: { tripId } });
+
+      expect(await prisma.purchase.findUnique({ where: { id: row.id } })).not.toBeNull();
+    });
+  });
 });
