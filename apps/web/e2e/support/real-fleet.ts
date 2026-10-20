@@ -56,14 +56,19 @@ export async function signInAsBranchAdmin(
 
 // Copies of branches, buses and drivers travel by events: each form is sent again only while the
 // service answers that one has not arrived, and never once the record is on screen.
-export async function createRoute(branch: Page, destination: string, distanceKm = '214.3') {
+export async function createRoute(
+  branch: Page,
+  destination: string,
+  distanceKm = '214.3',
+  ticketPrice = '70',
+) {
   await branch.goto('/sucursal/rutas');
   await branch.getByRole('button', { name: 'Nueva ruta' }).click();
   const dialog = branch.getByRole('dialog', { name: 'Nueva ruta' });
   await dialog.getByRole('combobox', { name: 'Destino' }).click();
   await branch.getByRole('option', { name: new RegExp(destination) }).click();
   await dialog.getByLabel('Distancia (km)').fill(distanceKm);
-  await dialog.getByLabel('Precio del boleto (Q)').fill('70');
+  await dialog.getByLabel('Precio del boleto (Q)').fill(ticketPrice);
   await submitWhileRegistering({
     page: branch,
     path: '/api/flota/routes',

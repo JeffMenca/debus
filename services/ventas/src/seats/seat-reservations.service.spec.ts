@@ -1,7 +1,11 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { MESSAGES } from '../messages';
-import { type SeatReservation, SeatReservationsService } from './seat-reservations.service';
+import {
+  DuplicateTicketError,
+  type SeatReservation,
+  SeatReservationsService,
+} from './seat-reservations.service';
 
 const tripId = '5b4a3f2e-1d0c-4b9a-8f7e-6d5c4b3a2f1e';
 const ticketId = '8e7d6c5b-4a3f-4e2d-9c1b-0a9f8e7d6c5b';
@@ -16,19 +20,30 @@ const reservation: SeatReservation = {
   email: 'ana@correo.com',
   paidOn: '2026-10-16',
 };
+const departureAt = new Date(Date.now() + 3_600_000);
 const trip = (over: Record<string, unknown> = {}) => ({
   tripId,
   capacity: 40,
   ticketPrice: new Prisma.Decimal(85.5),
-  departureAt: new Date(Date.now() + 3_600_000),
+  departureAt,
+  originLabel: 'Quetzaltenango',
+  destinationLabel: 'Guatemala',
   ...over,
 });
+// What the driver adapter of Prisma 7 reports for a unique violation: the name of the constraint.
+const uniqueViolation = (constraint: string) =>
+  Object.assign(new Error('Unique constraint failed'), {
+    code: 'P2002',
+    meta: { driverAdapterError: { cause: { constraint: { index: constraint } } } },
+  });
 const prismaError = (code: string) => Object.assign(new Error(code), { code });
 
 function setup() {
   const prisma = {
     trip: { findUnique: jest.fn().mockResolvedValue(trip()) },
-    ticket: { create: jest.fn().mockResolvedValue({}) },
+    // A batch of writes is built lazily and run together: the stand-ins are plain markers.
+    ticket: { create: jest.fn((args: unknown) => ({ write: 'ticket', args })) },
+    $transaction: jest.fn().mockResolvedValue([]),
   };
   return { prisma, service: new SeatReservationsService(prisma as never) };
 }
@@ -41,6 +56,9 @@ describe('SeatReservationsService', () => {
       ticketId,
       unitPrice: 85.5,
       total: 171,
+      departureAt,
+      originLabel: 'Quetzaltenango',
+      destinationLabel: 'Guatemala',
     });
     expect(prisma.ticket.create).toHaveBeenCalledWith({
       data: {
@@ -64,6 +82,38 @@ describe('SeatReservationsService', () => {
         },
       },
     });
+  });
+
+  it('writes the ticket and the extra writes of the caller in one batch, ticket first', async () => {
+    const { prisma, service } = setup();
+    const extra = { write: 'purchase' };
+    const alongside = jest.fn(() => [extra as never]);
+
+    await service.reserve(reservation, alongside);
+
+    expect(alongside).toHaveBeenCalledWith({
+      ticketId,
+      unitPrice: 85.5,
+      total: 171,
+      departureAt,
+      originLabel: 'Quetzaltenango',
+      destinationLabel: 'Guatemala',
+    });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.$transaction).toHaveBeenCalledWith([
+      { write: 'ticket', args: expect.any(Object) },
+      extra,
+    ]);
+  });
+
+  it('writes only the ticket when the caller has nothing to add', async () => {
+    const { prisma, service } = setup();
+
+    await service.reserve(reservation);
+
+    expect(prisma.$transaction).toHaveBeenCalledWith([
+      { write: 'ticket', args: expect.any(Object) },
+    ]);
   });
 
   it('answers 404 for a trip it does not know', async () => {
@@ -95,16 +145,31 @@ describe('SeatReservationsService', () => {
 
   it('answers 409 when the database finds a seat already taken', async () => {
     const { prisma, service } = setup();
-    prisma.ticket.create.mockRejectedValue(prismaError('P2002'));
+    prisma.$transaction.mockRejectedValue(uniqueViolation('ticket_seats_pkey'));
 
-    await expect(service.reserve(reservation)).rejects.toThrow(
-      new ConflictException(MESSAGES.seatTaken),
-    );
+    const error = await service.reserve(reservation).catch((reason: unknown) => reason);
+
+    expect(error).toEqual(new ConflictException(MESSAGES.seatTaken));
+    expect(error).not.toBeInstanceOf(DuplicateTicketError);
   });
+
+  it.each(['tickets_pkey', 'purchases_pkey'])(
+    'tells a repeated key apart from a seat taken when %s is the one violated',
+    async (constraint) => {
+      const { prisma, service } = setup();
+      prisma.$transaction.mockRejectedValue(uniqueViolation(constraint));
+
+      const error = await service.reserve(reservation).catch((reason: unknown) => reason);
+
+      expect(error).toBeInstanceOf(DuplicateTicketError);
+      expect(error).toBeInstanceOf(ConflictException);
+      expect(error).toMatchObject({ message: MESSAGES.purchaseKeyReused });
+    },
+  );
 
   it('lets any other failure through', async () => {
     const { prisma, service } = setup();
-    prisma.ticket.create.mockRejectedValue(prismaError('P1001'));
+    prisma.$transaction.mockRejectedValue(prismaError('P1001'));
 
     await expect(service.reserve(reservation)).rejects.toMatchObject({ code: 'P1001' });
   });

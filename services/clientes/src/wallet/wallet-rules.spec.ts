@@ -1,8 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
 import {
   isSameIntent,
   movementFingerprint,
-  readIdempotencyKey,
+  paymentWindowClosed,
   signedAmount,
 } from './wallet-rules';
 
@@ -36,9 +35,15 @@ describe('wallet rules', () => {
     expect(signedAmount('RENTAL', 50)).toBe(-50);
   });
 
-  it('requires an idempotency key that is a uuid', () => {
-    expect(readIdempotencyKey(key)).toBe(key);
-    expect(() => readIdempotencyKey(undefined)).toThrow(BadRequestException);
-    expect(() => readIdempotencyKey('abc')).toThrow(BadRequestException);
+  it('closes the payment window only after the moment it names', () => {
+    const payBy = '2026-10-19T16:40:00.000Z';
+
+    expect(paymentWindowClosed(payBy, new Date('2026-10-19T16:39:59.999Z'))).toBe(false);
+    expect(paymentWindowClosed(payBy, new Date('2026-10-19T16:40:00.000Z'))).toBe(false);
+    expect(paymentWindowClosed(payBy, new Date('2026-10-19T16:40:00.001Z'))).toBe(true);
+  });
+
+  it('never closes the window of a debit that sets no deadline', () => {
+    expect(paymentWindowClosed(undefined, new Date('2999-01-01T00:00:00.000Z'))).toBe(false);
   });
 });

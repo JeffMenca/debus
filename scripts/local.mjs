@@ -49,14 +49,16 @@ async function waitForPubSubEmulator() {
 
 // Cloud Scheduler flushes every outbox each minute in GCP; locally this does it every 30 s. Without
 // it, events written inside a handler (such as the email of a driver's account) would never leave.
+// The same tick settles the purchases that ventas left in doubt, which a scheduler job does in GCP.
 async function startOutboxFlusher() {
   const { BACKEND_SERVICES, LOCAL_PORTS } = await import('@debus/contracts');
+  const post = (service, path) =>
+    fetch(`http://localhost:${LOCAL_PORTS[service]}${path}`, { method: 'POST' }).catch(
+      () => undefined,
+    );
   setInterval(() => {
-    for (const service of BACKEND_SERVICES) {
-      fetch(`http://localhost:${LOCAL_PORTS[service]}/outbox/flush`, { method: 'POST' }).catch(
-        () => undefined,
-      );
-    }
+    for (const service of BACKEND_SERVICES) post(service, '/outbox/flush');
+    post('ventas', '/internal/purchases/recover');
   }, 30_000);
 }
 

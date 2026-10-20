@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ServiceUnavailableError } from '../service-client';
+import { CircuitOpenError, ServiceUnavailableError } from '../service-client';
 import { FakeServiceClient } from './fake-service-client';
 
 const schema = z.object({ ok: z.boolean() });
@@ -50,5 +50,21 @@ describe('FakeServiceClient', () => {
     await expect(fake.get('flota', '/nope', schema)).rejects.toThrow(
       'No response registered for GET flota /nope',
     );
+  });
+
+  it('answers every call of an open circuit with a circuit error, without recording it as sent', async () => {
+    const fake = new FakeServiceClient();
+    fake.respond('flota', 'GET', '/x', { ok: true });
+    fake.openCircuit('flota');
+
+    expect(fake.isOpen('flota')).toBe(true);
+    expect(fake.isOpen('viajes')).toBe(false);
+    await expect(fake.get('flota', '/x', schema)).rejects.toBeInstanceOf(CircuitOpenError);
+    await expect(fake.post('flota', '/x', {}, schema, {})).rejects.toBeInstanceOf(CircuitOpenError);
+    expect(fake.calls).toHaveLength(0);
+  });
+
+  it('has no circuits to report', () => {
+    expect(new FakeServiceClient().circuits()).toEqual([]);
   });
 });

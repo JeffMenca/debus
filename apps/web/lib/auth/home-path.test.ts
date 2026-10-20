@@ -1,4 +1,4 @@
-import { homePathFor, safeNext } from './home-path';
+import { homePathFor, safeNext, startPathFor } from './home-path';
 
 describe('home path', () => {
   it('sends each role to its start page', () => {
@@ -57,5 +57,16 @@ describe('home path', () => {
   it('normalizes dot segments instead of passing them on', () => {
     expect(safeNext('/a/../b')).toBe('/b');
     expect(safeNext('/../../evil.example')).toBe('/evil.example');
+  });
+});
+
+describe('start path', () => {
+  it('leads each person to their own area, and a visitor to the home page', () => {
+    expect(startPathFor(undefined)).toBe('/');
+    expect(startPathFor('CLIENT')).toBe('/cuenta');
+    expect(startPathFor('SYSTEM_ADMIN')).toBe('/admin');
+    expect(startPathFor('BRANCH_ADMIN')).toBe('/sucursal');
+    expect(startPathFor('CASHIER')).toBe('/sucursal');
+    expect(startPathFor('DRIVER')).toBe('/chofer');
   });
 });

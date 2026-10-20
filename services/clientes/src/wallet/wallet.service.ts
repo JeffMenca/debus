@@ -29,6 +29,7 @@ import {
   type MovementIntent,
   isSameIntent,
   movementFingerprint,
+  paymentWindowClosed,
   signedAmount,
 } from './wallet-rules';
 
@@ -49,6 +50,8 @@ const toMovement = (row: MovementRow): WalletMovement => ({
   occurredOn: row.occurredOn.toISOString().slice(0, 10),
   createdAt: row.createdAt.toISOString(),
 });
+
+type DebitIntent = MovementIntent & { description: string; payBy?: string };
 
 const byKey = (clientId: string, idempotencyKey: string) => ({
   where: { clientId_idempotencyKey: { clientId, idempotencyKey } },
@@ -94,13 +97,20 @@ export class WalletService {
   // ventas pays a ticket (or a rental) with Idempotency-Key = the id of what it pays.
   async debit(key: string, request: WalletDebitRequest): Promise<WalletDebit> {
     if (key !== request.reference) throw new BadRequestException(SERVER_MESSAGES.invalidData);
-    return this.apply(request.clientId, key, {
+    const applied = await this.apply(request.clientId, key, {
       kind: request.kind,
       amount: request.amount,
       occurredOn: request.occurredOn,
       reference: request.reference,
       description: request.description,
+      payBy: request.payBy,
     });
+    // The wallet hangs from the profile, so a debit that applied always finds it.
+    const profile = await this.prisma.clientProfile.findUnique({
+      where: { userId: request.clientId },
+      select: { email: true },
+    });
+    return { ...applied, email: profile?.email };
   }
 
   async movements(clientId: string, query: WalletMovementListQuery): Promise<WalletMovementPage> {
@@ -116,11 +126,7 @@ export class WalletService {
     return toPage(rows.map(toMovement), total, query);
   }
 
-  private async apply(
-    clientId: string,
-    key: string,
-    intent: MovementIntent & { description: string },
-  ): Promise<WalletDebit> {
+  private async apply(clientId: string, key: string, intent: DebitIntent): Promise<WalletDebit> {
     const fingerprint = movementFingerprint(intent);
     try {
       return await this.prisma.$transaction((tx) =>
@@ -139,11 +145,14 @@ export class WalletService {
     tx: Prisma.TransactionClient,
     clientId: string,
     key: string,
-    intent: MovementIntent & { description: string },
+    intent: DebitIntent,
     fingerprint: string,
   ): Promise<WalletDebit> {
     const existing = await tx.walletMovement.findUnique(byKey(clientId, key));
     if (existing) return replayed(existing, fingerprint);
+    if (paymentWindowClosed(intent.payBy, new Date())) {
+      throw new UnprocessableEntityException(MESSAGES.paymentExpired);
+    }
 
     const amount = signedAmount(intent.kind, intent.amount);
     // The update locks the wallet row, so concurrent debits are applied one after the other and

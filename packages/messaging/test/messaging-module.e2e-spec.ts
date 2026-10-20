@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { createEnvelope, eventEnvelopeSchema, exampleBus } from '@debus/contracts';
 import { PubSub } from '@google-cloud/pubsub';
-import type { INestApplication } from '@nestjs/common';
+import { Controller, type INestApplication, Module, Post, UseGuards } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import {
@@ -10,6 +10,7 @@ import {
   MessagingModule,
   OIDC_VERIFIER,
   Outbox,
+  PubSubPushGuard,
   pushBody,
 } from '../src';
 import { recreateOutboxTable, testPool, transactional } from './support/pg';
@@ -246,6 +247,52 @@ describe('MessagingModule outbox outside the emulator', () => {
     await app.init();
 
     await request(app.getHttpServer()).post('/outbox/flush').expect(401);
+
+    await app.close();
+    process.env.PUBSUB_EMULATOR_HOST = emulatorHost;
+  });
+});
+
+// A service guards its own scheduled jobs (like the recovery of purchases) with the same guard.
+@Controller('jobs')
+class JobsController {
+  @Post('run')
+  @UseGuards(PubSubPushGuard)
+  run(): { ran: boolean } {
+    return { ran: true };
+  }
+}
+
+@Module({ controllers: [JobsController] })
+class JobsModule {}
+
+describe('PubSubPushGuard on a route of the service', () => {
+  const build = async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        MessagingModule.forRoot({ service: 'ventas', outbox: { useFactory: () => ({}) as never } }),
+        JobsModule,
+      ],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    await app.init();
+    return app;
+  };
+
+  it('lets a call through in the emulator, which sends no identity token', async () => {
+    const app = await build();
+
+    await request(app.getHttpServer()).post('/jobs/run').expect(201);
+
+    await app.close();
+  });
+
+  it('rejects a call without an identity token outside the emulator', async () => {
+    const emulatorHost = process.env.PUBSUB_EMULATOR_HOST;
+    delete process.env.PUBSUB_EMULATOR_HOST;
+    const app = await build();
+
+    await request(app.getHttpServer()).post('/jobs/run').expect(401);
 
     await app.close();
     process.env.PUBSUB_EMULATOR_HOST = emulatorHost;

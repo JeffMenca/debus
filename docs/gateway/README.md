@@ -63,6 +63,8 @@ flowchart LR
 
 El gateway solo **publica** `ProbeSent` (diagnóstico) y no consume eventos. Como no tiene base de datos no tiene outbox: `ProbeService` lo publica directo en Pub/Sub con `EventPublisher`, sin reintento propio, y si la publicación falla el pedido responde con error y el aviso no se envía. Si el servicio de destino no responde, el gateway contesta 502 con el mensaje "El servicio no respondió. Intenta de nuevo en unos segundos." y un `correlationId` que sirve para seguir el pedido en los logs de los demás. Quien sí usa outbox, inbox y cola de errores son los servicios con base (ver sus manuales).
 
+`GET /api/system/status` (la tarjeta "Servicios" de `/admin/estado`) pregunta `/health` a cada servicio y, además de si responde, junta los **circuitos** que cada uno informa: el estado de su conexión con los servicios que llama (por ejemplo, "Conexión con Clientes · En pausa hasta 10:32:05"). Si un servicio no los informa (una revisión anterior) o su respuesta no coincide con el contrato, se omiten y el servicio sigue marcado como en línea.
+
 <!-- prettier-ignore-start -->
 <!-- generado:eventos -->
 **Publica**

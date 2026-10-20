@@ -1,14 +1,6 @@
-import { ticketSchema, ticketSoldPayloadSchema } from '@debus/contracts';
 import { Prisma } from '../generated/prisma/client';
-import {
-  GENERIC_BUYER,
-  type SoldTicket,
-  buyerNameFor,
-  readIdempotencyKey,
-  sameSale,
-  toTicket,
-  toTicketSoldPayload,
-} from './counter-rules';
+import type { SoldTicket } from '../tickets/ticket-rules';
+import { GENERIC_BUYER, buyerNameFor, sameSale } from './counter-rules';
 
 const branchId = '9b2c7a10-1111-4c4c-8888-123456789abc';
 const tripId = '5b4a3f2e-1d0c-4b9a-8f7e-6d5c4b3a2f1e';
@@ -43,14 +35,6 @@ const sold: SoldTicket = {
   },
 };
 
-describe('readIdempotencyKey', () => {
-  it('takes a uuid and refuses anything else', () => {
-    expect(readIdempotencyKey(sold.id)).toBe(sold.id);
-    expect(() => readIdempotencyKey(undefined)).toThrow();
-    expect(() => readIdempotencyKey('abc')).toThrow();
-  });
-});
-
 describe('sameSale', () => {
   const request = { tripId, seats: [10, 9] };
 
@@ -71,52 +55,5 @@ describe('buyerNameFor', () => {
     expect(buyerNameFor('Luis Pérez', { fullName: 'Ana Méndez' })).toBe('Luis Pérez');
     expect(buyerNameFor(undefined, { fullName: 'Ana Méndez' })).toBe('Ana Méndez');
     expect(buyerNameFor(undefined, null)).toBe('Consumidor final');
-  });
-});
-
-describe('toTicket', () => {
-  it('answers the ticket as the contract describes it', () => {
-    const ticket = toTicket(sold);
-
-    expect(ticket).toEqual({
-      id: sold.id,
-      status: 'CONFIRMED',
-      channel: 'COUNTER',
-      tripId,
-      originLabel: 'Quetzaltenango',
-      destinationLabel: 'Guatemala',
-      departureAt: '2026-10-20T11:30:00.000Z',
-      busPlate: 'C482BTX',
-      seats: [9, 10],
-      unitPrice: 85.5,
-      total: 171,
-      nit: 'CF',
-      buyerName: 'Consumidor final',
-      paidOn: '2026-10-18',
-      soldAt: '2026-10-18T15:30:00.000Z',
-    });
-    expect(ticketSchema.parse(ticket)).toEqual(ticket);
-  });
-});
-
-describe('toTicketSoldPayload', () => {
-  it('carries the origin branch of the trip and fits the contract', () => {
-    const payload = toTicketSoldPayload({ ...sold, clientId: tripId, email: 'ana@correo.com' });
-
-    expect(payload).toMatchObject({
-      ticketId: sold.id,
-      branchId,
-      routeId: sold.trip.routeId,
-      busId: sold.trip.busId,
-      channel: 'COUNTER',
-      clientId: tripId,
-      email: 'ana@correo.com',
-      seats: [9, 10],
-      unitPrice: 85.5,
-      total: 171,
-      paidOn: '2026-10-18',
-      soldAt: '2026-10-18T15:30:00.000Z',
-    });
-    expect(ticketSoldPayloadSchema.safeParse(payload).success).toBe(true);
   });
 });

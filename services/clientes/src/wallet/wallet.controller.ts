@@ -15,10 +15,11 @@ import {
   apiErrors,
   apiQuery,
   apiSuccess,
+  readIdempotencyKey,
 } from '@debus/server';
 import { Body, Controller, Get, Headers, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
-import { readIdempotencyKey } from './wallet-rules';
+import { MESSAGES } from '../messages';
 import { WalletService } from './wallet.service';
 
 @ApiTags('wallet')
@@ -44,7 +45,7 @@ export class WalletController {
     @Body(new ZodBody(topUpRequestSchema)) body: TopUpRequest,
     @Headers(IDEMPOTENCY_HEADER) key?: string,
   ): Promise<Wallet> {
-    return this.wallet.topUp(actor.userId, readIdempotencyKey(key), body);
+    return this.wallet.topUp(actor.userId, readIdempotencyKey(key, MESSAGES.keyMissing), body);
   }
 
   @Get('movements')

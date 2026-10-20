@@ -66,6 +66,8 @@ export class MessagingModule {
     if (inbox || outbox) {
       // Both inbound push and the outbox flush are called by Google with the same OIDC identity.
       providers.push({ provide: OIDC_VERIFIER, useValue: new OAuth2Client() }, PubSubPushGuard);
+      // The guard is also used on the scheduled jobs of the service that hosts the module.
+      exports.push(MESSAGING_SETTINGS, OIDC_VERIFIER);
     }
 
     if (inbox) {

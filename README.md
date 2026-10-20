@@ -4,17 +4,19 @@ Plataforma de transporte extraurbano de Guatemala: boletos, viajes, flota, alqui
 
 Monorepo con pnpm y Turborepo:
 
-| Ruta                 | Contenido                                                                                                                        |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/web`           | Next.js (App Router), Tailwind, shadcn/ui, TanStack Query/Table, react-hook-form + zod, react-leaflet                            |
-| `services/gateway`   | Punto de entrada público: JWT, roles, enrutamiento y Swagger                                                                     |
-| `services/*`         | `administracion`, `flota`, `viajes`, `ventas`, `clientes`, `reportes`, `notificaciones` (NestJS + Prisma, una base por servicio) |
-| `packages/contracts` | Nombres y payloads de los eventos                                                                                                |
-| `packages/messaging` | Outbox, inbox idempotente y Pub/Sub                                                                                              |
-| `packages/config`    | tsconfig, ESLint, Prettier y Jest compartidos                                                                                    |
-| `packages/tools`     | Datos de demostración (`pnpm seed`) y colección Postman (`pnpm postman`)                                                         |
-| `infra/`             | Dockerfiles e inicialización de PostgreSQL                                                                                       |
-| `docs/`, `postman/`  | Manuales técnicos y colección de pruebas                                                                                         |
+| Ruta                 | Contenido                                                                                                                                                               |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web`           | Next.js (App Router), Tailwind, shadcn/ui, TanStack Query/Table, react-hook-form + zod, react-leaflet                                                                   |
+| `services/gateway`   | Punto de entrada público: JWT, roles, enrutamiento y Swagger                                                                                                            |
+| `services/*`         | `administracion`, `flota`, `viajes`, `ventas`, `clientes`, `reportes`, `notificaciones` (NestJS + Prisma, una base por servicio)                                        |
+| `services/ventas`    | Boletos y asientos; la compra con cartera es una saga (reservar, cobrar, confirmar) que libera los asientos si el cobro se rechaza y se recupera si queda en duda       |
+| `packages/contracts` | Nombres y payloads de los eventos                                                                                                                                       |
+| `packages/messaging` | Outbox, inbox idempotente y Pub/Sub                                                                                                                                     |
+| `packages/server`    | Cliente HTTP entre servicios con circuit breaker por servicio destino (se abre tras 5 fallas seguidas y se prueba a los 30 s), identidad, errores y Swagger compartidos |
+| `packages/config`    | tsconfig, ESLint, Prettier y Jest compartidos                                                                                                                           |
+| `packages/tools`     | Datos de demostración (`pnpm seed`) y colección Postman (`pnpm postman`)                                                                                                |
+| `infra/`             | Dockerfiles e inicialización de PostgreSQL                                                                                                                              |
+| `docs/`, `postman/`  | Manuales técnicos y colección de pruebas                                                                                                                                |
 
 ## Requisitos
 

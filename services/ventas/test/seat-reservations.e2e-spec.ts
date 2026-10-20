@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ConflictException, type INestApplication } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
+  DuplicateTicketError,
   type SeatReservation,
   SeatReservationsService,
 } from '../src/seats/seat-reservations.service';
@@ -32,7 +33,26 @@ describe('reserving seats while others buy the same ones', () => {
     reservations = app.get(SeatReservationsService);
     trips = testTrips(prisma);
   });
+  const purchases: string[] = [];
+  const purchaseFor = (ticketId: string, tripId: string) => {
+    purchases.push(ticketId);
+    return prisma.purchase.create({
+      data: {
+        id: ticketId,
+        clientId: randomUUID(),
+        tripId,
+        seats: [1],
+        amount: 85,
+        description: 'Boleto de prueba',
+        paidOn: new Date('2026-10-16'),
+        payBy: new Date(Date.now() + 600_000),
+        status: 'PENDING',
+      },
+    });
+  };
+
   afterAll(async () => {
+    await prisma.purchase.deleteMany({ where: { id: { in: purchases } } });
     await trips.cleanUp();
     await app.close();
   });
@@ -86,5 +106,72 @@ describe('reserving seats while others buy the same ones', () => {
     await expect(reservations.reserve(reservation(gone, [1]))).rejects.toBeInstanceOf(
       ConflictException,
     );
+  });
+
+  it('writes the ticket, its seats and the extra writes of the caller together', async () => {
+    const tripId = await trips.create({
+      originLabel: 'Quetzaltenango',
+      destinationLabel: 'Flores',
+    });
+    const request = reservation(tripId, [3, 4]);
+
+    const reserved = await reservations.reserve(request, () => [
+      purchaseFor(request.ticketId, tripId),
+    ]);
+
+    expect(reserved).toMatchObject({
+      ticketId: request.ticketId,
+      total: expect.any(Number),
+      originLabel: expect.stringContaining('Quetzaltenango'),
+      destinationLabel: expect.stringContaining('Flores'),
+      departureAt: expect.any(Date),
+    });
+    expect(await prisma.ticketSeat.count({ where: { tripId } })).toBe(2);
+    expect(await prisma.purchase.count({ where: { id: request.ticketId } })).toBe(1);
+  });
+
+  it('saves nothing at all when a seat of the selection is already taken', async () => {
+    const tripId = await trips.create();
+    await reservations.reserve(reservation(tripId, [2]));
+    const losing = reservation(tripId, [1, 2]);
+
+    await expect(
+      reservations.reserve(losing, () => [purchaseFor(losing.ticketId, tripId)]),
+    ).rejects.toMatchObject({ message: expect.stringContaining('asientos que elegiste') });
+
+    expect(await prisma.ticket.count({ where: { id: losing.ticketId } })).toBe(0);
+    expect(await prisma.ticketSeat.count({ where: { tripId } })).toBe(1);
+    expect(await prisma.purchase.count({ where: { id: losing.ticketId } })).toBe(0);
+  });
+
+  it('saves nothing when the extra write is the one that fails', async () => {
+    const tripId = await trips.create();
+    const first = reservation(tripId, [1]);
+    await reservations.reserve(first, () => [purchaseFor(first.ticketId, tripId)]);
+    const clash = { ...reservation(tripId, [2]) };
+
+    await expect(
+      reservations.reserve(clash, () => [purchaseFor(first.ticketId, tripId)]),
+    ).rejects.toBeInstanceOf(DuplicateTicketError);
+
+    expect(await prisma.ticket.count({ where: { id: clash.ticketId } })).toBe(0);
+    expect(await prisma.ticketSeat.count({ where: { tripId, seatNumber: 2 } })).toBe(0);
+  });
+
+  it('tells a repeated ticket id apart from a taken seat', async () => {
+    const tripId = await trips.create();
+    const first = reservation(tripId, [1]);
+    await reservations.reserve(first);
+
+    const sameKey = await reservations
+      .reserve({ ...reservation(tripId, [2]), ticketId: first.ticketId })
+      .catch((reason: unknown) => reason);
+    const sameSeat = await reservations
+      .reserve(reservation(tripId, [1]))
+      .catch((reason: unknown) => reason);
+
+    expect(sameKey).toBeInstanceOf(DuplicateTicketError);
+    expect(sameSeat).toBeInstanceOf(ConflictException);
+    expect(sameSeat).not.toBeInstanceOf(DuplicateTicketError);
   });
 });

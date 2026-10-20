@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { TEST_BRANCH_PREFIX, TEST_RUN } from '@debus/config/test-data';
 import { exampleTripScheduled } from '@debus/contracts';
 import type { PrismaService } from '../../src/prisma/prisma.service';
 
@@ -16,6 +17,9 @@ export const scheduledTrip = (over: Partial<typeof exampleTripScheduled> = {}) =
   ...over,
 });
 
+// Labels start with the prefix of the test data, so pnpm test:clean finds the trips of this run.
+export const testLabel = (label: string): string => `${TEST_BRANCH_PREFIX}${TEST_RUN} ${label}`;
+
 export type TestTrips = ReturnType<typeof testTrips>;
 
 // Every trip a test creates is remembered here and removed with its tickets and seats.
@@ -32,8 +36,8 @@ export function testTrips(prisma: PrismaService) {
           routeId: trip.routeId ?? randomUUID(),
           busId: trip.busId,
           busPlate: trip.busPlate,
-          originLabel: trip.originLabel,
-          destinationLabel: trip.destinationLabel,
+          originLabel: testLabel(trip.originLabel),
+          destinationLabel: testLabel(trip.destinationLabel),
           capacity: trip.capacity,
           ticketPrice: trip.ticketPrice ?? 0,
           departureAt: new Date(trip.departureAt),

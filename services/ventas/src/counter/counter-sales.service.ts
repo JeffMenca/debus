@@ -14,11 +14,10 @@ import { SeatReservationsService } from '../seats/seat-reservations.service';
 import {
   SOLD_TICKET_INCLUDE,
   type SoldTicket,
-  buyerNameFor,
-  sameSale,
   toTicket,
   toTicketSoldPayload,
-} from './counter-rules';
+} from '../tickets/ticket-rules';
+import { buyerNameFor, sameSale } from './counter-rules';
 
 // A ProfileUpdated that lands between the lookup of the NIT and the insert of the ticket finds no
 // ticket to link; once the ticket exists, linking it again here closes that gap.

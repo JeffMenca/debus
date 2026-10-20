@@ -2,9 +2,12 @@ import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { createTestApp } from './support/app';
 
-type Operation = { responses?: Record<string, unknown>; parameters?: { name: string }[] };
+type Operation = {
+  responses?: Record<string, { content?: Record<string, { schema?: { properties?: object } }> }>;
+  parameters?: { name: string; required?: boolean }[];
+};
 
-describe('the Swagger description of the trips on sale and the counter', () => {
+describe('the Swagger description of the trips on sale, the counter and the purchases', () => {
   let app: INestApplication;
   let paths: Record<string, Record<string, Operation>>;
   const statuses = (path: string, method: string) =>
@@ -42,5 +45,28 @@ describe('the Swagger description of the trips on sale and the counter', () => {
     expect(
       paths['/counter/tickets']?.post?.parameters?.map((parameter) => parameter.name),
     ).toContain('idempotency-key');
+  });
+
+  it('documents the purchase: the two success answers, every refusal and the required key', () => {
+    expect(statuses('/purchases', 'post')).toEqual(
+      expect.arrayContaining(['201', '202', '400', '401', '404', '409', '422', '503']),
+    );
+    const key = paths['/purchases']?.post?.parameters?.find(
+      (parameter) => parameter.name === 'idempotency-key',
+    );
+    expect(key?.required).toBe(true);
+    for (const status of ['201', '202']) {
+      const answer = paths['/purchases']?.post?.responses?.[status];
+      expect(Object.keys(answer?.content?.['application/json']?.schema?.properties ?? {})).toEqual(
+        expect.arrayContaining(['ticketId', 'status', 'failure', 'message', 'ticket']),
+      );
+    }
+  });
+
+  it('documents the read of a purchase and keeps the recovery job out of the documentation', () => {
+    expect(statuses('/purchases/{ticketId}', 'get')).toEqual(
+      expect.arrayContaining(['200', '400', '401', '404']),
+    );
+    expect(Object.keys(paths).filter((path) => path.includes('/internal'))).toEqual([]);
   });
 });

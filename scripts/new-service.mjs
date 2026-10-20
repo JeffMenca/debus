@@ -219,33 +219,50 @@ import { HealthController } from './health.controller';
 @Module({ controllers: [HealthController] })
 export class HealthModule {}
 `,
-  'src/health/health.controller.ts': `import { Controller, Get } from '@nestjs/common';
+  'src/health/health.controller.ts': `import { ServiceHttpClient } from '@debus/server';
+import { Controller, Get, Optional } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
 export interface HealthStatus {
   status: 'ok';
   service: string;
+  circuits: ReturnType<ServiceHttpClient['circuits']>;
 }
 
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
+  // Only a service that calls other services provides the client; the others report no circuits.
+  constructor(@Optional() private readonly http?: ServiceHttpClient) {}
+
   @Get()
-  @ApiOkResponse({ description: 'Service is up' })
+  @ApiOkResponse({ description: 'Service is up, with the state of its connections to other services' })
   check(): HealthStatus {
-    return { status: 'ok', service: '${name}' };
+    return { status: 'ok', service: '${name}', circuits: this.http?.circuits() ?? [] };
   }
 }
 `,
-  'src/health/health.controller.spec.ts': `import { HealthController } from './health.controller';
+  'src/health/health.controller.spec.ts': `import type { ServiceHttpClient } from '@debus/server';
+import { HealthController } from './health.controller';
 
 describe('HealthController', () => {
-  it('reports the service as up', () => {
+  it('reports the service as up, with no circuits when it calls no other service', () => {
     const controller = new HealthController();
 
     const result = controller.check();
 
-    expect(result).toEqual({ status: 'ok', service: '${name}' });
+    expect(result).toEqual({ status: 'ok', service: '${name}', circuits: [] });
+  });
+
+  it('reports the circuits of the services it calls', () => {
+    const circuits = [
+      { target: 'flota', state: 'open', failures: 5, retryAt: '2026-10-19T10:32:05.000Z' },
+    ];
+    const http = { circuits: () => circuits } as unknown as ServiceHttpClient;
+
+    const result = new HealthController(http).check();
+
+    expect(result).toEqual({ status: 'ok', service: '${name}', circuits });
   });
 });
 `,
@@ -271,7 +288,11 @@ describe('GET /health', () => {
     const response = await request(app.getHttpServer()).get('/health');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ status: 'ok', service: '${name}' });
+    expect(response.body).toEqual({
+      status: 'ok',
+      service: '${name}',
+      circuits: expect.any(Array),
+    });
   });
 
   it('answers unknown routes with the shared error shape and the correlation id', async () => {
