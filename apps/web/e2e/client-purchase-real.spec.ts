@@ -136,7 +136,7 @@ test.describe('a client buys on the screens of a real stack', () => {
     ).toBeVisible();
 
     // With Q 30 left, one more seat is refused and the saga frees it again.
-    await buyer.goBack();
+    // The receipt lives on the same address: reloading it opens the seats of the trip again.
     await buyer.reload();
     await seat(11).click();
     await expect(buyer.getByText('Tu saldo no alcanza. Recarga en Mi cuenta.')).toBeVisible();
