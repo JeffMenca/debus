@@ -6,7 +6,7 @@ set -euo pipefail
 : "${PROJECT_ID:?set PROJECT_ID}"
 : "${REGION:?set REGION}"
 : "${GITHUB_REPO:?set GITHUB_REPO as owner/name}"
-SQL_INSTANCE="${SQL_INSTANCE:-debus-pg}"
+SQL_INSTANCE_PREFIX="${SQL_INSTANCE_PREFIX:-debus-pg}"
 SQL_TIER="${SQL_TIER:-db-f1-micro}"
 ARTIFACT_REPO="${ARTIFACT_REPO:-debus}"
 MEDIA_BUCKET="${MEDIA_BUCKET:-${PROJECT_ID}-debus-media}"
@@ -36,24 +36,30 @@ echo "Artifact Registry"
 exists gcloud artifacts repositories describe "$ARTIFACT_REPO" --location "$REGION" ||
   gcloud artifacts repositories create "$ARTIFACT_REPO" --repository-format docker --location "$REGION"
 
-echo "Cloud SQL (PostgreSQL 17, one database and one user per service)"
-exists gcloud sql instances describe "$SQL_INSTANCE" ||
-  gcloud sql instances create "$SQL_INSTANCE" --database-version POSTGRES_17 --tier "$SQL_TIER" \
-    --region "$REGION" --edition enterprise --storage-auto-increase
-if ! gcloud sql instances describe "$SQL_INSTANCE" --format='value(settings.databaseFlags)' | grep -q max_connections; then
-  # 7 services with a database x pool 2 x up to 2 instances.
-  gcloud sql instances patch "$SQL_INSTANCE" --database-flags max_connections=60 --quiet
-fi
-CONNECTION_NAME=$(gcloud sql instances describe "$SQL_INSTANCE" --format='value(connectionName)')
+echo "Cloud SQL (PostgreSQL 17, one instance, database and user per service, so one outage stays contained)"
+operations=()
 for svc in "${DB_SERVICES[@]}"; do
+  instance="$SQL_INSTANCE_PREFIX-$svc"
+  exists gcloud sql instances describe "$instance" ||
+    operations+=("$(gcloud sql instances create "$instance" --database-version POSTGRES_17 --tier "$SQL_TIER" \
+      --region "$REGION" --edition enterprise --storage-auto-increase --async --format='value(name)')")
+done
+# Creating them one by one takes close to an hour; in parallel it takes about ten minutes.
+for operation in ${operations[@]+"${operations[@]}"}; do
+  gcloud sql operations wait "$operation" --timeout unlimited >/dev/null
+done
+for svc in "${DB_SERVICES[@]}"; do
+  instance="$SQL_INSTANCE_PREFIX-$svc"
   db="$svc"
   secret="$svc-database-url"
-  exists gcloud sql databases describe "$db" --instance "$SQL_INSTANCE" ||
-    gcloud sql databases create "$db" --instance "$SQL_INSTANCE"
+  exists gcloud sql databases describe "$db" --instance "$instance" ||
+    gcloud sql databases create "$db" --instance "$instance"
+  # An existing secret means the user exists too; infra/gcp/split-sql.sh moves those from the old shared instance.
   if ! exists gcloud secrets describe "$secret"; then
     password=$(openssl rand -hex 24)
-    gcloud sql users create "$db" --instance "$SQL_INSTANCE" --password "$password"
-    printf 'postgresql://%s:%s@localhost/%s?host=/cloudsql/%s' "$db" "$password" "$db" "$CONNECTION_NAME" |
+    connection_name=$(gcloud sql instances describe "$instance" --format='value(connectionName)')
+    gcloud sql users create "$db" --instance "$instance" --password "$password"
+    printf 'postgresql://%s:%s@localhost/%s?host=/cloudsql/%s' "$db" "$password" "$db" "$connection_name" |
       gcloud secrets create "$secret" --data-file=-
   fi
 done
@@ -116,7 +122,7 @@ Done. Set these GitHub repository variables (Settings > Secrets and variables > 
   GCP_PROJECT_NUMBER=$PROJECT_NUMBER
   GCP_REGION=$REGION
   GCP_ARTIFACT_REPO=$ARTIFACT_REPO
-  GCP_CLOUDSQL_INSTANCE=$CONNECTION_NAME
+  GCP_CLOUDSQL_PREFIX=$PROJECT_ID:$REGION:$SQL_INSTANCE_PREFIX
   GCP_WIF_PROVIDER=projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/github
   GCP_DEPLOY_SA=github-deployer@$PROJECT_ID.iam.gserviceaccount.com
   MEDIA_BUCKET=$MEDIA_BUCKET
