@@ -198,7 +198,7 @@ flowchart LR
   n_gateway["Cloud Run gateway"] -.-> n_viajes_from_gateway["viajes-from-gateway"]
   n_viajes_from_gateway -->|push /events/pubsub| n_viajes
   n_viajes -.->|tras 5 entregas fallidas| n_dlq_viajes["viajes-dlq"]
-  n_ventas -.->|"HTTP prevista: Ver si el viaje está abierto a la venta"| n_viajes
+  n_ventas -->|"HTTP: Ver si el viaje está abierto a la venta"| n_viajes
   n_viajes -->|"HTTP: Ver si el bus y el chofer están disponibles"| n_flota
 ```
 <!-- /generado:despliegue -->
@@ -206,7 +206,9 @@ flowchart LR
 
 ## 5. Eventos y manejo de fallos
 
-El outbox se escribe en la misma transacción que el viaje y lo publican el job `viajes-outbox-flush` (cada minuto) y el propio servicio; el inbox (`processed_events`) evita procesar dos veces una entrega; Pub/Sub reintenta y, tras 5 fallos, deja el mensaje en `viajes-dlq`. Si la copia de un bus o de un chofer aún no llegó, programar contesta "Estamos terminando de registrar ese bus" y se reintenta en unos segundos; si `flota` no responde, 502 o 503 sin guardar nada.
+El outbox se escribe en la misma transacción que el viaje y lo publican el job `viajes-outbox-flush` (cada minuto) y el propio servicio; el inbox (`processed_events`) evita procesar dos veces una entrega; Pub/Sub reintenta y, tras 5 fallos, deja el mensaje en `viajes-dlq`. Si la copia de un bus o de un chofer aún no llegó, programar contesta "Estamos terminando de registrar ese bus" y se reintenta en unos segundos; si `flota` no responde, programar contesta 503 con "No pudimos revisar si el bus y el chofer están libres. No se guardó nada; intenta de nuevo en unos segundos." y no guarda nada.
+
+La llamada a `flota` pasa por un **circuit breaker** (el de `ServiceHttpClient`, un breaker por servicio destino): tras 5 intentos fallidos seguidos se abre 30 segundos y, mientras está abierto, programar falla al instante con ese mismo texto en lugar de esperar el timeout de 3 segundos. Pasado ese tiempo deja pasar una llamada de prueba. El estado es por instancia de Cloud Run; `/health` lo informa y `/admin/estado` lo muestra.
 
 <!-- prettier-ignore-start -->
 <!-- generado:eventos -->
@@ -266,19 +268,21 @@ Todas las rutas pasan por el gateway con el prefijo `/api/viajes` (aquí aparece
 
 Las que recibe en Cloud Run salen de `cloudRunEnv` (`packages/contracts/src/cloud-run-env.ts`); en local las trae `services/viajes/.env.example`.
 
-| Variable               | Para qué sirve                                                                                        |
-| ---------------------- | ----------------------------------------------------------------------------------------------------- |
-| `PORT`                 | Puerto en el que escucha (el de su `.env.example` en local; Cloud Run lo asigna en producción).       |
-| `SERVICE_NAME`         | Nombre del servicio; lo fija el despliegue y el código no lo lee.                                     |
-| `DEBUS_ENV`            | `local` o `production`.                                                                               |
-| `PUBSUB_PROJECT_ID`    | Proyecto de Pub/Sub (en local, el del emulador `debus-local`).                                        |
-| `PUBSUB_AUDIENCE`      | Dirección del servicio: el token OIDC que Pub/Sub manda en cada entrega debe estar emitido para ella. |
-| `PUBSUB_PUSH_SA`       | Cuenta de servicio que Pub/Sub usa para entregar; solo ella puede llamar a `POST /events/pubsub`.     |
-| `PUBSUB_EMULATOR_HOST` | Solo en local: con él no se valida el token de Pub/Sub.                                               |
-| `DATABASE_URL`         | Conexión a la base del servicio (en producción la arma el despliegue).                                |
-| `DB_POOL_MAX`          | Conexiones máximas al pool (2 en Cloud Run, para no agotar Cloud SQL).                                |
-| `SERVICE_AUTH`         | `google` en producción: la llamada a `flota` lleva token de identidad.                                |
-| `SERVICE_URL_FLOTA`    | Dirección de `flota`, para consultar la disponibilidad.                                               |
+| Variable                    | Para qué sirve                                                                                        |
+| --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `PORT`                      | Puerto en el que escucha (el de su `.env.example` en local; Cloud Run lo asigna en producción).       |
+| `SERVICE_NAME`              | Nombre del servicio; lo fija el despliegue y el código no lo lee.                                     |
+| `DEBUS_ENV`                 | `local` o `production`.                                                                               |
+| `PUBSUB_PROJECT_ID`         | Proyecto de Pub/Sub (en local, el del emulador `debus-local`).                                        |
+| `PUBSUB_AUDIENCE`           | Dirección del servicio: el token OIDC que Pub/Sub manda en cada entrega debe estar emitido para ella. |
+| `PUBSUB_PUSH_SA`            | Cuenta de servicio que Pub/Sub usa para entregar; solo ella puede llamar a `POST /events/pubsub`.     |
+| `PUBSUB_EMULATOR_HOST`      | Solo en local: con él no se valida el token de Pub/Sub.                                               |
+| `DATABASE_URL`              | Conexión a la base del servicio (en producción la arma el despliegue).                                |
+| `DB_POOL_MAX`               | Conexiones máximas al pool (2 en Cloud Run, para no agotar Cloud SQL).                                |
+| `SERVICE_AUTH`              | `google` en producción: la llamada a `flota` lleva token de identidad.                                |
+| `SERVICE_URL_FLOTA`         | Dirección de `flota`, para consultar la disponibilidad.                                               |
+| `CIRCUIT_FAILURE_THRESHOLD` | Fallas seguidas que abren el circuito hacia `flota` (por defecto 5).                                  |
+| `CIRCUIT_OPEN_MS`           | Milisegundos que el circuito permanece abierto (por defecto 30000).                                   |
 
 ## 8. Cómo correrlo y probarlo
 

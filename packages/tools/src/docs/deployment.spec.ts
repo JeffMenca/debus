@@ -38,13 +38,25 @@ describe('deploymentDiagram of a service', () => {
     expect(diagram).toContain('Ver si el bus y el chofer están disponibles');
   });
 
-  it('draws the calls that already work solid and the ones that are only planned dotted', () => {
-    expect(deploymentDiagram('flota')).not.toMatch(/-\.->\|"HTTP prevista/);
+  it('draws the calls that are in use solid, whoever makes them', () => {
     const viajes = deploymentDiagram('viajes');
     expect(viajes).toMatch(/n_viajes -->\|"HTTP: Ver si el bus y el chofer/);
     expect(viajes).toMatch(
-      /n_ventas -\.->\|"HTTP prevista: Ver si el viaje está abierto a la venta"\| n_viajes/,
+      /n_ventas -->\|"HTTP: Ver si el viaje está abierto a la venta"\| n_viajes/,
     );
+    const ventas = deploymentDiagram('ventas');
+    expect(ventas).toMatch(/n_ventas -->\|"HTTP: Ver si el viaje está abierto a la venta"\|/);
+    expect(ventas).toMatch(/n_ventas -->\|"HTTP: Cobrar con la cartera del cliente"\|/);
+    for (const unit of ['flota', 'viajes', 'ventas', 'clientes'] as const) {
+      expect(deploymentDiagram(unit)).not.toMatch(/HTTP prevista/);
+    }
+  });
+
+  it('shows the job that settles the purchases in doubt only on ventas', () => {
+    expect(deploymentDiagram('ventas')).toMatch(
+      /Cloud Scheduler ventas-purchase-recovery.*-->\|POST \/internal\/purchases\/recover\| n_ventas/,
+    );
+    expect(deploymentDiagram('clientes')).not.toContain('purchase-recovery');
   });
 
   it('writes every label in Spanish', () => {
@@ -66,7 +78,7 @@ describe('deploymentDiagram of a service', () => {
   it('shows what a service that makes the calls has to reach', () => {
     const calls = deploymentDiagram('viajes');
     expect(calls).toMatch(/viajes.*-->.*flota/);
-    expect(calls).toMatch(/ventas.*-\.->.*viajes/);
+    expect(calls).toMatch(/ventas.*-->.*viajes/);
   });
 
   it('gives a service that publishes nothing no topic', () => {

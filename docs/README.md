@@ -27,8 +27,8 @@ flowchart LR
   reportes <-.-> pubsub
   notificaciones <-.-> pubsub
   gateway -.->|ProbeSent| pubsub
-  ventas -.->|HTTP prevista| clientes
-  ventas -.->|HTTP prevista| viajes
+  ventas -->|HTTP| clientes
+  ventas -->|HTTP| viajes
   viajes -->|HTTP| flota
 ```
 
@@ -40,12 +40,18 @@ flowchart LR
 | administracion | Cuentas, sesiones, sucursales, configuración y gastos de taller                                       | [administracion](administracion/README.md) |
 | flota          | Buses, choferes, rutas y disponibilidad                                                               | [flota](flota/README.md)                   |
 | viajes         | Viajes, salida y llegada, alquileres                                                                  | [viajes](viajes/README.md)                 |
-| ventas         | Boletos, asientos y la saga de compra (en desarrollo)                                                 | [ventas](ventas/)                          |
+| ventas         | Boletos, asientos y la saga de compra (en desarrollo)                                                 | [ventas](ventas/README.md)                 |
 | clientes       | Perfil y cartera digital (en desarrollo)                                                              | [clientes](clientes/)                      |
 | reportes       | Reportes con exportación a PDF (los de sucursal ya existen; los del admin del sistema, en desarrollo) | [reportes](reportes/)                      |
 | notificaciones | Correos de cuentas (los de boletos, alquileres y licencias, en desarrollo)                            | [notificaciones](notificaciones/)          |
 
 Cada manual explica para qué sirve el servicio, sus componentes, sus tablas, su despliegue, los eventos que publica y consume, sus endpoints, sus variables de entorno y cómo probarlo. Los diagramas de tablas, de despliegue, los eventos y los endpoints **se generan** del código con `pnpm run docs` (y `pnpm run docs --check` en la integración continua los compara); el diagrama de componentes se escribe a mano.
+
+## Manejo de fallos entre servicios
+
+- **Eventos**: outbox transaccional en el servicio que publica, inbox idempotente (`processed_events`) en el que consume, reintentos de Pub/Sub y cola de errores tras 5 entregas fallidas.
+- **Circuit breaker**: las llamadas HTTP síncronas (`ventas→clientes`, `ventas→viajes` y `viajes→flota`) pasan por `ServiceHttpClient`, que lleva un breaker por servicio destino. Tras 5 intentos fallidos seguidos se abre 30 segundos y las llamadas fallan al instante con un `503`; pasado ese tiempo deja pasar una llamada de prueba. Cada `/health` informa sus circuitos y `/admin/estado` los muestra.
+- **Saga de compra**: comprar con la cartera es una saga de tres pasos (reservar, cobrar, confirmar) con compensación que libera los asientos si el cobro se rechaza, y con recuperación si el resultado queda en duda. Se cuenta en el manual de [ventas](ventas/README.md#saga-de-compra).
 
 ## Otros entregables
 

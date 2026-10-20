@@ -51,9 +51,14 @@ const CALL_TEXT: Readonly<Record<string, string>> = {
   'viajes->flota': 'Ver si el bus y el chofer están disponibles',
 };
 
-// Only these calls exist in the code today. The others are in the contract, and are drawn dotted,
-// until the service that makes them is written: add its call here when it is.
-const WORKING_CALLS = new Set(['viajes->flota']);
+// Only these calls exist in the code today. A call that is in the contract but not here is drawn
+// dotted until the service that makes it is written: add its call here when it is.
+const WORKING_CALLS = new Set(['viajes->flota', 'ventas->viajes', 'ventas->clientes']);
+
+// The jobs, besides the outbox flush, that Cloud Scheduler runs on a service.
+const EXTRA_JOBS: Readonly<Partial<Record<Unit, { name: string; path: string }>>> = {
+  ventas: { name: 'purchase-recovery', path: '/internal/purchases/recover' },
+};
 
 const node = (name: string): string => `n_${id(name)}`;
 
@@ -75,6 +80,12 @@ export function deploymentDiagram(unit: Unit): string {
     `  ${running(unit)} --> ${ref(`db ${unit}`, `Cloud SQL ${unit}`)}`,
     `  ${ref(`job ${unit}`, `Cloud Scheduler ${unit}-outbox-flush`)} -->|POST /outbox/flush| ${node(unit)}`,
   ];
+  const extraJob = EXTRA_JOBS[unit];
+  if (extraJob) {
+    lines.push(
+      `  ${ref(`job ${extraJob.name}`, `Cloud Scheduler ${unit}-${extraJob.name}`)} -->|POST ${extraJob.path}| ${node(unit)}`,
+    );
+  }
   const listeners = consumersOf(unit);
   if (listeners.length > 0) {
     lines.push(`  ${node(unit)} -->|outbox| ${ref(`topic ${unit}`, topicName(unit))}`);
