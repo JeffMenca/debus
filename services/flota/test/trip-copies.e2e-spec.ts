@@ -163,6 +163,23 @@ describe('trip copies', () => {
     });
   });
 
+  it('does not keep a deleted trip when its TripScheduled and TripDeleted arrive at the same time', async () => {
+    const ids = await seedBusDriverAndRoute(prisma, branchId);
+    const tripIds = Array.from({ length: 20 }, () => randomUUID());
+
+    await Promise.all(
+      tripIds.flatMap((tripId) => {
+        const common = { tripId, busId: ids.busId, driverId: ids.driverId, branchId };
+        return [
+          send('TripScheduled', { ...exampleTripScheduled, ...common, routeId: ids.routeId }),
+          send('TripDeleted', { ...exampleTripDeleted, ...common }),
+        ];
+      }),
+    );
+
+    expect(await prisma.tripCopy.count({ where: { tripId: { in: tripIds } } })).toBe(0);
+  });
+
   it('ignores the trips of buses that are not in flota', async () => {
     const tripId = randomUUID();
 

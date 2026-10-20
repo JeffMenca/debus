@@ -18,6 +18,7 @@ export const trip = (over: Partial<Trip> = {}): Trip => ({
   estimatedArrivalAt: '2026-10-20T16:30:00.000Z',
   ticketPrice: 85,
   capacity: 40,
+  departedAt: null,
   ...over,
 });
 

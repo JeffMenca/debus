@@ -147,6 +147,7 @@ export async function mockTripsGateway(page: Page, fleet: TripsFleet, seed: Trip
         estimatedArrivalAt: input.estimatedArrivalAt,
         ticketPrice: planned.ticketPrice,
         capacity: bus.capacity,
+        departedAt: null,
       };
       trips.push(created);
       return fulfillJson(route, 201, created);
@@ -178,5 +179,6 @@ export const sampleTrip = (overrides: Partial<Trip> = {}): Trip => ({
   estimatedArrivalAt: instantAt(1, '14:30'),
   ticketPrice: 85,
   capacity: 40,
+  departedAt: null,
   ...overrides,
 });

@@ -18,7 +18,7 @@ import { lastMileageKm } from './bus-mileage';
 import { FleetClient } from './fleet-client';
 import { tripAccessWhere } from './trip-access';
 import { TRIP_DETAIL_INCLUDE, toTripDetail } from './trip-detail';
-import { toTrip, toTripScheduledPayload } from './trip-mappers';
+import { TRIP_LIST_INCLUDE, toTrip, toTripScheduledPayload } from './trip-mappers';
 import { TRIP_MESSAGES } from './trip-messages';
 import { availabilityProblem, branchesProblem, scheduleProblem } from './trip-rules';
 import { tripListWhere, tripOrder } from './trip-scope';
@@ -37,7 +37,12 @@ export class TripsService {
   async list(actor: Identity, query: TripListQuery): Promise<TripPage> {
     const where = { ...tripListWhere(query), ...tripAccessWhere(actor) };
     const [rows, total] = await this.prisma.$transaction([
-      this.prisma.trip.findMany({ where, orderBy: tripOrder(), ...pageArgs(query) }),
+      this.prisma.trip.findMany({
+        where,
+        include: TRIP_LIST_INCLUDE,
+        orderBy: tripOrder(),
+        ...pageArgs(query),
+      }),
       this.prisma.trip.count({ where }),
     ]);
     return toPage(rows.map(toTrip), total, query);

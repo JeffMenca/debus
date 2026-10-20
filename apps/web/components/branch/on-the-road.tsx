@@ -15,7 +15,9 @@ const ON_THE_ROAD = { status: 'IN_TRANSIT', page: 1, pageSize: MAX_PAGE_SIZE } a
 
 function Lane({ trip, now }: { trip: Trip; now: number }) {
   const rental = trip.type === 'RENTAL';
-  const percent = Math.round(progressOf(trip.departureAt, trip.estimatedArrivalAt, now) * 100);
+  // A bus on the road always has its real departure; the schedule is only a fallback.
+  const leftAt = trip.departedAt ?? trip.departureAt;
+  const percent = Math.round(progressOf(leftAt, trip.estimatedArrivalAt, now) * 100);
   const plate = formatPlate(trip.busPlate);
   return (
     <li
@@ -31,7 +33,7 @@ function Lane({ trip, now }: { trip: Trip; now: number }) {
           {trip.originName} → {trip.destinationName}
         </span>
         <span className="font-mono text-xs">
-          {plate} · salió {splitGuatemala(trip.departureAt).time}
+          {plate} · salió {splitGuatemala(leftAt).time}
         </span>
       </span>
       <div

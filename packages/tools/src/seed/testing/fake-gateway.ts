@@ -407,6 +407,7 @@ export class FakeGateway implements Gateway {
       estimatedArrivalAt: body.estimatedArrivalAt,
       ticketPrice: route.ticketPrice,
       capacity: bus.capacity,
+      departedAt: null,
     };
     if (this.trips.some((other) => other.busId === bus.id && overlaps(other, trip))) {
       throw conflict('Ese bus ya tiene un viaje en ese horario.');
@@ -459,6 +460,7 @@ export class FakeGateway implements Gateway {
     }
     trip.status = 'IN_TRANSIT';
     trip.departure = { ...body, recordedByRole: 'BRANCH_ADMIN' };
+    trip.departedAt = body.departedAt;
     return this.tripDetail(id);
   }
 

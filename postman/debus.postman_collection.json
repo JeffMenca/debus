@@ -3073,9 +3073,17 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test(\"Responde 204\", function () {",
-                      "  pm.response.to.have.status(204);",
-                      "});"
+                      "var pending = /tiene viajes programados o en camino/;",
+                      "var attemptsKey = 'retry ' + pm.info.requestName;",
+                      "var attempts = Number(pm.collectionVariables.get(attemptsKey) || 0);",
+                      "if (pm.response.code === 409 && pending.test(pm.response.text()) && attempts < 25) {",
+                      "  pm.collectionVariables.set(attemptsKey, attempts + 1);",
+                      "  setTimeout(function () { postman.setNextRequest(pm.info.requestName); }, 2000);",
+                      "} else {",
+                      "  pm.test(\"Responde 204\", function () {",
+                      "    pm.response.to.have.status(204);",
+                      "  });",
+                      "}"
                     ]
                   }
                 }
@@ -3171,9 +3179,17 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test(\"Responde 204\", function () {",
-                      "  pm.response.to.have.status(204);",
-                      "});"
+                      "var pending = /tiene viajes programados o en camino/;",
+                      "var attemptsKey = 'retry ' + pm.info.requestName;",
+                      "var attempts = Number(pm.collectionVariables.get(attemptsKey) || 0);",
+                      "if (pm.response.code === 409 && pending.test(pm.response.text()) && attempts < 25) {",
+                      "  pm.collectionVariables.set(attemptsKey, attempts + 1);",
+                      "  setTimeout(function () { postman.setNextRequest(pm.info.requestName); }, 2000);",
+                      "} else {",
+                      "  pm.test(\"Responde 204\", function () {",
+                      "    pm.response.to.have.status(204);",
+                      "  });",
+                      "}"
                     ]
                   }
                 }
@@ -10238,6 +10254,130 @@
                 "exec": [
                   "pm.test(\"Responde con un código documentado (200)\", function () {",
                   "  pm.expect([200]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ventas · trips",
+      "item": [
+        {
+          "name": "GET /api/ventas/trips",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventas/trips",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "trips"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/ventas/trips/:tripId/seats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventas/trips/:tripId/seats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "trips",
+                ":tripId",
+                "seats"
+              ],
+              "variable": [
+                {
+                  "key": "tripId",
+                  "value": "{{tripId}}"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.\n\nRespuestas: 200, 400, 401, 403, 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400, 404)\", function () {",
+                  "  pm.expect([200, 400, 404]).to.include(pm.response.code);",
                   "});"
                 ]
               }

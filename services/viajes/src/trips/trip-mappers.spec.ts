@@ -43,7 +43,14 @@ describe('trip mappers', () => {
       estimatedArrivalAt: '2026-10-20T15:45:00.000Z',
       ticketPrice: 85,
       capacity: 40,
+      departedAt: null,
     });
+  });
+
+  it('carries the real departure instant once the bus left', () => {
+    const departure = { departedAt: new Date('2026-10-20T11:42:00.000Z') };
+
+    expect(toTrip({ ...row, departure }).departedAt).toBe('2026-10-20T11:42:00.000Z');
   });
 
   it('has no ticket price for a trip that sells no seats', () => {

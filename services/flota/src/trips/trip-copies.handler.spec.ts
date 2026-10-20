@@ -24,8 +24,12 @@ const setup = (over: { current?: string | null; ownsBus?: boolean; tombstone?: b
   const prisma = { $queryRawUnsafe: jest.fn(), $executeRawUnsafe: jest.fn() };
   return { tx, prisma, handler: new TripCopiesHandler(prisma as never) };
 };
+const LOCK = 'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))';
+// What each handler writes, apart from the lock it takes on the trip first.
+const writes = (tx: { $executeRawUnsafe: jest.Mock }) =>
+  tx.$executeRawUnsafe.mock.calls.filter(([sql]) => sql !== LOCK);
 const statements = (tx: { $executeRawUnsafe: jest.Mock }) =>
-  tx.$executeRawUnsafe.mock.calls.map(([sql]) => String(sql).replace(/\s+/g, ' ').trim());
+  writes(tx).map(([sql]) => String(sql).replace(/\s+/g, ' ').trim());
 const env = (type: 'TripScheduled', payload: unknown) => createEnvelope(type, payload, 'c');
 
 describe('TripCopiesHandler.scheduled', () => {
@@ -38,7 +42,7 @@ describe('TripCopiesHandler.scheduled', () => {
       tx as never,
     );
 
-    const [insert, route] = tx.$executeRawUnsafe.mock.calls;
+    const [insert, route] = writes(tx);
     expect(insert[0]).toContain('INSERT INTO trip_copies');
     expect(insert.slice(1)).toEqual([
       exampleTripScheduled.tripId,
@@ -64,7 +68,7 @@ describe('TripCopiesHandler.scheduled', () => {
       tx as never,
     );
 
-    expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(writes(tx)).toEqual([]);
     expect(tx.$queryRawUnsafe).not.toHaveBeenCalledWith(
       expect.stringContaining('FROM trip_copies'),
       expect.anything(),
@@ -89,7 +93,7 @@ describe('TripCopiesHandler.scheduled', () => {
       tx as never,
     );
 
-    const [window, route] = tx.$executeRawUnsafe.mock.calls;
+    const [window, route] = writes(tx);
     expect(String(window[0]).replace(/\s+/g, ' ')).toContain(
       "UPDATE trip_copies SET route_id = $2::uuid, departure_at = $3::timestamptz, estimated_arrival_at = $4::timestamptz WHERE trip_id = $1::uuid AND status <> 'COMPLETED'",
     );
@@ -126,7 +130,7 @@ describe('TripCopiesHandler.scheduled', () => {
       tx as never,
     );
 
-    expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(writes(tx)).toEqual([]);
   });
 
   it('rejects a malformed payload without writing', async () => {
@@ -135,7 +139,7 @@ describe('TripCopiesHandler.scheduled', () => {
     await expect(
       handler.scheduled({ tripId: 'x' }, env('TripScheduled', {}), tx as never),
     ).rejects.toThrow();
-    expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(writes(tx)).toEqual([]);
   });
 
   it('falls back to the service client outside the inbox transaction', async () => {
@@ -164,7 +168,7 @@ describe('TripCopiesHandler.deleted', () => {
     expect(statements(tx)[0]).toBe(
       `DELETE FROM trip_copies WHERE trip_id = $1::uuid AND status = 'SCHEDULED'`,
     );
-    expect(tx.$executeRawUnsafe.mock.calls[0][1]).toBe(exampleTripDeleted.tripId);
+    expect(writes(tx)[0][1]).toBe(exampleTripDeleted.tripId);
   });
 
   it('leaves a tombstone, so a late TripScheduled does not bring the trip back', async () => {
@@ -176,7 +180,7 @@ describe('TripCopiesHandler.deleted', () => {
       tx as never,
     );
 
-    const [, tombstone] = tx.$executeRawUnsafe.mock.calls;
+    const [, tombstone] = writes(tx);
     expect(String(tombstone[0])).toContain('INSERT INTO deleted_trips');
     expect(tombstone.slice(1)).toEqual([exampleTripDeleted.tripId, exampleTripDeleted.branchId]);
   });
@@ -192,7 +196,7 @@ describe('TripCopiesHandler.departed', () => {
       tx as never,
     );
 
-    const [insert, bus] = tx.$executeRawUnsafe.mock.calls;
+    const [insert, bus] = writes(tx);
     expect(insert[0]).toContain('INSERT INTO trip_copies');
     expect(insert[7]).toBe('IN_TRANSIT');
     expect(bus).toEqual([
@@ -210,7 +214,7 @@ describe('TripCopiesHandler.departed', () => {
       tx as never,
     );
 
-    expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(writes(tx)).toEqual([]);
   });
 
   it('ignores the trips of buses that are not in flota', async () => {
@@ -222,7 +226,7 @@ describe('TripCopiesHandler.departed', () => {
       tx as never,
     );
 
-    expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(writes(tx)).toEqual([]);
   });
 });
 
@@ -236,7 +240,7 @@ describe('TripCopiesHandler.completed', () => {
       tx as never,
     );
 
-    const [insert, bus, driver] = tx.$executeRawUnsafe.mock.calls;
+    const [insert, bus, driver] = writes(tx);
     expect(insert[7]).toBe('COMPLETED');
     expect(String(bus[0])).toContain('in_transit = false');
     expect(String(bus[0])).toContain('completed_trips = completed_trips + 1');
@@ -257,7 +261,7 @@ describe('TripCopiesHandler.completed', () => {
       tx as never,
     );
 
-    expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(writes(tx)).toEqual([]);
   });
 
   it('ignores the trips of buses that are not in flota', async () => {
@@ -269,6 +273,28 @@ describe('TripCopiesHandler.completed', () => {
       tx as never,
     );
 
-    expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(writes(tx)).toEqual([]);
   });
+});
+
+describe('TripCopiesHandler, events of the same trip', () => {
+  it.each([
+    ['scheduled', exampleTripScheduled],
+    ['deleted', exampleTripDeleted],
+    ['departed', exampleTripDeparted],
+    ['completed', exampleTripCompleted],
+  ] as const)(
+    '%s waits for the other events of its trip before anything else',
+    async (name, payload) => {
+      const { tx, handler } = setup();
+
+      await handler[name](payload, createEnvelope('TripScheduled', payload, 'c'), tx as never);
+
+      expect(tx.$executeRawUnsafe.mock.calls[0]).toEqual([LOCK, `trip-copy:${payload.tripId}`]);
+      const lockOrder = tx.$executeRawUnsafe.mock.invocationCallOrder[0] ?? Infinity;
+      for (const order of tx.$queryRawUnsafe.mock.invocationCallOrder) {
+        expect(order).toBeGreaterThan(lockOrder);
+      }
+    },
+  );
 });

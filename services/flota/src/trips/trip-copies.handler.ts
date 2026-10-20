@@ -30,6 +30,7 @@ export class TripCopiesHandler {
   async scheduled(payload: unknown, _envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
     const trip = tripScheduledPayloadSchema.parse(payload);
     const db = tx ?? this.prisma;
+    await this.queueEventsOf(db, trip.tripId);
     if (await this.wasDeleted(db, trip.tripId)) return;
     if (!(await this.ownsBus(db, trip.busId))) return;
     const created = await this.advance(db, trip, 'SCHEDULED');
@@ -47,6 +48,7 @@ export class TripCopiesHandler {
   async deleted(payload: unknown, _envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
     const trip = tripDeletedPayloadSchema.parse(payload);
     const db = tx ?? this.prisma;
+    await this.queueEventsOf(db, trip.tripId);
     await db.$executeRawUnsafe(
       `DELETE FROM trip_copies WHERE trip_id = $1::uuid AND status = 'SCHEDULED'`,
       trip.tripId,
@@ -62,6 +64,7 @@ export class TripCopiesHandler {
   async departed(payload: unknown, _envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
     const trip = tripDepartedPayloadSchema.parse(payload);
     const db = tx ?? this.prisma;
+    await this.queueEventsOf(db, trip.tripId);
     if (!(await this.ownsBus(db, trip.busId))) return;
     const moved = await this.advance(
       db,
@@ -80,6 +83,7 @@ export class TripCopiesHandler {
   async completed(payload: unknown, _envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
     const trip = tripCompletedPayloadSchema.parse(payload);
     const db = tx ?? this.prisma;
+    await this.queueEventsOf(db, trip.tripId);
     if (!(await this.ownsBus(db, trip.busId))) return;
     const moved = await this.advance(
       db,
@@ -96,6 +100,15 @@ export class TripCopiesHandler {
     await db.$executeRawUnsafe(
       'UPDATE drivers SET completed_trips = completed_trips + 1 WHERE id = $1::uuid',
       trip.driverId,
+    );
+  }
+
+  // Pub/Sub delivers the events of one trip in any order and at the same time: each waits here for
+  // the previous one to commit, so a TripDeleted always sees the copy a concurrent TripScheduled made.
+  private async queueEventsOf(db: SqlClient, tripId: string): Promise<void> {
+    await db.$executeRawUnsafe(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+      `trip-copy:${tripId}`,
     );
   }
 

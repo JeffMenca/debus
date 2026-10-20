@@ -2,8 +2,12 @@ import type { Trip, TripScheduledPayload } from '@debus/contracts';
 import type { Prisma } from '../generated/prisma/client';
 
 type TripRow = Prisma.TripGetPayload<object>;
+// Lists select only the departure instant; the detail brings the whole record.
+type TripWithDeparture = TripRow & { departure?: { departedAt: Date } | null };
 
-export const toTrip = (row: TripRow): Trip => ({
+export const TRIP_LIST_INCLUDE = { departure: { select: { departedAt: true } } } as const;
+
+export const toTrip = (row: TripWithDeparture): Trip => ({
   id: row.id,
   type: row.type,
   status: row.status,
@@ -19,6 +23,7 @@ export const toTrip = (row: TripRow): Trip => ({
   estimatedArrivalAt: row.estimatedArrivalAt.toISOString(),
   ticketPrice: row.ticketPrice?.toNumber() ?? null,
   capacity: row.capacity,
+  departedAt: row.departure?.departedAt.toISOString() ?? null,
 });
 
 export const toTripScheduledPayload = (row: TripRow): TripScheduledPayload => ({
