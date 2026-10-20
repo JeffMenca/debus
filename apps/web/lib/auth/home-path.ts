@@ -10,6 +10,13 @@ const HOME: Record<UserRole, string> = {
 
 export const homePathFor = (role: UserRole): string => HOME[role];
 
+// Where "go to the start" leads from a page that failed: the area of the person, a client's own
+// account, or the public home page when nobody is signed in.
+export const startPathFor = (role: UserRole | undefined): string => {
+  if (!role) return '/';
+  return role === 'CLIENT' ? '/cuenta' : homePathFor(role);
+};
+
 const SITE = 'http://debus.invalid';
 const CONTROL_OR_SPACE = /[\u0000-\u001F\u007F\s]/;
 
