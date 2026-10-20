@@ -54,10 +54,21 @@ for svc in "${DB_SERVICES[@]}"; do
   secret="$svc-database-url"
   exists gcloud sql databases describe "$db" --instance "$instance" ||
     gcloud sql databases create "$db" --instance "$instance"
-  # An existing secret means the user exists too; infra/gcp/split-sql.sh moves those from the old shared instance.
-  if ! exists gcloud secrets describe "$secret"; then
+  connection_name=$(gcloud sql instances describe "$instance" --format='value(connectionName)')
+  if exists gcloud secrets describe "$secret"; then
+    # A secret pointing at another instance (the old shared one) gets a new user and version here; the
+    # next deploy mounts the new instance and starts from an empty database.
+    [[ "$(gcloud secrets versions access latest --secret "$secret")" == *"/cloudsql/$connection_name" ]] && continue
     password=$(openssl rand -hex 24)
-    connection_name=$(gcloud sql instances describe "$instance" --format='value(connectionName)')
+    if exists gcloud sql users describe "$db" --instance "$instance"; then
+      gcloud sql users set-password "$db" --instance "$instance" --password "$password"
+    else
+      gcloud sql users create "$db" --instance "$instance" --password "$password"
+    fi
+    printf 'postgresql://%s:%s@localhost/%s?host=/cloudsql/%s' "$db" "$password" "$db" "$connection_name" |
+      gcloud secrets versions add "$secret" --data-file=- >/dev/null
+  else
+    password=$(openssl rand -hex 24)
     gcloud sql users create "$db" --instance "$instance" --password "$password"
     printf 'postgresql://%s:%s@localhost/%s?host=/cloudsql/%s' "$db" "$password" "$db" "$connection_name" |
       gcloud secrets create "$secret" --data-file=-
