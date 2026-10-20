@@ -2,7 +2,10 @@ import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { createTestApp } from './support/app';
 
-type Operation = { responses?: Record<string, unknown>; parameters?: { name: string }[] };
+type Operation = {
+  responses?: Record<string, { content?: Record<string, { schema?: { properties?: object } }> }>;
+  parameters?: { name: string }[];
+};
 
 describe('the Swagger description of the profile and wallet routes', () => {
   let app: INestApplication;
@@ -30,6 +33,14 @@ describe('the Swagger description of the profile and wallet routes', () => {
       expect.arrayContaining(['201', '400', '409']),
     );
     expect(statuses('/wallet/movements', 'get')).toEqual(expect.arrayContaining(['200', '400']));
+  });
+
+  it('documents that the debit answers with the email of the client', () => {
+    const answer = paths['/internal/wallet/debits']?.post?.responses?.['200'];
+
+    expect(Object.keys(answer?.content?.['application/json']?.schema?.properties ?? {})).toEqual(
+      expect.arrayContaining(['movementId', 'balance', 'email']),
+    );
   });
 
   it('documents the debit ventas calls, with its key and its lack of balance', () => {

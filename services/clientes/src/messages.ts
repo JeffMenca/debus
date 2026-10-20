@@ -3,6 +3,7 @@ export const MESSAGES = {
   profilePending: 'Estamos preparando tu cuenta. Vuelve a intentar en unos segundos.',
   nitTaken: 'Ese NIT ya está registrado en otra cuenta.',
   insufficientBalance: 'No tienes saldo suficiente en tu cartera.',
+  paymentExpired: 'Se terminó el tiempo para pagar esta compra.',
   keyReused: 'Esta operación ya se hizo con otros datos. Recarga la página e intenta de nuevo.',
   keyMissing: 'No pudimos identificar la operación. Recarga la página e intenta de nuevo.',
   topUpDescription: 'Recarga de saldo',

@@ -27,3 +27,8 @@ const CREDITS: readonly WalletMovementKind[] = ['TOP_UP', 'REFUND'];
 export function signedAmount(kind: WalletMovementKind, amount: number): number {
   return CREDITS.includes(kind) ? amount : -amount;
 }
+
+// A debit sent with payBy is only applied up to that moment, so a payment that was in doubt cannot
+// land after the trip left. Repeating one that was already applied is decided before this.
+export const paymentWindowClosed = (payBy: string | undefined, now: Date): boolean =>
+  payBy !== undefined && now.getTime() > new Date(payBy).getTime();

@@ -129,6 +129,9 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     ),
     whenTablesExist(['users'], `DELETE FROM users WHERE email LIKE ${emails}`),
     whenTablesExist(['sent_emails'], `DELETE FROM sent_emails WHERE recipient LIKE ${emails}`),
+    // clientes: the wallet and its movements go with the profile by CASCADE.
+    whenTablesExist(['client_profiles'], `DELETE FROM client_profiles WHERE email LIKE ${emails}`),
+    ...salesStatements(branches),
     ...fleetAndTrips,
     // A test branch goes unless accounts that are not test data belong to it.
     whenTablesExist(
@@ -138,6 +141,23 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     // Services that keep a copy of the branches have no accounts, so every test branch goes.
     whenTableExistsWithout('branches', 'users', `DELETE FROM branches WHERE name LIKE ${branches}`),
     ...copiesStatements(settingsVersionIds),
+  ];
+}
+
+// ventas: the trips of the tests are told apart by their labels, which start with the prefix of the
+// test branches. Their tickets and seats go by CASCADE; the purchases keep no foreign key to the trip.
+function salesStatements(prefixPattern) {
+  const testTrips = `SELECT trip_id FROM trips WHERE origin_label LIKE ${prefixPattern} OR destination_label LIKE ${prefixPattern}`;
+  return [
+    whenTablesExist(
+      ['purchases', 'trips', 'ticket_seats'],
+      `DELETE FROM purchases WHERE trip_id IN (${testTrips})`,
+    ),
+    whenTablesExist(['trips', 'ticket_seats'], `DELETE FROM trips WHERE trip_id IN (${testTrips})`),
+    whenTablesExist(
+      ['client_nits'],
+      `DELETE FROM client_nits WHERE full_name LIKE ${prefixPattern}`,
+    ),
   ];
 }
 

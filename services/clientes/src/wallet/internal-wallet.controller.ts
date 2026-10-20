@@ -3,6 +3,7 @@ import {
   type WalletDebit,
   type WalletDebitRequest,
   walletDebitRequestSchema,
+  walletDebitSchema,
 } from '@debus/contracts';
 import {
   IDEMPOTENCY_HEADER,
@@ -25,9 +26,12 @@ export class InternalWalletController {
   constructor(private readonly wallet: WalletService) {}
 
   @Post(WALLET_DEBIT_PATH)
-  @apiSuccess(200)
+  @apiSuccess(200, walletDebitSchema)
   @apiErrors(400, 404, 409)
-  @ApiResponse({ status: 422, description: 'The wallet balance does not cover the amount.' })
+  @ApiResponse({
+    status: 422,
+    description: 'The wallet balance does not cover the amount, or the payBy moment has passed.',
+  })
   @apiBody(walletDebitRequestSchema)
   @ApiHeader({ name: IDEMPOTENCY_HEADER, required: true, description: 'The reference it pays.' })
   debit(

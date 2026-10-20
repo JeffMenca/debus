@@ -1,4 +1,9 @@
-import { isSameIntent, movementFingerprint, signedAmount } from './wallet-rules';
+import {
+  isSameIntent,
+  movementFingerprint,
+  paymentWindowClosed,
+  signedAmount,
+} from './wallet-rules';
 
 const topUp = { kind: 'TOP_UP' as const, amount: 100.1, occurredOn: '2026-10-14', reference: null };
 const key = '3f2e4d1c-8b0a-4f8e-9d6c-5b4a3f2e4d1c';
@@ -28,5 +33,17 @@ describe('wallet rules', () => {
     expect(signedAmount('REFUND', 50)).toBe(50);
     expect(signedAmount('TICKET', 50)).toBe(-50);
     expect(signedAmount('RENTAL', 50)).toBe(-50);
+  });
+
+  it('closes the payment window only after the moment it names', () => {
+    const payBy = '2026-10-19T16:40:00.000Z';
+
+    expect(paymentWindowClosed(payBy, new Date('2026-10-19T16:39:59.999Z'))).toBe(false);
+    expect(paymentWindowClosed(payBy, new Date('2026-10-19T16:40:00.000Z'))).toBe(false);
+    expect(paymentWindowClosed(payBy, new Date('2026-10-19T16:40:00.001Z'))).toBe(true);
+  });
+
+  it('never closes the window of a debit that sets no deadline', () => {
+    expect(paymentWindowClosed(undefined, new Date('2999-01-01T00:00:00.000Z'))).toBe(false);
   });
 });

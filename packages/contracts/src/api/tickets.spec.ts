@@ -1,7 +1,10 @@
 import {
   CONSUMER_NIT,
   availableTripListQuerySchema,
+  PURCHASE_FAILURES,
+  PURCHASE_STATUSES,
   counterSaleRequestSchema,
+  purchaseSchema,
   purchaseTicketRequestSchema,
   saleNitSchema,
   seatSelectionSchema,
@@ -71,5 +74,86 @@ describe('ticket contracts', () => {
     expect(ticketListQuerySchema.safeParse({ from: '2026-10-14', to: '2026-10-13' }).success).toBe(
       false,
     );
+  });
+});
+
+describe('purchase contract', () => {
+  const ticket = {
+    id: '9f8e7d6c-5b4a-4f3e-8d2c-1b0a9f8e7d6c',
+    status: 'CONFIRMED',
+    channel: 'ONLINE',
+    tripId,
+    originLabel: 'Quetzaltenango',
+    destinationLabel: 'Guatemala',
+    departureAt: '2026-10-20T12:00:00.000Z',
+    busPlate: 'C482BTX',
+    seats: [3, 4],
+    unitPrice: 85,
+    total: 170,
+    nit: 'CF',
+    buyerName: 'Ana López',
+    paidOn: '2026-10-19',
+    soldAt: '2026-10-19T16:30:00.000Z',
+  };
+  const base = {
+    ticketId: ticket.id,
+    tripId,
+    seats: [3, 4],
+    amount: 170,
+    paidOn: '2026-10-19',
+  };
+
+  it('lists the states and the reasons a purchase can end', () => {
+    expect(PURCHASE_STATUSES).toEqual(['PENDING', 'CONFIRMED', 'FAILED']);
+    expect(PURCHASE_FAILURES).toEqual([
+      'INSUFFICIENT_BALANCE',
+      'PAYMENT_EXPIRED',
+      'WALLET_NOT_READY',
+      'WALLET_UNAVAILABLE',
+      'PAYMENT_REJECTED',
+      'TRIP_CANCELLED',
+    ]);
+  });
+
+  it('carries the ticket of a confirmed purchase and nothing about a failure', () => {
+    const confirmed = { ...base, status: 'CONFIRMED', failure: null, message: null, ticket };
+
+    expect(purchaseSchema.parse(confirmed)).toEqual(confirmed);
+    expect(purchaseSchema.safeParse({ ...confirmed, ticket: null }).success).toBe(false);
+    expect(purchaseSchema.safeParse({ ...confirmed, failure: 'PAYMENT_EXPIRED' }).success).toBe(
+      false,
+    );
+  });
+
+  it('explains a failed purchase with its reason and its text, and has no ticket', () => {
+    const failed = {
+      ...base,
+      status: 'FAILED',
+      failure: 'INSUFFICIENT_BALANCE',
+      message: 'No tienes saldo suficiente.',
+      ticket: null,
+    };
+
+    expect(purchaseSchema.parse(failed)).toEqual(failed);
+    expect(purchaseSchema.safeParse({ ...failed, failure: null }).success).toBe(false);
+    expect(purchaseSchema.safeParse({ ...failed, message: null }).success).toBe(false);
+    expect(purchaseSchema.safeParse({ ...failed, ticket }).success).toBe(false);
+  });
+
+  it('tells a pending purchase apart: a text, no reason and no ticket yet', () => {
+    const pending = {
+      ...base,
+      status: 'PENDING',
+      failure: null,
+      message: 'Estamos confirmando el pago.',
+      ticket: null,
+    };
+
+    expect(purchaseSchema.parse(pending)).toEqual(pending);
+    expect(purchaseSchema.safeParse({ ...pending, message: null }).success).toBe(false);
+    expect(purchaseSchema.safeParse({ ...pending, failure: 'PAYMENT_EXPIRED' }).success).toBe(
+      false,
+    );
+    expect(purchaseSchema.safeParse({ ...pending, ticket }).success).toBe(false);
   });
 });
