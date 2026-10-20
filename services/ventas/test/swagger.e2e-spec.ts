@@ -4,7 +4,7 @@ import { createTestApp } from './support/app';
 
 type Operation = { responses?: Record<string, unknown>; parameters?: { name: string }[] };
 
-describe('the Swagger description of the trips on sale', () => {
+describe('the Swagger description of the trips on sale and the counter', () => {
   let app: INestApplication;
   let paths: Record<string, Record<string, Operation>>;
   const statuses = (path: string, method: string) =>
@@ -30,5 +30,17 @@ describe('the Swagger description of the trips on sale', () => {
     expect(statuses('/trips/{tripId}/seats', 'get')).toEqual(
       expect.arrayContaining(['200', '400', '401', '404']),
     );
+  });
+
+  it('documents the counter: its trips, the key of each sale and every refusal', () => {
+    expect(statuses('/counter/trips', 'get')).toEqual(
+      expect.arrayContaining(['200', '400', '401', '403']),
+    );
+    expect(statuses('/counter/tickets', 'post')).toEqual(
+      expect.arrayContaining(['201', '400', '401', '403', '404', '409']),
+    );
+    expect(
+      paths['/counter/tickets']?.post?.parameters?.map((parameter) => parameter.name),
+    ).toContain('idempotency-key');
   });
 });

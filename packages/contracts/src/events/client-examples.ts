@@ -1,4 +1,9 @@
-import { type RentalPaidPayload, rentalPaidPayloadSchema } from './client-payloads';
+import {
+  type ProfileUpdatedPayload,
+  type RentalPaidPayload,
+  profileUpdatedPayloadSchema,
+  rentalPaidPayloadSchema,
+} from './client-payloads';
 import { EXAMPLE_IDS } from './fleet-examples';
 
 export const exampleRentalPaid: RentalPaidPayload = {
@@ -17,5 +22,18 @@ export const exampleRentalPaid: RentalPaidPayload = {
   paidOn: '2026-10-21',
 };
 
-export const CLIENT_EXAMPLES = { RentalPaid: exampleRentalPaid } as const;
-export const CLIENT_PAYLOAD_SCHEMAS = { RentalPaid: rentalPaidPayloadSchema } as const;
+export const exampleProfileUpdated: ProfileUpdatedPayload = {
+  clientId: '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a',
+  nit: '45218376',
+  fullName: 'Ana Méndez',
+  updatedAt: '2026-10-18T15:30:00.000Z',
+};
+
+export const CLIENT_EXAMPLES = {
+  RentalPaid: exampleRentalPaid,
+  ProfileUpdated: exampleProfileUpdated,
+} as const;
+export const CLIENT_PAYLOAD_SCHEMAS = {
+  RentalPaid: rentalPaidPayloadSchema,
+  ProfileUpdated: profileUpdatedPayloadSchema,
+} as const;

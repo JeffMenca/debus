@@ -43,6 +43,28 @@ export function testTrips(prisma: PrismaService) {
       });
       return trip.tripId;
     },
+    // A ticket written straight to the table, for tests about what happens to it afterwards.
+    async ticket(
+      tripId: string,
+      over: { nit?: string; channel?: 'ONLINE' | 'COUNTER'; clientId?: string | null } = {},
+    ): Promise<string> {
+      const id = randomUUID();
+      await prisma.ticket.create({
+        data: {
+          id,
+          tripId,
+          status: 'CONFIRMED',
+          channel: over.channel ?? 'COUNTER',
+          clientId: over.clientId ?? null,
+          nit: over.nit ?? 'CF',
+          buyerName: 'Consumidor final',
+          unitPrice: 85,
+          total: 85,
+          paidOn: new Date('2026-10-18T00:00:00.000Z'),
+        },
+      });
+      return id;
+    },
     track(tripId: string): void {
       created.push(tripId);
     },

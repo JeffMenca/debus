@@ -54,11 +54,16 @@ export const availableTripPageSchema = pageSchema(availableTripSchema);
 export type AvailableTripPage = z.infer<typeof availableTripPageSchema>;
 
 // Bounded by the bus capacity, so it is never paginated.
+// It carries the trip too, so the screen that sells its seats needs nothing else.
 export const seatMapSchema = z.object({
   tripId: z.uuid(),
+  originLabel: z.string(),
+  destinationLabel: z.string(),
+  busPlate: z.string(),
   capacity: z.number().int().positive(),
   ticketPrice: z.number().positive(),
   departureAt: z.iso.datetime(),
+  estimatedArrivalAt: z.iso.datetime(),
   taken: z.array(seatNumberSchema),
 });
 export type SeatMap = z.infer<typeof seatMapSchema>;

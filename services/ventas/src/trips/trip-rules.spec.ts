@@ -53,6 +53,12 @@ describe('onSaleWhere', () => {
     expect(onSaleWhere(query, now)).toEqual({ departureAt: { gt: now } });
   });
 
+  it('narrows the list to the trips leaving from one branch', () => {
+    const branchId = '9b2c7a10-1111-4c4c-8888-123456789abc';
+
+    expect(onSaleWhere(query, now, branchId)).toEqual({ departureAt: { gt: now }, branchId });
+  });
+
   it('limits the departure to whole Guatemalan days', () => {
     expect(onSaleWhere({ ...query, from: '2026-10-20', to: '2026-10-21' }, now)).toEqual({
       departureAt: {

@@ -1,3 +1,4 @@
+import { seatMapSchema } from '@debus/contracts';
 import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { TripsService } from './trips.service';
@@ -69,6 +70,16 @@ describe('TripsService', () => {
     expect(prisma.trip.count).toHaveBeenCalledWith({ where: args.where });
   });
 
+  it('lists only the trips of one branch when asked for its counter', async () => {
+    const { prisma, service } = setup();
+
+    await service.list({ page: 1, pageSize: 20 }, tripRow().branchId);
+
+    expect(prisma.trip.findMany.mock.calls[0][0].where).toMatchObject({
+      branchId: tripRow().branchId,
+    });
+  });
+
   it('answers the seat map with the taken seats in order', async () => {
     const { prisma, service } = setup();
     prisma.trip.findUnique.mockResolvedValue({
@@ -76,13 +87,21 @@ describe('TripsService', () => {
       seats: [{ seatNumber: 2 }, { seatNumber: 9 }],
     });
 
-    await expect(service.seatMap(tripId)).resolves.toEqual({
+    const map = await service.seatMap(tripId);
+
+    // The screen that sells the seats shows the trip with them.
+    expect(map).toEqual({
       tripId,
+      originLabel: 'Quetzaltenango',
+      destinationLabel: 'Guatemala',
+      busPlate: 'C482BTX',
       capacity: 40,
       ticketPrice: 85.5,
       departureAt: '2026-10-20T11:30:00.000Z',
+      estimatedArrivalAt: '2026-10-20T15:45:00.000Z',
       taken: [2, 9],
     });
+    expect(seatMapSchema.parse(map)).toEqual(map);
     expect(prisma.trip.findUnique).toHaveBeenCalledWith({
       where: { tripId },
       include: { seats: { select: { seatNumber: true }, orderBy: { seatNumber: 'asc' } } },

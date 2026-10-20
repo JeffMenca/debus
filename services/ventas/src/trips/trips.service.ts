@@ -32,8 +32,8 @@ function toAvailableTrip(row: Trip & { _count: { seats: number } }): AvailableTr
 export class TripsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(query: AvailableTripListQuery): Promise<AvailableTripPage> {
-    const where = onSaleWhere(query, new Date());
+  async list(query: AvailableTripListQuery, branchId?: string): Promise<AvailableTripPage> {
+    const where = onSaleWhere(query, new Date(), branchId);
     const [rows, total] = await Promise.all([
       this.prisma.trip.findMany({
         where,
@@ -55,9 +55,13 @@ export class TripsService {
     if (!trip) throw new NotFoundException(MESSAGES.tripNotFound);
     return {
       tripId: trip.tripId,
+      originLabel: trip.originLabel,
+      destinationLabel: trip.destinationLabel,
+      busPlate: trip.busPlate,
       capacity: trip.capacity,
       ticketPrice: trip.ticketPrice.toNumber(),
       departureAt: trip.departureAt.toISOString(),
+      estimatedArrivalAt: trip.estimatedArrivalAt.toISOString(),
       taken: trip.seats.map((seat) => seat.seatNumber),
     };
   }

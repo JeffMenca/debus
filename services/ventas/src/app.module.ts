@@ -4,6 +4,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import { ClientsModule } from './clients/clients.module';
+import { CounterModule } from './counter/counter.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
@@ -14,6 +16,8 @@ import { TripsModule } from './trips/trips.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule.forRoot({ pinoHttp: httpLoggerOptions() }),
+    ClientsModule,
+    CounterModule,
     HealthModule,
     SeatsModule,
     TripsModule,
