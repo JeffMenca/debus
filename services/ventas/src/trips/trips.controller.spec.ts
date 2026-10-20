@@ -1,7 +1,11 @@
 import { TripsController } from './trips.controller';
 
 describe('TripsController', () => {
-  const service = { list: jest.fn().mockResolvedValue('page'), seatMap: jest.fn() };
+  const service = {
+    list: jest.fn().mockResolvedValue('page'),
+    places: jest.fn().mockResolvedValue('places'),
+    seatMap: jest.fn(),
+  };
   const controller = new TripsController(service as never);
 
   it('hands the query of the trips on sale to the service', async () => {
@@ -9,6 +13,10 @@ describe('TripsController', () => {
 
     await expect(controller.list(query)).resolves.toBe('page');
     expect(service.list).toHaveBeenCalledWith(query);
+  });
+
+  it('asks the service for the places with trips on sale', async () => {
+    await expect(controller.places()).resolves.toBe('places');
   });
 
   it('hands the trip of the seat map to the service', async () => {
