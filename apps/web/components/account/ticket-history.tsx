@@ -1,6 +1,7 @@
 'use client';
 
 import type { PageQuery } from '@debus/contracts';
+import { Info } from 'lucide-react';
 import Link from 'next/link';
 import { ErrorAlert } from '@/components/data/error-alert';
 import { PageBar } from '@/components/tickets/page-bar';
@@ -65,6 +66,21 @@ export function TicketHistory({ query, onChange }: TicketHistoryProps) {
         ))}
       </ul>
       <PageBar query={query} total={data.total} shown={data.items.length} onChange={onChange} />
+      {/* A deleted trip takes its ticket with it; this says where to look for the money. */}
+      <p className="flex items-start gap-2 px-2 text-[13px] text-muted-foreground">
+        <Info aria-hidden strokeWidth={1.75} className="mt-px size-4 shrink-0" />
+        <span>
+          Si se cancela un viaje, su boleto sale de esta lista y, si lo pagaste con tu cartera, la
+          devolución aparece en{' '}
+          <Link
+            href="/cuenta?pestana=movimientos"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            Movimientos
+          </Link>
+          .
+        </span>
+      </p>
     </div>
   );
 }

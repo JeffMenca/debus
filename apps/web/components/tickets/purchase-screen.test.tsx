@@ -30,7 +30,8 @@ function mockApi({
       keys.push((init.headers as Record<string, string>)['idempotency-key']!);
       return buy();
     },
-    [`GET /ventas/purchases/${purchase().ticketId}`]: follow,
+    // The polling of a 202 and the lookup after a 409 read the purchase by its key.
+    'GET /ventas/purchases/:id': follow,
   });
   return { fetchMock, keys, mapCalls: () => mapCalls };
 }
@@ -258,6 +259,85 @@ describe('PurchaseScreen', () => {
 
     await waitFor(() => expect(keys).toHaveLength(2));
     expect(keys[1]).not.toBe(keys[0]);
+  });
+
+  const CANCELLED =
+    'Este viaje se canceló. Si ya se te había cobrado, el dinero vuelve a tu cartera.';
+  const cancelled = () =>
+    Response.json(purchase('FAILED', { failure: 'TRIP_CANCELLED', message: CANCELLED }));
+
+  async function expectTripCancelled(mapCalls: () => number) {
+    expect(await screen.findByRole('heading', { name: 'Viaje cancelado' })).toBeVisible();
+    expect(screen.getByText(CANCELLED)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^Pagar/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Buscar otro viaje' })).toHaveAttribute(
+      'href',
+      '/viajes?origen=Quetzaltenango',
+    );
+    expect(screen.getByRole('link', { name: 'Ver mis movimientos' })).toHaveAttribute(
+      'href',
+      '/cuenta?pestana=movimientos',
+    );
+    // The trip no longer exists: its seat map is not asked for again.
+    expect(mapCalls()).toBe(1);
+  }
+
+  it('says the trip was cancelled when a payment being confirmed ends that way', async () => {
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    search = 'origen=Quetzaltenango';
+    const { mapCalls } = mockApi({
+      buy: () => Response.json(purchase('PENDING'), { status: 202 }),
+      follow: cancelled,
+    });
+    renderScreen();
+
+    await chooseAndPay(user);
+    await act(() => jest.advanceTimersByTimeAsync(PURCHASE_POLL_MS));
+
+    await expectTripCancelled(mapCalls);
+  });
+
+  it('says the trip was cancelled when it is deleted during the payment', async () => {
+    search = 'origen=Quetzaltenango';
+    const { mapCalls } = mockApi({ buy: () => apiError(409, CANCELLED), follow: cancelled });
+    const { client, wrapper } = queryWrapper();
+    render(<PurchaseScreen tripId={TRIP_ID} today={TODAY} />, { wrapper });
+
+    await chooseAndPay();
+    await expectTripCancelled(mapCalls);
+    // Even a refresh of everything on sale leaves the map of a deleted trip alone.
+    await act(() => client.invalidateQueries({ queryKey: ['on-sale'] }));
+
+    expect(mapCalls()).toBe(1);
+  });
+
+  it('says the trip is gone when it left the sale before the payment, without the map', async () => {
+    const { mapCalls } = mockApi({
+      buy: () => apiError(404, 'No encontramos ese viaje. Puede que ya no esté a la venta.'),
+    });
+    renderScreen();
+
+    await chooseAndPay();
+
+    expect(await screen.findByRole('heading', { name: 'No encontramos ese viaje' })).toBeVisible();
+    expect(
+      screen.getByText('No encontramos ese viaje. Puede que ya no esté a la venta.'),
+    ).toBeVisible();
+    expect(mapCalls()).toBe(1);
+  });
+
+  it('charges nothing and keeps the map when viajes does not answer', async () => {
+    const UNCHECKED =
+      'No pudimos confirmar que el viaje sigue a la venta. No se te cobró nada; intenta de nuevo en unos segundos.';
+    const { mapCalls } = mockApi({ buy: () => apiError(503, UNCHECKED) });
+    renderScreen();
+
+    await chooseAndPay();
+
+    expect(await screen.findByText(UNCHECKED)).toBeVisible();
+    expect(screen.getByRole('button', { name: /^Pagar/ })).toBeEnabled();
+    expect(mapCalls()).toBe(1);
   });
 
   it('says when the trip is no longer on sale', async () => {

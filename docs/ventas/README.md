@@ -85,7 +85,25 @@ Un 401 o un 403 entre servicios es un problema de configuración, no de la perso
 | `POST /purchases`          | Cualquier sesión                        | `201` compra confirmada, `202` compra pendiente; errores 400, 401, 404, 409, 422 y 503 |
 | `GET /purchases/:ticketId` | Cualquier sesión, solo la compra propia | `200` con la compra; la de otra cuenta responde `404`                                  |
 
-El historial de boletos es otra pantalla (`GET /tickets/mine`).
+El historial de boletos es otra pantalla (`GET /tickets`).
+
+### Lo que ve el cliente
+
+La pantalla de asientos (`/viajes/<viaje>/asientos`) muestra cada desenlace con el `message` que manda `ventas`, sin cambiarlo. La clave de la compra se reutiliza solo cuando la respuesta no llegó (error de red); cualquier respuesta del servidor la gasta y el siguiente intento usa una nueva.
+
+| Respuesta                                                            | Paso de la saga                                        | Pantalla                                                                                                    |
+| -------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `201`                                                                | T3                                                     | Recibo del boleto                                                                                           |
+| `202` y después `CONFIRMED` (consulta `GET /purchases/:id` cada 3 s) | pivote en duda, luego T3                               | "Pago en confirmación" y después el recibo                                                                  |
+| `202` y después `FAILED`                                             | C1                                                     | Vuelve al formulario con el motivo; el mapa se recarga                                                      |
+| `202` o `409` y la compra queda `FAILED` / `TRIP_CANCELLED`          | el viaje se eliminó (saga de reembolso)                | "Viaje cancelado": no vuelve a pedir el mapa y ofrece buscar otro viaje o ver los movimientos de la cartera |
+| `409` sin compra cancelada, o `422`                                  | antes de T1, o C1                                      | El formulario con el motivo; el mapa se recarga                                                             |
+| `404`                                                                | el viaje dejó de venderse antes de T1                  | "No encontramos ese viaje"                                                                                  |
+| `503`                                                                | circuito abierto o servicio sin respuesta, antes de T2 | El formulario con el motivo ("no se te cobró nada"); el mapa no cambia                                      |
+
+El cuerpo de error solo trae el texto, así que para saber si un `409` es una cancelación la pantalla lee la compra con la misma clave: si existe y está `FAILED` / `TRIP_CANCELLED`, el viaje se eliminó durante el pago. El texto de pausa del circuit breaker de `@debus/server` no llega a esta pantalla: `ventas` responde con sus propios mensajes de cartera o de viajes sin respuesta.
+
+En "Mis boletos" de `/cuenta`, el boleto de un viaje eliminado desaparece y la devolución aparece en "Movimientos"; una nota bajo la lista lo explica.
 
 ## Viaje eliminado y reembolso
 
