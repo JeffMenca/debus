@@ -46,6 +46,9 @@ describe('RefundsHandler', () => {
     const [[movement, ...movementValues], [settle, ...settleValues]] =
       tx.$executeRawUnsafe.mock.calls;
     expect(movement).toContain("'REFUND'");
+    // Stamped after the wallet lock, so it always comes after the debit it gives back, even when
+    // this transaction started before that debit committed.
+    expect(movement).toContain('clock_timestamp()');
     expect(movementValues).toEqual([
       expect.any(String),
       clientId,

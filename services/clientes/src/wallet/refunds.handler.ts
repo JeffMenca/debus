@@ -29,10 +29,12 @@ const CREDIT = `
   WHERE client_id = $1::uuid
   RETURNING balance::float8 AS balance`;
 
+// now() is when the transaction began, which can be before the debit it returns committed;
+// clock_timestamp() is taken after the wallet lock, so the refund always lists after that debit.
 const INSERT_MOVEMENT = `
   INSERT INTO wallet_movements (id, client_id, kind, amount, balance_after, reference, description,
-    occurred_on, idempotency_key, fingerprint)
-  VALUES ($1::uuid, $2::uuid, 'REFUND', $3, $4, $5::uuid, $6, $7::date, $1::uuid, $8)`;
+    occurred_on, idempotency_key, fingerprint, created_at)
+  VALUES ($1::uuid, $2::uuid, 'REFUND', $3, $4, $5::uuid, $6, $7::date, $1::uuid, $8, clock_timestamp())`;
 
 const SETTLE = 'UPDATE refunds SET movement_id = $2::uuid, amount = $3 WHERE reference = $1::uuid';
 

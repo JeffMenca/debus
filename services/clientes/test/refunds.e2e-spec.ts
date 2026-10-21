@@ -39,6 +39,21 @@ describe('refunds of the tickets of a deleted trip', () => {
       orderBy: { createdAt: 'asc' },
     });
 
+  // Waits until a session of this database is blocked on a lock while running that statement.
+  const untilWaiting = async (statement: string) => {
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      const [{ waiting }] = await prisma.$queryRawUnsafe<[{ waiting: number }]>(
+        `SELECT count(*)::int AS waiting FROM pg_stat_activity
+         WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE $1`,
+        `${statement}%`,
+      );
+      if (waiting > 0) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error(`nothing waited on: ${statement}`);
+  };
+
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
@@ -95,6 +110,48 @@ describe('refunds of the tickets of a deleted trip', () => {
     expect(await movementsOf(clientId, ticketId)).toEqual([]);
   });
 
+  // The order that failed in CI, forced: the refund's transaction begins, the debit commits while
+  // it waits, and only then does the refund write its movement.
+  it('lists a refund after the debit it gives back, even when its transaction began first', async () => {
+    const clientId = await profiles.create({ balance: 100 });
+    const ticketId = randomUUID();
+    const eventId = randomUUID();
+    let release = () => {};
+    const released = new Promise<void>((resolve) => (release = resolve));
+    let holding = () => {};
+    const held = new Promise<void>((resolve) => (holding = resolve));
+    // An uncommitted row with the same event id makes the inbox of the refund wait on it.
+    const blocker = prisma
+      .$transaction(
+        async (tx) => {
+          await tx.$executeRawUnsafe(
+            'INSERT INTO processed_events (event_id, type) VALUES ($1, $2)',
+            eventId,
+            'RefundRequested',
+          );
+          holding();
+          await released;
+          throw new Error('rolled back on purpose');
+        },
+        { timeout: 30_000 },
+      )
+      .catch(() => undefined);
+    await held;
+
+    const refund = bus.deliver('RefundRequested', refundRequested(clientId, ticketId), { eventId });
+    await untilWaiting('INSERT INTO processed_events');
+    await debit(clientId, ticketId).expect(200);
+    release();
+    await blocker;
+    await refund;
+
+    expect(await balanceOf(clientId)).toBe(100);
+    expect((await movementsOf(clientId, ticketId)).map((m) => m.kind)).toEqual([
+      'TICKET',
+      'REFUND',
+    ]);
+  });
+
   it('never keeps the money when a debit and its refund arrive at the same time', async () => {
     const clientId = await profiles.create({ balance: 500 });
     const tickets = Array.from({ length: 5 }, () => randomUUID());
@@ -108,8 +165,9 @@ describe('refunds of the tickets of a deleted trip', () => {
 
     expect(await balanceOf(clientId)).toBe(500);
     for (const ticketId of tickets) {
-      const kinds = (await movementsOf(clientId, ticketId)).map((m) => m.kind);
-      expect([[], ['TICKET', 'REFUND']]).toContainEqual(kinds);
+      // Only the money is checked here; the order is the test above.
+      const kinds = (await movementsOf(clientId, ticketId)).map((m) => m.kind).sort();
+      expect([[], ['REFUND', 'TICKET']]).toContainEqual(kinds);
     }
   });
 
