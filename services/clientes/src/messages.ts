@@ -4,6 +4,7 @@ export const MESSAGES = {
   nitTaken: 'Ese NIT ya está registrado en otra cuenta.',
   insufficientBalance: 'No tienes saldo suficiente en tu cartera.',
   paymentExpired: 'Se terminó el tiempo para pagar esta compra.',
+  ticketCancelled: 'Este viaje se canceló y ya no se puede pagar.',
   keyReused: 'Esta operación ya se hizo con otros datos. Recarga la página e intenta de nuevo.',
   keyMissing: 'No pudimos identificar la operación. Recarga la página e intenta de nuevo.',
   topUpDescription: 'Recarga de saldo',

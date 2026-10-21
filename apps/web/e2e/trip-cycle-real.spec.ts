@@ -1,5 +1,5 @@
 import { TEST_BRANCH_PREFIX, TEST_RUN, testEmail } from '@debus/config/test-data';
-import { type Page, expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { cleanUpTestRun } from './support/clean-up';
 import { dayFromToday } from './support/fleet-gateway';
 import { guatemalaAgo } from './support/guatemala-time';
@@ -9,8 +9,10 @@ import { isReachable, mailpitUrl } from './support/mailpit';
 import { signInAsRealAdmin } from './support/real-admin';
 import {
   ACTION_TIMEOUT,
+  confirmDialog,
   createBranch,
   createRoute,
+  deleteScheduledTrip,
   randomLetters,
   registerBus,
   registerDriver,
@@ -19,27 +21,6 @@ import {
 } from './support/real-fleet';
 
 const CHECK = 'Revisé los datos: no se podrán cambiar';
-async function confirm(page: Page, button: string, check: string) {
-  const dialog = page.getByRole('alertdialog');
-  await dialog.getByRole('checkbox', { name: check }).click();
-  await dialog.getByRole('button', { name: button }).click();
-  await expect(dialog).toBeHidden();
-}
-
-// Opens the trip of the bus that has not left on that day, deletes it and checks it is gone.
-async function deleteScheduledTrip(page: Page, day: string, plateTail: RegExp) {
-  const list = `/sucursal/viajes?desde=${day}&hasta=${day}`;
-  const scheduled = () =>
-    page.getByRole('row', { name: plateTail }).filter({ hasText: 'Programado' });
-  await page.goto(list);
-  await expect(scheduled()).toHaveCount(1, { timeout: ACTION_TIMEOUT });
-  await scheduled().getByRole('link').click();
-  await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
-  await confirm(page, 'Eliminar viaje', 'Entiendo que se avisará a quienes compraron boletos.');
-  await expect(page).toHaveURL(/\/sucursal\/viajes$/);
-  await page.goto(list);
-  await expect(scheduled()).toHaveCount(0);
-}
 
 test.describe('real trip cycle and repair expenses', () => {
   test.skip(
@@ -118,14 +99,14 @@ test.describe('real trip cycle and repair expenses', () => {
     await branch.getByLabel('Fecha', { exact: true }).fill(departure.day);
     await branch.getByLabel('Hora', { exact: true }).fill(departure.time);
     await branch.getByRole('button', { name: 'Registrar salida' }).click();
-    await confirm(branch, 'Sí, registrar salida', CHECK);
+    await confirmDialog(branch, 'Sí, registrar salida', CHECK);
     await expect(branch.getByText('Registrada, no editable')).toBeVisible();
 
     await branch.getByLabel('Kilometraje final').fill('1204');
     await branch.getByLabel('Combustible total (Q)').fill('1180');
     await expect(branch.getByText('Recorrido').locator('..')).toContainText('204 km');
     await branch.getByRole('button', { name: 'Registrar llegada' }).click();
-    await confirm(branch, 'Sí, registrar llegada', CHECK);
+    await confirmDialog(branch, 'Sí, registrar llegada', CHECK);
     await expect(branch.getByText('Registrada, no editable')).toHaveCount(2);
 
     // Neither record can be edited, not even after reloading the page.

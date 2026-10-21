@@ -43,6 +43,7 @@ model ClientProfile {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   wallet    Wallet?
+  refunds   Refund[]
 
   @@map("client_profiles")
 }
@@ -83,6 +84,20 @@ model WalletMovement {
   @@unique([clientId, idempotencyKey])
   @@index([clientId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("wallet_movements")
+}
+
+// One per ticket the wallet was asked to refund. Without a movement, nothing had been charged and the
+// row stops a debit still on its way from charging a ticket that no longer exists.
+model Refund {
+  reference  String        @id @db.Uuid
+  clientId   String        @map("client_id") @db.Uuid
+  movementId String?       @map("movement_id") @db.Uuid
+  amount     Decimal       @db.Decimal(12, 2)
+  reason     String
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  profile    ClientProfile @relation(fields: [clientId], references: [userId], onDelete: Cascade)
+
+  @@map("refunds")
 }
 
 // Copy of the settings versions of administracion, fed by SettingsUpdated. Versions never change.

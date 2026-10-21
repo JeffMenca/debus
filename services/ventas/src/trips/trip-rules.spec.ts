@@ -1,5 +1,9 @@
-import { type AvailableTripListQuery, exampleTripScheduled } from '@debus/contracts';
-import { isOnSale, onSaleConditions, toTripRow } from './trip-rules';
+import {
+  type AvailableTripListQuery,
+  exampleTripScheduled,
+  refundRequestedPayloadSchema,
+} from '@debus/contracts';
+import { isOnSale, onSaleConditions, toRefundRequested, toTripRow } from './trip-rules';
 
 const now = new Date('2026-10-16T12:00:00.000Z');
 const query = { page: 1, pageSize: 20 };
@@ -105,5 +109,36 @@ describe('onSaleConditions', () => {
     const sql = conditions({ origin: 'Xela', seats: 2 });
 
     expect(sql.sql.split(' AND ')).toHaveLength(3);
+  });
+});
+
+describe('toRefundRequested', () => {
+  const row = {
+    id: '8e7d6c5b-4a3f-4e2d-9c1b-0a9f8e7d6c5b',
+    client_id: '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a',
+    seats: [4, 3],
+    amount: 170,
+    nit: '45218376',
+    origin_label: 'Quetzaltenango',
+    destination_label: 'Guatemala',
+    departure_at: new Date('2026-10-20T11:30:00.000Z'),
+  };
+
+  it('asks to give back what the purchase charged, for the deleted trip', () => {
+    const payload = toRefundRequested(row, exampleTripScheduled.tripId, '2026-10-19T09:00:00.000Z');
+
+    expect(refundRequestedPayloadSchema.parse(payload)).toEqual({
+      ticketId: row.id,
+      tripId: exampleTripScheduled.tripId,
+      clientId: row.client_id,
+      nit: '45218376',
+      seats: [3, 4],
+      amount: 170,
+      reason: 'TRIP_DELETED',
+      originLabel: 'Quetzaltenango',
+      destinationLabel: 'Guatemala',
+      departureAt: '2026-10-20T11:30:00.000Z',
+      requestedAt: '2026-10-19T09:00:00.000Z',
+    });
   });
 });

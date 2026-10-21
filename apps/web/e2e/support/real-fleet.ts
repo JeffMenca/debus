@@ -156,3 +156,30 @@ export async function scheduleTrip(
   });
   await expect(dialog).toBeHidden();
 }
+
+// Ticks the check of a confirmation dialog and presses its button.
+export async function confirmDialog(page: Page, button: string, check: string) {
+  const dialog = page.getByRole('alertdialog');
+  await dialog.getByRole('checkbox', { name: check }).click();
+  await dialog.getByRole('button', { name: button }).click();
+  await expect(dialog).toBeHidden();
+}
+
+// Opens the trip of the bus that has not left on that day, deletes it and checks it is gone.
+export async function deleteScheduledTrip(page: Page, day: string, plateTail: RegExp) {
+  const list = `/sucursal/viajes?desde=${day}&hasta=${day}`;
+  const scheduled = () =>
+    page.getByRole('row', { name: plateTail }).filter({ hasText: 'Programado' });
+  await page.goto(list);
+  await expect(scheduled()).toHaveCount(1, { timeout: ACTION_TIMEOUT });
+  await scheduled().getByRole('link').click();
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
+  await confirmDialog(
+    page,
+    'Eliminar viaje',
+    'Entiendo que se avisará a quienes compraron boletos.',
+  );
+  await expect(page).toHaveURL(/\/sucursal\/viajes$/);
+  await page.goto(list);
+  await expect(scheduled()).toHaveCount(0);
+}

@@ -99,8 +99,12 @@ function setup() {
   http.respond('viajes', 'GET', SALE_STATUS, { tripId, open: true });
   http.respond('clientes', 'POST', WALLET_DEBIT_PATH, paid);
 
-  const applyWrite = (where: { id: string }, data: Record<string, unknown>): { count: number } => {
+  const applyWrite = (
+    where: { id: string; status?: string },
+    data: Record<string, unknown>,
+  ): { count: number } => {
     if (!db.purchase || where.id !== db.purchase.id) return { count: 0 };
+    if (where.status && where.status !== db.purchase.status) return { count: 0 };
     const lease = data.debitAttempts !== undefined;
     if (lease && (db.busy || db.purchase.status !== 'PENDING')) return { count: 0 };
     if (lease) db.purchase.debitAttempts += 1;
@@ -651,6 +655,69 @@ describe('PurchasesService', () => {
       expect(debits(http)).toHaveLength(0);
       expect(db.purchase?.status).toBe('PENDING');
       expect(error).toHaveBeenCalled();
+    });
+  });
+
+  describe('a trip deleted while the purchase is being paid', () => {
+    // What the TripDeleted handler commits: the purchase is closed and the ticket goes with the trip.
+    const deleteTripWhenCharging = (
+      db: ReturnType<typeof setup>['db'],
+      http: FakeServiceClient,
+    ) => {
+      const post = http.post.bind(http);
+      jest.spyOn(http, 'post').mockImplementation(async (...args: Parameters<typeof post>) => {
+        Object.assign(db.purchase ?? {}, { status: 'FAILED', failure: 'TRIP_CANCELLED' });
+        db.ticket = null;
+        return post(...args);
+      });
+    };
+
+    it('answers that the trip was cancelled when the wallet charged as it was deleted', async () => {
+      const { db, http, outbox, service } = setup();
+      deleteTripWhenCharging(db, http);
+
+      const failure = await service.purchase(actor, ticketId, request).catch((e: unknown) => e);
+
+      expect(failure).toMatchObject({ status: 409, message: MESSAGES.tripCancelled });
+      expect(outbox.add).not.toHaveBeenCalled();
+      expect(error).not.toHaveBeenCalled();
+    });
+
+    it('answers that the trip was cancelled, not that the balance is short, when the wallet refuses', async () => {
+      const { db, http, service } = setup();
+      http.respond('clientes', 'POST', WALLET_DEBIT_PATH, rejected(422, 'Este viaje se canceló.'));
+      deleteTripWhenCharging(db, http);
+
+      const failure = await service.purchase(actor, ticketId, request).catch((e: unknown) => e);
+
+      expect(failure).toMatchObject({ message: MESSAGES.tripCancelled });
+      expect(db.purchase?.failure).toBe('TRIP_CANCELLED');
+    });
+
+    it('keeps the reason of a purchase closed before its first debit left', async () => {
+      const { db, prisma, http, service } = setup();
+      db.purchase = pendingRow({ debitAttempts: 0 });
+      prisma.ticket.findUnique.mockImplementation(async () => {
+        Object.assign(db.purchase ?? {}, { status: 'FAILED', failure: 'TRIP_CANCELLED' });
+        return null;
+      });
+
+      expect(await service.resume(ticketId)).toBe('FAILED');
+      expect(debits(http)).toHaveLength(0);
+      expect(db.purchase?.failure).toBe('TRIP_CANCELLED');
+    });
+
+    it('answers the closed purchase, without an error, when the ticket went after the claim', async () => {
+      const { db, prisma, http, service } = setup();
+      db.purchase = pendingRow({ debitAttempts: 1 });
+      prisma.ticket.findUnique.mockImplementation(async () => {
+        Object.assign(db.purchase ?? {}, { status: 'FAILED', failure: 'TRIP_CANCELLED' });
+        return null;
+      });
+
+      expect(await service.resume(ticketId)).toBe('FAILED');
+      expect(debits(http)).toHaveLength(0);
+      expect(error).not.toHaveBeenCalled();
     });
   });
 

@@ -162,6 +162,12 @@ export class WalletService {
       data: { balance: { increment: amount }, updatedAt: new Date() },
     });
     if (updated.count === 0) throw await this.notApplied(tx, clientId);
+    // Looked up while holding the wallet, the lock a refund takes too: a refund that committed first
+    // is seen here and the whole debit is rolled back.
+    if (intent.kind === 'TICKET' && intent.reference) {
+      const refunded = await tx.refund.findUnique({ where: { reference: intent.reference } });
+      if (refunded) throw new UnprocessableEntityException(MESSAGES.ticketCancelled);
+    }
 
     const { balance } = await tx.wallet.findUniqueOrThrow({ where: { clientId } });
     const movement = await tx.walletMovement.create({

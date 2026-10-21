@@ -3,7 +3,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { createTestApp } from './support/app';
 
 type Operation = {
-  responses?: Record<string, { content?: Record<string, { schema?: { properties?: object } }> }>;
+  responses?: Record<
+    string,
+    { description?: string; content?: Record<string, { schema?: { properties?: object } }> }
+  >;
   parameters?: { name: string }[];
 };
 
@@ -50,6 +53,7 @@ describe('the Swagger description of the profile and wallet routes', () => {
       expect.arrayContaining(['200', '404', '409', '422']),
     );
     expect(debit?.parameters?.map((parameter) => parameter.name)).toContain('idempotency-key');
+    expect(debit?.responses?.['422']?.description).toContain('trip was cancelled');
     expect(
       paths['/wallet/top-ups']?.post?.parameters?.map((parameter) => parameter.name),
     ).toContain('idempotency-key');
