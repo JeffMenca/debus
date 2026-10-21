@@ -5,7 +5,7 @@ import {
   foldSearchText,
   guatemalaDayRange,
 } from '@debus/contracts';
-import type { Prisma } from '../generated/prisma/client';
+import { Prisma } from '../generated/prisma/client';
 
 export type TripOnSale = TripScheduledPayload & { routeId: string; ticketPrice: number };
 
@@ -30,16 +30,24 @@ export function toTripRow(trip: TripOnSale) {
   };
 }
 
-// A trip is on sale until its scheduled departure; the filters narrow the departure day and text.
-// A counter only sells the trips leaving from its own branch.
-export function onSaleWhere(
+// A trip is on sale until its scheduled departure; the filters narrow the day, the places, the
+// text and the free seats. A counter only sells the trips leaving from its own branch. The
+// conditions read the trip as t and its taken seats as s (see TripsService).
+export function onSaleConditions(
   query: AvailableTripListQuery,
   now: Date,
   branchId?: string,
-): Prisma.TripWhereInput {
-  return {
-    departureAt: { gt: now, ...guatemalaDayRange(query.from, query.to) },
-    ...(branchId && { branchId }),
-    ...(query.q && { searchText: { contains: escapeLikePattern(query.q) } }),
-  };
+): Prisma.Sql {
+  const { gte, lt } = guatemalaDayRange(query.from, query.to);
+  const conditions = [
+    Prisma.sql`t.departure_at > ${now}`,
+    gte && Prisma.sql`t.departure_at >= ${gte}`,
+    lt && Prisma.sql`t.departure_at < ${lt}`,
+    branchId && Prisma.sql`t.branch_id = ${branchId}::uuid`,
+    query.origin && Prisma.sql`t.origin_label = ${query.origin}`,
+    query.destination && Prisma.sql`t.destination_label = ${query.destination}`,
+    query.q && Prisma.sql`t.search_text LIKE ${`%${escapeLikePattern(query.q)}%`}`,
+    query.seats && Prisma.sql`t.capacity - COALESCE(s.taken, 0) >= ${query.seats}`,
+  ].filter((condition): condition is Prisma.Sql => Boolean(condition));
+  return Prisma.join(conditions, ' AND ');
 }

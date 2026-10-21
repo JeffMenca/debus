@@ -1,5 +1,6 @@
 import {
   CONSUMER_NIT,
+  SEAT_SELECTION_MAX,
   type CounterSaleRequest,
   emailSchema,
   fullNameSchema,
@@ -8,7 +9,7 @@ import {
 import { formatQuetzales } from '@/lib/format';
 
 // The most seats one sale may carry, the same limit the API applies.
-export const SEAT_LIMIT = 10;
+export const SEAT_LIMIT = SEAT_SELECTION_MAX;
 
 // Seat 7 reads 07, as it is painted on the bus.
 export const formatSeat = (seat: number): string => String(seat).padStart(2, '0');

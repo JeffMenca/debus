@@ -5,10 +5,12 @@ import {
   mockAccountGateway,
   sampleMovement,
 } from './support/account-gateway';
+import { mockClientTripsGateway } from './support/client-trips-gateway';
 import { expectNoHorizontalScroll, signInAs } from './support/session';
 
 async function open(page: Page, baseURL: string | undefined, path: string, seed: AccountSeed = {}) {
   const gateway = await mockAccountGateway(page, seed);
+  await mockClientTripsGateway(page, []);
   await signInAs(page, baseURL!, 'CLIENT');
   await page.goto(path);
   return gateway;
@@ -17,7 +19,7 @@ async function open(page: Page, baseURL: string | undefined, path: string, seed:
 test.describe('account page', () => {
   test.skip(Boolean(process.env.E2E_REAL_API), 'runs only without a real gateway');
 
-  test('a client sees the wallet, the profile and the empty trips, without sideways scroll', async ({
+  test('a client sees the wallet, the profile and no tickets yet, without sideways scroll', async ({
     page,
     baseURL,
   }) => {
@@ -27,7 +29,7 @@ test.describe('account page', () => {
     await expect(page.getByText(/Q\s?340\.00/).first()).toBeVisible();
     await expect(page.getByText('Ana Méndez')).toBeVisible();
     await expect(page.getByText('4521837-6')).toBeVisible();
-    await expect(page.getByText(/Aquí verás los boletos/)).toBeVisible();
+    await expect(page.getByText(/Todavía no tienes boletos/)).toBeVisible();
     await expect(page.getByRole('link', { name: 'Mi cuenta' })).toHaveAttribute(
       'aria-current',
       'page',

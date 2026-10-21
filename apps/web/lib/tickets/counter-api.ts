@@ -2,16 +2,28 @@ import {
   type CounterSaleRequest,
   type Ticket,
   availableTripPageSchema,
-  seatMapSchema,
   ticketSchema,
 } from '@debus/contracts';
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  type QueryClient,
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { ApiError, apiRequest } from '@/lib/api/client';
 import { toQueryString } from '@/lib/api/query-string';
 import type { CounterQuery } from './counter-list-params';
+import { ON_SALE_KEY, VENTAS_PATH } from './trips-api';
 
-const VENTAS_PATH = '/api/ventas';
 const COUNTER_KEY = ['counter'];
+
+// A sale changes the free seats of the counter list and of every seat map.
+const refreshSeats = (client: QueryClient) =>
+  Promise.all([
+    client.invalidateQueries({ queryKey: COUNTER_KEY }),
+    client.invalidateQueries({ queryKey: ON_SALE_KEY }),
+  ]);
 
 // The server filters, pages and keeps only the trips leaving from the branch of whoever sells.
 export function useCounterTrips(query: CounterQuery) {
@@ -23,13 +35,6 @@ export function useCounterTrips(query: CounterQuery) {
         availableTripPageSchema,
       ),
     placeholderData: keepPreviousData,
-  });
-}
-
-export function useSeatMap(tripId: string) {
-  return useQuery({
-    queryKey: [...COUNTER_KEY, 'seats', tripId],
-    queryFn: () => apiRequest(`${VENTAS_PATH}/trips/${tripId}/seats`, seatMapSchema),
   });
 }
 
@@ -48,12 +53,10 @@ export function useCounterSale() {
         body: JSON.stringify(request),
         headers: { 'idempotency-key': key },
       }),
-    onSuccess: () => client.invalidateQueries({ queryKey: COUNTER_KEY }),
+    onSuccess: () => refreshSeats(client),
     // Only a refusal says the seats changed. A lost answer leaves the screen as it was, so the
     // retry sends the same seats with the same key, even if the sale did go through.
     onError: (error) =>
-      error instanceof ApiError && error.status === 409
-        ? client.invalidateQueries({ queryKey: COUNTER_KEY })
-        : undefined,
+      error instanceof ApiError && error.status === 409 ? refreshSeats(client) : undefined,
   });
 }

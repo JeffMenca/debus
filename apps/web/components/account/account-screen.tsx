@@ -11,6 +11,7 @@ import {
   writeAccountView,
 } from '@/lib/account/account-view-params';
 import { ProfileCard } from './profile-card';
+import { TicketHistory } from './ticket-history';
 
 const TABS: { value: AccountTab; label: string }[] = [
   { value: 'TICKETS', label: 'Boletos' },
@@ -46,9 +47,7 @@ export function AccountScreen() {
           />
         </div>
         {view.tab === 'TICKETS' && (
-          <EmptyTab>
-            Aquí verás los boletos que compres, también los de ventanilla con tu NIT.
-          </EmptyTab>
+          <TicketHistory query={{ page: view.page, pageSize: view.pageSize }} onChange={update} />
         )}
         {view.tab === 'RENTALS' && (
           <EmptyTab>Aquí verás los buses que alquiles para tu grupo.</EmptyTab>

@@ -50,14 +50,19 @@ export function testTrips(prisma: PrismaService) {
     // A ticket written straight to the table, for tests about what happens to it afterwards.
     async ticket(
       tripId: string,
-      over: { nit?: string; channel?: 'ONLINE' | 'COUNTER'; clientId?: string | null } = {},
+      over: {
+        nit?: string;
+        channel?: 'ONLINE' | 'COUNTER';
+        clientId?: string | null;
+        status?: 'PENDING' | 'CONFIRMED';
+      } = {},
     ): Promise<string> {
       const id = randomUUID();
       await prisma.ticket.create({
         data: {
           id,
           tripId,
-          status: 'CONFIRMED',
+          status: over.status ?? 'CONFIRMED',
           channel: over.channel ?? 'COUNTER',
           clientId: over.clientId ?? null,
           nit: over.nit ?? 'CF',

@@ -1,13 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import {
-  mockClientesApi,
-  movement,
-  movementPage,
-  profile,
-  wallet,
-} from '../../test-support/account';
+import { movement, movementPage, profile, wallet } from '../../test-support/account';
 import { queryWrapper } from '../../test-support/query-wrapper';
+import { mockGatewayApi, soldTicket, ticketPage } from '../../test-support/tickets';
 import { AccountScreen } from './account-screen';
 
 const replace = jest.fn();
@@ -20,10 +15,12 @@ jest.mock('next/navigation', () => ({
 
 beforeEach(() => {
   search = '';
-  mockClientesApi({
-    'GET /wallet': () => Response.json(wallet()),
-    'GET /profile': () => Response.json(profile()),
-    'GET /wallet/movements': () => Response.json(movementPage([movement()])),
+  mockGatewayApi({
+    'GET /clientes/wallet': () => Response.json(wallet()),
+    'GET /clientes/profile': () => Response.json(profile()),
+    'GET /clientes/wallet/movements': () => Response.json(movementPage([movement()])),
+    'GET /ventas/tickets': () =>
+      Response.json(ticketPage([soldTicket()], null, { total: 21, page: 2 })),
   });
 });
 afterEach(() => jest.restoreAllMocks());
@@ -41,11 +38,12 @@ describe('AccountScreen', () => {
     expect(await screen.findByText('Ana Méndez')).toBeInTheDocument();
   });
 
-  it('opens on the tickets tab, still empty, and moves tabs through the address', async () => {
+  it('opens on the tickets tab and moves tabs through the address, back to the first page', async () => {
+    search = 'pagina=2';
     renderScreen();
 
     expect(screen.getByRole('tab', { name: 'Boletos', selected: true })).toBeInTheDocument();
-    expect(screen.getByText(/Aquí verás los boletos/)).toBeInTheDocument();
+    expect(await screen.findByText('Quetzaltenango a Guatemala')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('tab', { name: 'Movimientos' }));
 
     expect(replace).toHaveBeenCalledWith('/cuenta?pestana=movimientos', { scroll: false });

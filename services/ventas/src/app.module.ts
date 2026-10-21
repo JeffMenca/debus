@@ -11,6 +11,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { PurchasesModule } from './purchases/purchases.module';
 import { SeatsModule } from './seats/seats.module';
+import { TicketsModule } from './tickets/tickets.module';
 import { TripsModule } from './trips/trips.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { TripsModule } from './trips/trips.module';
     HealthModule,
     PurchasesModule,
     SeatsModule,
+    TicketsModule,
     TripsModule,
     PrismaModule,
     ServiceClientModule.forRoot(),

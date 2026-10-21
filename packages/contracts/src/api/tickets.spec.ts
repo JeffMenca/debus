@@ -3,12 +3,15 @@ import {
   availableTripListQuerySchema,
   PURCHASE_FAILURES,
   PURCHASE_STATUSES,
+  SEAT_SELECTION_MAX,
   counterSaleRequestSchema,
   purchaseSchema,
   purchaseTicketRequestSchema,
   saleNitSchema,
   seatSelectionSchema,
   ticketListQuerySchema,
+  ticketPageSchema,
+  tripPlacesSchema,
 } from './tickets';
 
 const tripId = '4c3d2e1f-7a6b-4c5d-8e9f-0a1b2c3d4e5f';
@@ -67,6 +70,33 @@ describe('ticket contracts', () => {
       availableTripListQuerySchema.safeParse({ from: '2026-10-14', to: '2026-10-13' }).success,
     ).toBe(false);
     expect(availableTripListQuerySchema.parse({ q: 'Quetzaltenango' }).q).toBe('quetzaltenango');
+  });
+
+  it('narrows the trips on sale by exact origin and destination and by free seats', () => {
+    expect(
+      availableTripListQuerySchema.parse({
+        origin: ' Quetzaltenango ',
+        destination: 'Ciudad de Guatemala',
+        seats: '3',
+      }),
+    ).toMatchObject({ origin: 'Quetzaltenango', destination: 'Ciudad de Guatemala', seats: 3 });
+    expect(availableTripListQuerySchema.safeParse({ seats: '0' }).success).toBe(false);
+    expect(availableTripListQuerySchema.safeParse({ seats: '11' }).success).toBe(false);
+    expect(availableTripListQuerySchema.safeParse({ origin: '  ' }).success).toBe(false);
+    expect(availableTripListQuerySchema.safeParse({ destination: 'x'.repeat(121) }).success).toBe(
+      false,
+    );
+  });
+
+  it('caps a selection and the passengers of a search at the same number of seats', () => {
+    expect(SEAT_SELECTION_MAX).toBe(10);
+    expect(availableTripListQuerySchema.parse({ seats: SEAT_SELECTION_MAX }).seats).toBe(10);
+  });
+
+  it('lists the places with trips on sale, where they leave from and where they go', () => {
+    const places = { origins: ['Quetzaltenango'], destinations: ['Flores', 'Guatemala'] };
+    expect(tripPlacesSchema.parse(places)).toEqual(places);
+    expect(tripPlacesSchema.safeParse({ origins: [] }).success).toBe(false);
   });
 
   it('pages the ticket history with the same range rule', () => {
@@ -138,6 +168,14 @@ describe('purchase contract', () => {
     expect(purchaseSchema.safeParse({ ...failed, failure: null }).success).toBe(false);
     expect(purchaseSchema.safeParse({ ...failed, message: null }).success).toBe(false);
     expect(purchaseSchema.safeParse({ ...failed, ticket }).success).toBe(false);
+  });
+
+  it('pages the ticket history with the next trip of the client, or none', () => {
+    const page = { items: [ticket], total: 1, page: 1, pageSize: 20 };
+
+    expect(ticketPageSchema.parse({ ...page, summary: { next: ticket } })).toMatchObject(page);
+    expect(ticketPageSchema.parse({ ...page, summary: { next: null } }).summary.next).toBeNull();
+    expect(ticketPageSchema.safeParse(page).success).toBe(false);
   });
 
   it('tells a pending purchase apart: a text, no reason and no ticket yet', () => {
