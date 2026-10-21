@@ -16,12 +16,13 @@ import { formatPlate, formatQuetzales } from '@/lib/format';
 import { readId } from '@/lib/list/page-params';
 import { formatSeat, saleTotal, toggleSeat } from '@/lib/tickets/counter-sale';
 import { PURCHASE_WAIT_MS, balanceAfter, keepsKey } from '@/lib/tickets/purchase';
-import { usePurchase, usePurchaseTicket } from '@/lib/tickets/purchase-api';
+import { isTripCancelled, usePurchase, usePurchaseTicket } from '@/lib/tickets/purchase-api';
 import { readTripSearch, writeTripSearch } from '@/lib/tickets/trip-search-params';
 import { useSeatMap } from '@/lib/tickets/trips-api';
 import { cn } from '@/lib/utils';
 import { useWallet } from '@/lib/wallet/wallet-api';
 import { PurchaseReceipt } from './purchase-receipt';
+import { TripCancelled } from './trip-cancelled';
 import { TripTicketCard } from './trip-ticket-card';
 
 interface PurchaseScreenProps {
@@ -141,7 +142,6 @@ interface PurchaseFlowProps {
 }
 
 function PurchaseFlow({ tripId, back, passengers, today }: PurchaseFlowProps) {
-  const map = useSeatMap(tripId);
   const wallet = useWallet();
   const buy = usePurchaseTicket();
   const [picked, setPicked] = useState<number[]>([]);
@@ -152,6 +152,10 @@ function PurchaseFlow({ tripId, back, passengers, today }: PurchaseFlowProps) {
   const [pending, setPending] = useState<Purchase | null>(null);
   const [gaveUp, setGaveUp] = useState(false);
   const followed = usePurchase(pending, !gaveUp);
+  // A trip deleted during the payment, or gone before it, has no seat map left to ask for.
+  const cancelled = [buy.data, followed.data].find(isTripCancelled);
+  const gone = buy.error instanceof ApiError && buy.error.status === 404 ? buy.error : null;
+  const map = useSeatMap(cancelled || gone ? null : tripId);
 
   useEffect(() => {
     if (!pending) return;
@@ -161,6 +165,8 @@ function PurchaseFlow({ tripId, back, passengers, today }: PurchaseFlowProps) {
 
   const confirmed = [buy.data, followed.data].find((purchase) => purchase?.status === 'CONFIRMED');
   if (confirmed?.ticket) return <PurchaseReceipt ticket={confirmed.ticket} />;
+  if (cancelled) return <TripCancelled message={cancelled.message ?? ''} back={back} />;
+  if (gone) return <TripMissing back={back} message={gone.message} />;
   if (pending && followed.data?.status === 'PENDING') {
     return <Waiting message={followed.data.message ?? ''} gaveUp={gaveUp} />;
   }

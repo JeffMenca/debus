@@ -23,12 +23,24 @@ export const SALE_MESSAGES = {
   paymentPending:
     'Estamos confirmando el pago con tu cartera. Tus asientos están apartados; no repitas la compra.',
   tripNotFound: 'No encontramos ese viaje. Puede que ya no esté a la venta.',
+  tripCheckUnavailable:
+    'No pudimos confirmar que el viaje sigue a la venta. No se te cobró nada; intenta de nuevo en unos segundos.',
+  tripCancelled: 'Este viaje se canceló. Si ya se te había cobrado, el dinero vuelve a tu cartera.',
   invalid: 'Revisa los datos marcados e intenta de nuevo.',
 } as const;
 
-// How the next purchase ends: confirmed at once, confirmed after a 202, short of balance or
-// with the wallet down.
-export type PurchaseEnding = 'confirmed' | 'pending' | 'insufficient' | 'unavailable';
+// How the next purchase ends: confirmed at once, confirmed after a 202, short of balance, with the
+// wallet or viajes down, the trip deleted before the payment (gone), during it (cancelled) or while
+// the payment is being confirmed (cancelledWhilePending).
+export type PurchaseEnding =
+  | 'confirmed'
+  | 'pending'
+  | 'insufficient'
+  | 'unavailable'
+  | 'tripUnchecked'
+  | 'gone'
+  | 'cancelled'
+  | 'cancelledWhilePending';
 
 const PATH =
   /\/api\/ventas\/(trips|trips\/places|trips\/([^/]+)\/seats|purchases|purchases\/([^/]+)|tickets)(\?|$)/;
@@ -44,6 +56,10 @@ export async function mockClientTripsGateway(
   const purchases = new Map<string, Purchase>();
   const tickets = [...history];
   const endings: PurchaseEnding[] = [];
+  // Trips deleted in viajes, whose copy ventas already removed with their seats.
+  const deleted = new Set<string>();
+  // Pending purchases that the deletion of their trip closes when they are next read.
+  const closing = new Set<string>();
   const error = (route: Route, status: number, message: string) =>
     fulfillJson(route, status, { statusCode: status, message });
   const withSeats = (trip: AvailableTrip): AvailableTrip => ({
@@ -76,6 +92,20 @@ export async function mockClientTripsGateway(
     return confirmed;
   }
 
+  // TripDeleted: ventas removes the trip with its seats and closes the purchase, which survives.
+  function cancel(purchase: Purchase): Purchase {
+    deleted.add(purchase.tripId);
+    taken.set(purchase.tripId, []);
+    const closed: Purchase = {
+      ...purchase,
+      status: 'FAILED',
+      failure: 'TRIP_CANCELLED',
+      message: SALE_MESSAGES.tripCancelled,
+    };
+    purchases.set(purchase.ticketId, closed);
+    return closed;
+  }
+
   await page.route(PATH, async (route) => {
     const request = route.request();
     if (request.method() === 'OPTIONS') return fulfillJson(route, 204);
@@ -92,6 +122,7 @@ export async function mockClientTripsGateway(
       const query = availableTripListQuerySchema.parse(Object.fromEntries(url.searchParams));
       const { gte, lt } = guatemalaDayRange(query.from, query.to);
       const found = trips
+        .filter((trip) => !deleted.has(trip.tripId))
         .map(withSeats)
         .filter(
           (trip) =>
@@ -105,7 +136,7 @@ export async function mockClientTripsGateway(
       return fulfillJson(route, 200, toPage(found.slice(skip, skip + take), found.length, query));
     }
     if (seatsOf) {
-      const trip = trips.find((item) => item.tripId === seatsOf);
+      const trip = trips.find((item) => item.tripId === seatsOf && !deleted.has(item.tripId));
       if (!trip) return error(route, 404, SALE_MESSAGES.tripNotFound);
       return fulfillJson(route, 200, { ...trip, taken: [...(taken.get(trip.tripId) ?? [])] });
     }
@@ -124,7 +155,8 @@ export async function mockClientTripsGateway(
     if (purchaseId) {
       const pending = purchases.get(purchaseId);
       if (!pending) return error(route, 404, 'No encontramos esa compra.');
-      return fulfillJson(route, 200, pending.status === 'PENDING' ? confirm(pending) : pending);
+      if (pending.status !== 'PENDING') return fulfillJson(route, 200, pending);
+      return fulfillJson(route, 200, closing.has(purchaseId) ? cancel(pending) : confirm(pending));
     }
 
     const key = request.headers()['idempotency-key'];
@@ -140,6 +172,11 @@ export async function mockClientTripsGateway(
     const ending = endings.shift() ?? 'confirmed';
     if (ending === 'insufficient') return error(route, 422, SALE_MESSAGES.insufficientBalance);
     if (ending === 'unavailable') return error(route, 503, SALE_MESSAGES.walletUnavailable);
+    if (ending === 'tripUnchecked') return error(route, 503, SALE_MESSAGES.tripCheckUnavailable);
+    if (ending === 'gone') {
+      deleted.add(trip.tripId);
+      return error(route, 404, SALE_MESSAGES.tripNotFound);
+    }
     occupied.push(...parsed.data.seats);
     const purchase: Purchase = {
       ticketId: key,
@@ -153,7 +190,14 @@ export async function mockClientTripsGateway(
       ticket: null,
     };
     purchases.set(key, purchase);
-    if (ending === 'pending') return fulfillJson(route, 202, purchase);
+    if (ending === 'cancelled') {
+      cancel(purchase);
+      return error(route, 409, SALE_MESSAGES.tripCancelled);
+    }
+    if (ending === 'cancelledWhilePending') closing.add(key);
+    if (ending === 'pending' || ending === 'cancelledWhilePending') {
+      return fulfillJson(route, 202, purchase);
+    }
     return fulfillJson(route, 201, confirm(purchase));
   });
 

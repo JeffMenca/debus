@@ -175,6 +175,76 @@ test.describe('trips and purchases of a client', () => {
     ).toBeVisible();
   });
 
+  async function expectTripCancelled(page: Page) {
+    await expect(page.getByRole('heading', { name: 'Viaje cancelado' })).toBeVisible();
+    await expect(page.getByText(SALE_MESSAGES.tripCancelled)).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Pagar/ })).toHaveCount(0);
+    await expectNoHorizontalScroll(page);
+    await page.getByRole('link', { name: 'Ver mis movimientos' }).click();
+    await expect(page).toHaveURL(/\/cuenta\?pestana=movimientos$/);
+    await expect(page.getByRole('tab', { name: 'Movimientos', selected: true })).toBeVisible();
+  }
+
+  test('a trip deleted during the payment ends in a clear cancellation', async ({
+    page,
+    baseURL,
+  }) => {
+    const gateway = await open(page, baseURL, `/viajes?fecha=${dayOf(xela)}`);
+    gateway.endNextPurchase('cancelled');
+
+    await chooseSeatsOfXela(page, [14]);
+    await page.getByRole('button', { name: /^Pagar/ }).click();
+
+    await expectTripCancelled(page);
+  });
+
+  test('a trip deleted while the payment is confirmed ends in the same cancellation', async ({
+    page,
+    baseURL,
+  }) => {
+    const gateway = await open(page, baseURL, `/viajes?fecha=${dayOf(xela)}`);
+    gateway.endNextPurchase('cancelledWhilePending');
+
+    await chooseSeatsOfXela(page, [15]);
+    await page.getByRole('button', { name: /^Pagar/ }).click();
+
+    await expect(page.getByText(SALE_MESSAGES.paymentPending)).toBeVisible();
+    await expectTripCancelled(page);
+  });
+
+  test('a trip that left the sale before the payment says so, and viajes down charges nothing', async ({
+    page,
+    baseURL,
+  }) => {
+    const gateway = await open(page, baseURL, `/viajes?fecha=${dayOf(xela)}`);
+    gateway.endNextPurchase('tripUnchecked');
+    gateway.endNextPurchase('gone');
+
+    await chooseSeatsOfXela(page, [16]);
+    await page.getByRole('button', { name: /^Pagar/ }).click();
+    await expect(
+      page.getByRole('alert').filter({ hasText: SALE_MESSAGES.tripCheckUnavailable }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: /^Pagar/ }).click();
+
+    await expect(page.getByRole('heading', { name: 'No encontramos ese viaje' })).toBeVisible();
+    await expect(page.getByText(SALE_MESSAGES.tripNotFound)).toBeVisible();
+    expect(gateway.purchases()).toHaveLength(0);
+  });
+
+  test('the history explains where a cancelled trip goes', async ({ page, baseURL }) => {
+    await open(page, baseURL, `/viajes?fecha=${dayOf(xela)}`);
+    await chooseSeatsOfXela(page, [17]);
+    await page.getByRole('button', { name: /^Pagar/ }).click();
+    await page.getByRole('link', { name: 'Ver mis boletos' }).click();
+
+    await expect(
+      page.getByText(/Si se cancela un viaje, su boleto sale de esta lista/),
+    ).toBeVisible();
+    await page.getByRole('link', { name: 'Movimientos', exact: true }).click();
+    await expect(page).toHaveURL(/pestana=movimientos/);
+  });
+
   test('a chosen seat does not bounce when motion is reduced', async ({ page, baseURL }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await open(page, baseURL, `/viajes?fecha=${dayOf(xela)}`);

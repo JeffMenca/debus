@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { queryWrapper } from '../../test-support/query-wrapper';
-import { TICKET_ID, purchase } from '../../test-support/tickets';
+import { TICKET_ID, mockGatewayApi, purchase } from '../../test-support/tickets';
+import type { ApiError } from '@/lib/api/client';
 import { PURCHASE_POLL_MS } from './purchase';
 import { usePurchase, usePurchaseTicket } from './purchase-api';
 
@@ -74,6 +75,53 @@ describe('usePurchaseTicket', () => {
   });
 });
 
+describe('usePurchaseTicket when the trip is deleted during the payment', () => {
+  const cancelled = purchase('FAILED', {
+    failure: 'TRIP_CANCELLED',
+    message: 'Este viaje se canceló. Si ya se te había cobrado, el dinero vuelve a tu cartera.',
+  });
+
+  async function buyAnswering(read: () => Response) {
+    mockGatewayApi({
+      'POST /ventas/purchases': () =>
+        Response.json({ statusCode: 409, message: cancelled.message }, { status: 409 }),
+      [`GET /ventas/purchases/${KEY}`]: read,
+    });
+    const { client, wrapper } = queryWrapper();
+    const invalidate = jest.spyOn(client, 'invalidateQueries');
+    const { result } = renderHook(() => usePurchaseTicket(), { wrapper });
+    await act(async () => {
+      await result.current.mutateAsync({ key: KEY, request }).catch(() => undefined);
+    });
+    return { invalidate, result };
+  }
+
+  it('reads the purchase after a 409 and ends with it when the trip was cancelled', async () => {
+    const { invalidate, result } = await buyAnswering(() => Response.json(cancelled));
+
+    await waitFor(() => expect(result.current.data).toEqual(cancelled));
+    expect(result.current.isError).toBe(false);
+    // The trip is gone: its seat map is never asked for again.
+    expect(refreshed(invalidate)).toEqual([
+      ['wallet'],
+      ['my-tickets'],
+      ['on-sale', 'trips'],
+      ['on-sale', 'places'],
+    ]);
+  });
+
+  it('keeps the 409 when no purchase was stored, like a seat sold in the meantime', async () => {
+    const { invalidate, result } = await buyAnswering(() =>
+      Response.json({ statusCode: 404, message: 'No encontramos esa compra.' }, { status: 404 }),
+    );
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect((result.current.error as ApiError).status).toBe(409);
+    expect(result.current.error?.message).toBe(cancelled.message);
+    expect(refreshed(invalidate)).toEqual([['wallet'], ['on-sale']]);
+  });
+});
+
 describe('usePurchase', () => {
   it('asks about a pending purchase every few seconds until it is settled, then refreshes', async () => {
     jest.useFakeTimers();
@@ -94,6 +142,29 @@ describe('usePurchase', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenCalledWith(`${API}/purchases/${TICKET_ID}`, expect.anything());
     expect(refreshed(invalidate)).toEqual([['wallet'], ['my-tickets'], ['on-sale']]);
+  });
+
+  it('leaves the seat map alone when the pending purchase ends with the trip cancelled', async () => {
+    jest.useFakeTimers();
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(
+        Response.json(purchase('FAILED', { failure: 'TRIP_CANCELLED', message: 'Cancelado.' })),
+      );
+    const { client, wrapper } = queryWrapper();
+    const invalidate = jest.spyOn(client, 'invalidateQueries');
+    const { result } = renderHook(() => usePurchase(purchase('PENDING'), true), { wrapper });
+
+    await act(() => jest.advanceTimersByTimeAsync(PURCHASE_POLL_MS));
+    await act(() => jest.advanceTimersByTimeAsync(PURCHASE_POLL_MS));
+
+    expect(result.current.data?.failure).toBe('TRIP_CANCELLED');
+    expect(refreshed(invalidate)).toEqual([
+      ['wallet'],
+      ['my-tickets'],
+      ['on-sale', 'trips'],
+      ['on-sale', 'places'],
+    ]);
   });
 
   it('stops asking when told to', async () => {

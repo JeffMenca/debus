@@ -95,7 +95,8 @@ export function mockGatewayApi(routes: Record<string, Handler>) {
   return jest.spyOn(global, 'fetch').mockImplementation(async (input, init = {}) => {
     const url = new URL(String(input));
     const route = `${init.method ?? 'GET'} ${url.pathname.replace('/api', '')}`;
-    const handler = routes[route];
+    // A route ending in /:id answers any last segment, such as a purchase with a random key.
+    const handler = routes[route] ?? routes[route.replace(/\/[^/]+$/, '/:id')];
     if (!handler) throw new Error(`unexpected request ${route}`);
     return handler(init);
   });

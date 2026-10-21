@@ -46,6 +46,21 @@ describe('TicketHistory', () => {
     expect(within(rows[2]!).getByText('Pago en confirmación')).toBeVisible();
   });
 
+  it('explains under the list where a cancelled trip goes', async () => {
+    mockVentasApi({ 'GET /tickets': () => Response.json(ticketPage([ONLINE])) });
+    renderHistory();
+
+    expect(
+      await screen.findByText(
+        /Si se cancela un viaje, su boleto sale de esta lista y, si lo pagaste con tu cartera, la devolución aparece en/,
+      ),
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Movimientos' })).toHaveAttribute(
+      'href',
+      '/cuenta?pestana=movimientos',
+    );
+  });
+
   it('puts the next trip on top', async () => {
     const next = soldTicket({ channel: 'ONLINE', seats: [9, 10], total: 170 });
     mockVentasApi({ 'GET /tickets': () => Response.json(ticketPage([ONLINE], next)) });
@@ -95,6 +110,7 @@ describe('TicketHistory', () => {
 
     expect(await screen.findByText(/Todavía no tienes boletos/)).toBeVisible();
     expect(screen.getByRole('link', { name: 'Buscar viajes' })).toHaveAttribute('href', '/viajes');
+    expect(screen.queryByRole('link', { name: 'Movimientos' })).not.toBeInTheDocument();
   });
 
   it('shows the problem and lets the person retry', async () => {
