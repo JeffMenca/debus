@@ -48,6 +48,7 @@ function setup() {
       findUnique: jest.fn().mockResolvedValue(wallet(100)),
       findUniqueOrThrow: jest.fn().mockResolvedValue(wallet(100)),
     },
+    refund: { findUnique: jest.fn().mockResolvedValue(null) },
   };
   const prisma = {
     $transaction: jest.fn(async (work: (client: typeof tx) => unknown) => work(tx)),
@@ -247,6 +248,47 @@ describe('WalletService', () => {
       movementId: 'b1a2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
       balance: 70,
     });
+  });
+
+  it('refuses to charge a ticket whose trip was cancelled, once it holds the wallet', async () => {
+    const { tx, service } = setup();
+    tx.refund.findUnique.mockResolvedValue({ reference: ticketId });
+
+    const error = await service.debit(ticketId, debit).catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(UnprocessableEntityException);
+    expect(error).toMatchObject({ message: 'Este viaje se canceló y ya no se puede pagar.' });
+    expect(tx.refund.findUnique).toHaveBeenCalledWith({ where: { reference: ticketId } });
+    // Checked after the update that locks the wallet, the same lock the refund takes.
+    const [locked] = tx.wallet.updateMany.mock.invocationCallOrder;
+    const [checked] = tx.refund.findUnique.mock.invocationCallOrder;
+    expect(locked).toBeLessThan(checked ?? 0);
+    expect(tx.walletMovement.create).not.toHaveBeenCalled();
+  });
+
+  it('answers a debit already applied even if its ticket was refunded later', async () => {
+    const { tx, service } = setup();
+    tx.refund.findUnique.mockResolvedValue({ reference: ticketId });
+    tx.walletMovement.findUnique.mockResolvedValue(
+      movementRow({
+        kind: 'TICKET',
+        amount: new Prisma.Decimal(-30),
+        balanceAfter: new Prisma.Decimal(70),
+        reference: ticketId,
+        idempotencyKey: ticketId,
+        fingerprint: `TICKET|3000|2026-10-14|${ticketId}`,
+      }),
+    );
+
+    expect(await service.debit(ticketId, debit)).toMatchObject({ balance: 70 });
+  });
+
+  it('never looks for refunds on a top-up', async () => {
+    const { tx, service } = setup();
+
+    await service.topUp(clientId, key, { amount: 100, paidOn: '2026-10-14' });
+
+    expect(tx.refund.findUnique).not.toHaveBeenCalled();
   });
 
   it('applies a debit whose payBy has not arrived, and keeps it out of the fingerprint', async () => {

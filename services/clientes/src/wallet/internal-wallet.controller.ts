@@ -30,7 +30,8 @@ export class InternalWalletController {
   @apiErrors(400, 404, 409)
   @ApiResponse({
     status: 422,
-    description: 'The wallet balance does not cover the amount, or the payBy moment has passed.',
+    description:
+      'The wallet balance does not cover the amount, the payBy moment has passed, or the trip was cancelled and its ticket refunded.',
   })
   @apiBody(walletDebitRequestSchema)
   @ApiHeader({ name: IDEMPOTENCY_HEADER, required: true, description: 'The reference it pays.' })

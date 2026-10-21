@@ -61,6 +61,14 @@ model Trip {
   @@map("trips")
 }
 
+// A trip deleted before its copy arrived, so a late TripScheduled does not put it on sale.
+model DeletedTrip {
+  tripId    String   @id @map("trip_id") @db.Uuid
+  deletedAt DateTime @default(now()) @map("deleted_at") @db.Timestamptz(3)
+
+  @@map("deleted_trips")
+}
+
 model Ticket {
   id        String       @id @db.Uuid
   tripId    String       @map("trip_id") @db.Uuid

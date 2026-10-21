@@ -153,6 +153,11 @@ function salesStatements(prefixPattern) {
       ['purchases', 'trips', 'ticket_seats'],
       `DELETE FROM purchases WHERE trip_id IN (${testTrips})`,
     ),
+    // A deleted trip leaves its purchases without a trip: their description names its places.
+    whenTablesExist(
+      ['purchases', 'trips'],
+      `DELETE FROM purchases p WHERE NOT EXISTS (SELECT 1 FROM trips t WHERE t.trip_id = p.trip_id) AND (p.description LIKE 'Boleto ' || ${prefixPattern} OR p.description LIKE 'Boleto % - ' || ${prefixPattern})`,
+    ),
     whenTablesExist(['trips', 'ticket_seats'], `DELETE FROM trips WHERE trip_id IN (${testTrips})`),
     whenTablesExist(
       ['client_nits'],

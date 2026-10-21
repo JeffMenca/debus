@@ -17,7 +17,7 @@ export const MESSAGES = {
     'Estamos confirmando el pago con tu cartera. Tus asientos están apartados; no repitas la compra.',
   paymentRejected:
     'No pudimos cobrar esta compra y tus asientos quedaron libres. Vuelve a intentarlo.',
-  tripCancelled: 'Este viaje ya no está disponible y tus asientos quedaron libres.',
+  tripCancelled: 'Este viaje se canceló. Si ya se te había cobrado, el dinero vuelve a tu cartera.',
   purchaseKeyMissing: 'No pudimos identificar la compra. Recarga la página e intenta de nuevo.',
   purchaseNotFound: 'No encontramos esa compra.',
   seatsReleased: 'Tus asientos quedaron libres.',

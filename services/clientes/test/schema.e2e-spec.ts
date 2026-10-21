@@ -67,4 +67,16 @@ describe('profiles and wallets schema', () => {
       isUniqueViolation(await refusal(prisma.walletMovement.create({ data: movement() }))),
     ).toBe(true);
   });
+
+  it('marks a ticket as refunded once, and forgets the mark with the profile', async () => {
+    const clientId = await profiles.create();
+    const reference = randomUUID();
+    const refund = () =>
+      prisma.refund.create({ data: { reference, clientId, amount: 0, reason: 'TRIP_DELETED' } });
+    await refund();
+
+    expect(isUniqueViolation(await refusal(refund()))).toBe(true);
+    await prisma.clientProfile.delete({ where: { userId: clientId } });
+    expect(await prisma.refund.count({ where: { reference } })).toBe(0);
+  });
 });

@@ -2,6 +2,8 @@ import {
   isSameIntent,
   movementFingerprint,
   paymentWindowClosed,
+  refundAmount,
+  refundDescription,
   signedAmount,
 } from './wallet-rules';
 
@@ -45,5 +47,17 @@ describe('wallet rules', () => {
 
   it('never closes the window of a debit that sets no deadline', () => {
     expect(paymentWindowClosed(undefined, new Date('2999-01-01T00:00:00.000Z'))).toBe(false);
+  });
+
+  it('describes a refund with the description of the debit it returns', () => {
+    expect(refundDescription('Boleto Quetzaltenango - Guatemala, asiento 5')).toBe(
+      'Devolución: Boleto Quetzaltenango - Guatemala, asiento 5',
+    );
+    expect(refundDescription('x'.repeat(200))).toHaveLength(200);
+  });
+
+  it('returns exactly what the debit took from the wallet', () => {
+    expect(refundAmount(-85)).toBe(85);
+    expect(refundAmount(-0.1 - 0.2)).toBe(0.3);
   });
 });

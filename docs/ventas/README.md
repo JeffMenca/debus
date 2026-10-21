@@ -1,6 +1,6 @@
 # Manual técnico · Ventas
 
-Boletos, asientos y la compra con la cartera digital. Este manual, por ahora, solo cuenta la **saga de compra** y el **circuit breaker** de sus dos llamadas a otros servicios; el resto del manual (componentes, tablas, endpoints y eventos) lo completa quien termina el servicio.
+Boletos, asientos y la compra con la cartera digital. Este manual, por ahora, solo cuenta la **saga de compra**, el **reembolso cuando se elimina un viaje** y el **circuit breaker** de sus dos llamadas a otros servicios; el resto del manual (componentes, tablas, endpoints y eventos) lo completa quien termina el servicio.
 
 ## Saga de compra
 
@@ -86,6 +86,34 @@ Un 401 o un 403 entre servicios es un problema de configuración, no de la perso
 | `GET /purchases/:ticketId` | Cualquier sesión, solo la compra propia | `200` con la compra; la de otra cuenta responde `404`                                  |
 
 El historial de boletos es otra pantalla (`GET /tickets/mine`).
+
+## Viaje eliminado y reembolso
+
+El enunciado pide que eliminar un viaje borre sus boletos y asientos por eventos. Es una **saga coreografiada**: no hay un orquestador ni llamadas síncronas; cada servicio hace su paso al recibir el evento del anterior y anuncia el siguiente. Además, es la **compensación del cobro** de la saga de compra (su paso pivote, que `ventas` no puede deshacer por sí mismo).
+
+| Paso | Servicio   | Tipo                                  | Qué hace                                                                                                 | Idempotencia y recuperación                                                                       |
+| ---- | ---------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| S1   | `viajes`   | pivote                                | Borra el viaje y publica `TripDeleted` por outbox                                                        | Outbox: si Pub/Sub falla, el flush lo reenvía                                                     |
+| S2   | `ventas`   | reintentable                          | Cierra las compras, pide `RefundRequested` y borra la copia del viaje, todo en una transacción del inbox | Inbox por `eventId`; si falla, Pub/Sub reintenta con espera y, al final, dead-letter              |
+| S3   | `clientes` | reintentable (compensación del cobro) | Devuelve lo cobrado o deja la marca contra un débito tardío                                              | Inbox por `eventId` y la llave primaria de `refunds` (un reembolso por boleto); mismos reintentos |
+
+Después de S1 todos los pasos son reintentables: siempre terminan, aunque un servicio esté caído un rato, y nunca hace falta deshacer lo anterior.
+
+`ventas` consume `TripDeleted` y, en la misma transacción del inbox:
+
+1. **Cierra las compras en línea del viaje** (`PENDING` y `CONFIRMED`) como `FAILED` con `TRIP_CANCELLED`, y en la misma sentencia lee las que tienen `debit_attempts > 0`: las confirmadas y las que ya enviaron un cobro dudoso. El `UPDATE` bloquea cada compra, así que un intento de cobro que la tomó un instante antes se cuenta, y uno que llega después ya no la encuentra pendiente.
+2. **Publica `RefundRequested`** por cada una de esas compras, con el monto, los asientos y el NIT del boleto. Las de `debit_attempts = 0` nunca cobraron, y los boletos de ventanilla (`COUNTER`) se pagaron en efectivo y se devuelven en la ventanilla.
+3. **Borra la copia del viaje**: boletos y asientos (en línea y de ventanilla) se van en cascada. La fila de `purchases` se queda, sin llave foránea al viaje, como registro.
+4. Si la copia no existía (el `TripDeleted` llegó antes que el `TripScheduled`), guarda el viaje en `deleted_trips` para que un `TripScheduled` tardío no lo ponga a la venta.
+
+`clientes` consume `RefundRequested` y decide si hubo cobro, porque `ventas` no puede saberlo en una compra dudosa:
+
+- Bloquea la fila de la cartera del cliente, el mismo bloqueo que toma un débito.
+- Registra la referencia (el id del boleto) en `refunds`. Su llave primaria hace que cada boleto se atienda una sola vez.
+- Si existe un débito `TICKET` con esa referencia, devuelve **lo que ese débito cobró** con un movimiento `REFUND` ("Devolución: Boleto …"), que la persona ve en "Movimientos" de su cuenta.
+- Si no hubo débito, la fila de `refunds` queda como marca: un débito con esa referencia que llegue después responde `422` ("Este viaje se canceló y ya no se puede pagar.") y no cobra. Como el débito revisa la marca con la cartera bloqueada, un débito y su reembolso nunca se cruzan: o el débito entra primero y se devuelve, o el reembolso entra primero y el débito se rechaza.
+
+Quien consulta una compra cerrada así (`GET /purchases/:ticketId`) recibe `FAILED` con el mensaje "Este viaje se canceló. Si ya se te había cobrado, el dinero vuelve a tu cartera.". Si la compra se estaba pagando en ese momento, la respuesta de la compra es ese mismo mensaje con `409`.
 
 ## Circuit breaker
 

@@ -32,3 +32,12 @@ export function signedAmount(kind: WalletMovementKind, amount: number): number {
 // land after the trip left. Repeating one that was already applied is decided before this.
 export const paymentWindowClosed = (payBy: string | undefined, now: Date): boolean =>
   payBy !== undefined && now.getTime() > new Date(payBy).getTime();
+
+const DESCRIPTION_MAX = 200;
+
+// What the wallet shows for a refund: "Devolución: Boleto Quetzaltenango - Guatemala, asiento 5".
+export const refundDescription = (debitDescription: string): string =>
+  `Devolución: ${debitDescription}`.slice(0, DESCRIPTION_MAX);
+
+// A refund gives back what the debit took, never what the request says it cost.
+export const refundAmount = (debitAmount: number): number => toCents(Math.abs(debitAmount)) / 100;

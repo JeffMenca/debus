@@ -1,5 +1,6 @@
 import {
   type AvailableTripListQuery,
+  type RefundRequestedPayload,
   type TripScheduledPayload,
   escapeLikePattern,
   foldSearchText,
@@ -29,6 +30,36 @@ export function toTripRow(trip: TripOnSale) {
     searchText: foldSearchText(`${trip.originLabel} ${trip.destinationLabel} ${trip.busPlate}`),
   };
 }
+
+// A purchase of a deleted trip whose debit may have left, as the TripDeleted handler reads it.
+export interface RefundRow {
+  id: string;
+  client_id: string;
+  seats: number[];
+  amount: number;
+  nit: string;
+  origin_label: string;
+  destination_label: string;
+  departure_at: Date;
+}
+
+export const toRefundRequested = (
+  row: RefundRow,
+  tripId: string,
+  requestedAt: string,
+): RefundRequestedPayload => ({
+  ticketId: row.id,
+  tripId,
+  clientId: row.client_id,
+  nit: row.nit,
+  seats: [...row.seats].sort((a, b) => a - b),
+  amount: row.amount,
+  reason: 'TRIP_DELETED',
+  originLabel: row.origin_label,
+  destinationLabel: row.destination_label,
+  departureAt: row.departure_at.toISOString(),
+  requestedAt,
+});
 
 // A trip is on sale until its scheduled departure; the filters narrow the day, the places, the
 // text and the free seats. A counter only sells the trips leaving from its own branch. The
