@@ -81,7 +81,13 @@ describe('renderManual', () => {
 
 describe('DOC_SERVICES', () => {
   it('are the services with a manual of this team', () => {
-    expect(DOC_SERVICES).toEqual(['gateway', 'administracion', 'flota', 'viajes']);
+    expect(DOC_SERVICES).toEqual([
+      'gateway',
+      'administracion',
+      'flota',
+      'viajes',
+      'notificaciones',
+    ]);
   });
 });
 

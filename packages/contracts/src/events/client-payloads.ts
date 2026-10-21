@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fullNameSchema } from '../api/auth';
+import { emailSchema, fullNameSchema } from '../api/auth';
 import { distanceKmSchema } from '../api/fleet';
 import { moneySchema } from '../api/settings';
 import { isLaterInstant, isoDateSchema } from '../dates';
@@ -13,6 +13,8 @@ export const rentalPaidPayloadSchema = z
     clientId: z.uuid().nullable(),
     nit: z.string().min(1).max(20),
     clientName: z.string().min(1).max(120),
+    // Where the confirmation goes: the profile email, or the one taken at the counter (null if none).
+    email: emailSchema.nullable(),
     originLabel: z.string().min(1).max(120),
     destinationLabel: z.string().min(1).max(120),
     departureAt: z.iso.datetime(),
@@ -37,3 +39,21 @@ export const profileUpdatedPayloadSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 export type ProfileUpdatedPayload = z.infer<typeof profileUpdatedPayloadSchema>;
+
+export const WALLET_CREDIT_KINDS = ['TOP_UP', 'REFUND'] as const;
+
+// clientes publishes it when money lands in a wallet (a top-up or the refund of a cancelled trip),
+// once per movement; notificaciones tells the client.
+export const walletCreditedPayloadSchema = z.object({
+  movementId: z.uuid(),
+  clientId: z.uuid(),
+  email: emailSchema,
+  fullName: fullNameSchema,
+  kind: z.enum(WALLET_CREDIT_KINDS),
+  amount: moneySchema,
+  balanceAfter: moneySchema,
+  description: z.string().min(1).max(200),
+  occurredOn: isoDateSchema,
+  creditedAt: z.iso.datetime(),
+});
+export type WalletCreditedPayload = z.infer<typeof walletCreditedPayloadSchema>;

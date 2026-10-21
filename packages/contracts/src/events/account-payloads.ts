@@ -40,3 +40,16 @@ export const userRegisteredPayloadSchema = z.object({
     .nullable(),
 });
 export type UserRegisteredPayload = z.infer<typeof userRegisteredPayloadSchema>;
+
+// administracion publishes it when an account is edited, deactivated or reactivated (and republishes
+// it with the version raised); notificaciones keeps the branch admins to warn them about licences.
+export const userUpdatedPayloadSchema = z.object({
+  userId: z.uuid(),
+  email: z.email(),
+  fullName: z.string().min(1),
+  role: z.enum(USER_ROLES),
+  branchId: z.uuid().nullable(),
+  active: z.boolean(),
+  version: z.number().int().positive(),
+});
+export type UserUpdatedPayload = z.infer<typeof userUpdatedPayloadSchema>;

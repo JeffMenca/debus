@@ -22,7 +22,7 @@ const definitions = {
   BranchCreated: { publisher: 'administracion', consumers: branchConsumers },
   BranchUpdated: { publisher: 'administracion', consumers: branchConsumers },
   SettingsUpdated: { publisher: 'administracion', consumers: ['viajes', 'clientes', 'reportes'] },
-  UserRegistered: { publisher: 'administracion', consumers: ['clientes'] },
+  UserRegistered: { publisher: 'administracion', consumers: ['clientes', 'notificaciones'] },
   AccountLinkSent: { publisher: 'administracion', consumers: ['notificaciones'] },
   RepairExpenseAdded: { publisher: 'administracion', consumers: ['reportes'] },
   BusAdded: { publisher: 'flota', consumers: busConsumers },
@@ -44,6 +44,8 @@ const definitions = {
   RefundRequested: { publisher: 'ventas', consumers: ['clientes'] },
   RentalPaid: { publisher: 'clientes', consumers: ['viajes', 'reportes', 'notificaciones'] },
   ProfileUpdated: { publisher: 'clientes', consumers: ['ventas'] },
+  WalletCredited: { publisher: 'clientes', consumers: ['notificaciones'] },
+  UserUpdated: { publisher: 'administracion', consumers: ['notificaciones'] },
   ProbeSent: { publisher: 'gateway', consumers: [...BACKEND_SERVICES], diagnostic: true },
 } satisfies Record<string, EventDefinition>;
 

@@ -80,7 +80,7 @@ export async function createRoute(
 
 export async function registerDriver(
   branch: Page,
-  driver: { name: string; email: string; license: string; salary: string },
+  driver: { name: string; email: string; license: string; salary: string; licenseDays?: number },
 ) {
   await branch.goto('/sucursal/choferes');
   await branch.getByRole('button', { name: 'Registrar chofer' }).click();
@@ -96,7 +96,9 @@ export async function registerDriver(
   await sheet.getByLabel('Número de licencia').fill(driver.license);
   await sheet.getByRole('combobox', { name: 'Tipo de licencia' }).click();
   await branch.getByRole('option', { name: 'Tipo A' }).click();
-  await sheet.getByLabel('Vencimiento de la licencia').fill(dayFromToday(400));
+  await sheet
+    .getByLabel('Vencimiento de la licencia')
+    .fill(dayFromToday(driver.licenseDays ?? 400));
   await sheet.getByLabel('Salario base por viaje (Q)').fill(driver.salary);
   await submitWhileRegistering({
     page: branch,

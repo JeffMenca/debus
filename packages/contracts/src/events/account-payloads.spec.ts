@@ -1,4 +1,9 @@
-import { accountLinkSentPayloadSchema, userRegisteredPayloadSchema } from './account-payloads';
+import {
+  accountLinkSentPayloadSchema,
+  userRegisteredPayloadSchema,
+  userUpdatedPayloadSchema,
+} from './account-payloads';
+import { exampleUserUpdated } from './admin-examples';
 
 const userId = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 const base = { userId, email: 'ana@correo.com', fullName: 'Ana López' };
@@ -71,5 +76,21 @@ describe('user registered payload', () => {
         profile: null,
       }).success,
     ).toBe(true);
+  });
+});
+
+describe('user updated payload', () => {
+  it('validates its example and a deactivated user without branch', () => {
+    expect(userUpdatedPayloadSchema.parse(exampleUserUpdated)).toEqual(exampleUserUpdated);
+    expect(
+      userUpdatedPayloadSchema.safeParse({ ...exampleUserUpdated, branchId: null, active: false })
+        .success,
+    ).toBe(true);
+  });
+
+  it('needs a positive version to order the snapshots', () => {
+    expect(userUpdatedPayloadSchema.safeParse({ ...exampleUserUpdated, version: 0 }).success).toBe(
+      false,
+    );
   });
 });

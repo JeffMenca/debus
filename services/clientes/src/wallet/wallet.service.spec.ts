@@ -37,6 +37,9 @@ const debit = {
   occurredOn: '2026-10-14',
 };
 
+const outboxOf = (service: WalletService) =>
+  (service as unknown as { outbox: { add: jest.Mock } }).outbox;
+
 function setup() {
   const tx = {
     walletMovement: {
@@ -49,7 +52,11 @@ function setup() {
       findUniqueOrThrow: jest.fn().mockResolvedValue(wallet(100)),
     },
     refund: { findUnique: jest.fn().mockResolvedValue(null) },
+    clientProfile: {
+      findUniqueOrThrow: jest.fn().mockResolvedValue({ email, fullName: 'Ana López' }),
+    },
   };
+  const outbox = { add: jest.fn().mockResolvedValue(undefined), flush: jest.fn() };
   const prisma = {
     $transaction: jest.fn(async (work: (client: typeof tx) => unknown) => work(tx)),
     wallet: { findUnique: jest.fn().mockResolvedValue(wallet(100)) },
@@ -60,7 +67,7 @@ function setup() {
       count: jest.fn().mockResolvedValue(0),
     },
   };
-  return { tx, prisma, service: new WalletService(prisma as never) };
+  return { tx, prisma, outbox, service: new WalletService(prisma as never, outbox as never) };
 }
 
 describe('WalletService', () => {
@@ -102,6 +109,28 @@ describe('WalletService', () => {
     });
   });
 
+  it('tells the client about a new top-up in the same transaction, and publishes it right away', async () => {
+    const { tx, outbox, service } = setup();
+
+    await service.topUp(clientId, key, { amount: 100, paidOn: '2026-10-14' });
+
+    expect(outbox.add).toHaveBeenCalledWith(
+      tx,
+      'WalletCredited',
+      expect.objectContaining({
+        clientId,
+        email,
+        fullName: 'Ana López',
+        kind: 'TOP_UP',
+        amount: 100,
+        balanceAfter: 100,
+        description: 'Recarga de saldo',
+        occurredOn: '2026-10-14',
+      }),
+    );
+    expect(outbox.flush).toHaveBeenCalledTimes(1);
+  });
+
   it('answers a repeated top-up without touching the balance again', async () => {
     const { tx, service } = setup();
     tx.walletMovement.findUnique.mockResolvedValue(movementRow());
@@ -113,6 +142,7 @@ describe('WalletService', () => {
     });
     expect(tx.wallet.updateMany).not.toHaveBeenCalled();
     expect(tx.walletMovement.create).not.toHaveBeenCalled();
+    expect(outboxOf(service).add).not.toHaveBeenCalled();
   });
 
   it('refuses a key already used for something else', async () => {
@@ -183,6 +213,16 @@ describe('WalletService', () => {
       }),
     });
     expect(result).toEqual({ movementId: expect.any(String), balance: 70, email });
+  });
+
+  it('announces no credit for a debit', async () => {
+    const { tx, outbox, service } = setup();
+
+    await service.debit(ticketId, debit);
+
+    expect(tx.walletMovement.create).toHaveBeenCalled();
+    expect(outbox.add).not.toHaveBeenCalled();
+    expect(outbox.flush).not.toHaveBeenCalled();
   });
 
   it('answers a new debit with the email of the profile of the client', async () => {

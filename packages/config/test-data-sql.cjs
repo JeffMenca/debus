@@ -129,6 +129,10 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     ),
     whenTablesExist(['users'], `DELETE FROM users WHERE email LIKE ${emails}`),
     whenTablesExist(['sent_emails'], `DELETE FROM sent_emails WHERE recipient LIKE ${emails}`),
+    // notificaciones: its copies of tickets, drivers and branch admins of test accounts.
+    ...['ticket_copies', 'driver_licenses', 'branch_admins'].map((table) =>
+      whenTablesExist([table], `DELETE FROM ${table} WHERE email LIKE ${emails}`),
+    ),
     // clientes: the wallet and its movements go with the profile by CASCADE.
     whenTablesExist(['client_profiles'], `DELETE FROM client_profiles WHERE email LIKE ${emails}`),
     ...salesStatements(branches),

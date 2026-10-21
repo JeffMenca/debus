@@ -1,3 +1,4 @@
+import { exampleUserUpdated } from '@debus/contracts';
 import { AccountEvents } from './account-events';
 
 const payload = {
@@ -40,6 +41,15 @@ describe('AccountEvents', () => {
     await events.userRegistered(tx, registered);
 
     expect(outbox.add).toHaveBeenCalledWith(tx, 'UserRegistered', registered, undefined);
+  });
+
+  it('writes an account change in the caller transaction', async () => {
+    const { outbox, events } = setup();
+    const tx = {} as never;
+
+    await events.userUpdated(tx, exampleUserUpdated, 'c-2');
+
+    expect(outbox.add).toHaveBeenCalledWith(tx, 'UserUpdated', exampleUserUpdated, 'c-2');
   });
 
   it('flushes after the commit', async () => {

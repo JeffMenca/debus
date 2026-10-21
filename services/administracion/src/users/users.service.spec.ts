@@ -17,13 +17,25 @@ const admin = {
 const branch = '9b2c7a10-1111-4c4c-8888-123456789abc';
 const id = '11111111-2222-4333-8444-555555555555';
 
+// A user row as the database returns it after an update.
+const stored = (over: Record<string, unknown> = {}) => ({
+  id,
+  email: 'ana@correo.com',
+  fullName: 'Ana López',
+  role: 'CASHIER',
+  branchId: branch,
+  status: 'ACTIVE',
+  version: 2,
+  ...over,
+});
+
 const setup = () => {
   const tx = {
     user: {
       findUnique: jest.fn(),
       findUniqueOrThrow: jest.fn().mockResolvedValue({ status: 'ACTIVE', branchId: branch }),
       count: jest.fn().mockResolvedValue(2),
-      update: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue(stored()),
     },
     branch: { findUnique: jest.fn().mockResolvedValue({ id: branch, active: true }) },
     refreshToken: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
@@ -47,7 +59,17 @@ const setup = () => {
       .mockImplementation((work) => (Array.isArray(work) ? Promise.all(work) : work(tx))),
   };
   const links = { issue: jest.fn().mockResolvedValue(true) };
-  return { tx, prisma, links, service: new UsersService(prisma as never, links as never) };
+  const events = {
+    userUpdated: jest.fn().mockResolvedValue(undefined),
+    flush: jest.fn().mockResolvedValue(undefined),
+  };
+  return {
+    tx,
+    prisma,
+    links,
+    events,
+    service: new UsersService(prisma as never, links as never, events as never),
+  };
 };
 
 describe('create', () => {
@@ -122,18 +144,36 @@ describe('deactivate', () => {
     expect(tx.user.update).not.toHaveBeenCalled();
   });
 
-  it('deactivates and closes the sessions', async () => {
-    const { tx, service } = setup();
+  it('deactivates, closes the sessions and tells the copies', async () => {
+    const { tx, events, service } = setup();
     const now = new Date('2026-10-09T12:00:00.000Z');
     tx.user.findUnique.mockResolvedValue({ id, role: 'CASHIER', status: 'ACTIVE' });
+    tx.user.update.mockResolvedValue(stored({ status: 'INACTIVE', version: 3 }));
 
     await service.deactivate(id, now);
 
-    expect(tx.user.update).toHaveBeenCalledWith({ where: { id }, data: { status: 'INACTIVE' } });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { status: 'INACTIVE', version: { increment: 1 } },
+    });
+    expect(events.userUpdated).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ userId: id, active: false, version: 3 }),
+    );
+    expect(events.flush).toHaveBeenCalledTimes(1);
     expect(tx.refreshToken.updateMany).toHaveBeenCalledWith({
       where: { userId: id, revokedAt: null },
       data: { revokedAt: now },
     });
+  });
+
+  it('announces nothing for a user that was already inactive', async () => {
+    const { tx, events, service } = setup();
+    tx.user.findUnique.mockResolvedValue({ id, role: 'CASHIER', status: 'INACTIVE' });
+
+    await service.deactivate(id);
+
+    expect(events.userUpdated).not.toHaveBeenCalled();
   });
 
   it('answers 404 for unknown users', async () => {
@@ -143,17 +183,34 @@ describe('deactivate', () => {
 });
 
 describe('reactivate', () => {
-  it('returns to active or pending depending on the password', async () => {
-    const { prisma, service } = setup();
-    prisma.user.findUnique.mockResolvedValueOnce({ id, status: 'INACTIVE', passwordHash: 'h' });
+  it('returns to active or pending depending on the password, and tells the copies', async () => {
+    const { tx, events, service } = setup();
+    tx.user.findUnique.mockResolvedValueOnce({ id, status: 'INACTIVE', passwordHash: 'h' });
     await service.reactivate(id);
-    prisma.user.findUnique.mockResolvedValueOnce({ id, status: 'INACTIVE', passwordHash: null });
+    tx.user.findUnique.mockResolvedValueOnce({ id, status: 'INACTIVE', passwordHash: null });
+    tx.user.update.mockResolvedValue(stored({ status: 'PENDING', version: 4 }));
     await service.reactivate(id);
 
-    expect(prisma.user.update.mock.calls.map((call) => call[0].data.status)).toEqual([
-      'ACTIVE',
-      'PENDING',
+    expect(tx.user.update.mock.calls.map((call) => call[0].data)).toEqual([
+      { status: 'ACTIVE', version: { increment: 1 } },
+      { status: 'PENDING', version: { increment: 1 } },
     ]);
+    // Back as pending (no password yet): not someone to warn until the account is activated.
+    expect(events.userUpdated).toHaveBeenLastCalledWith(
+      tx,
+      expect.objectContaining({ active: false, version: 4 }),
+    );
+    expect(events.flush).toHaveBeenCalledTimes(2);
+  });
+
+  it('announces nothing for a user that is not inactive', async () => {
+    const { tx, events, service } = setup();
+    tx.user.findUnique.mockResolvedValueOnce({ id, status: 'ACTIVE', passwordHash: 'h' });
+
+    await service.reactivate(id);
+
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(events.userUpdated).not.toHaveBeenCalled();
   });
 });
 
@@ -215,13 +272,13 @@ describe('deactivate and reactivate edge cases', () => {
   });
 
   it('answers 404 for unknown users and ignores accounts that are not inactive', async () => {
-    const { prisma, service } = setup();
+    const { tx, service } = setup();
 
     await expect(service.reactivate(id)).rejects.toThrow(NotFoundException);
-    prisma.user.findUnique.mockResolvedValueOnce({ id, status: 'ACTIVE', passwordHash: 'h' });
+    tx.user.findUnique.mockResolvedValueOnce({ id, status: 'ACTIVE', passwordHash: 'h' });
     await service.reactivate(id);
 
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 });
 
@@ -238,7 +295,10 @@ describe('deactivate under concurrency', () => {
     const [lockedAt] = tx.$queryRaw.mock.invocationCallOrder;
     const [countedAt] = tx.user.count.mock.invocationCallOrder;
     expect(lockedAt).toBeLessThan(countedAt!);
-    expect(tx.user.update).toHaveBeenCalledWith({ where: { id }, data: { status: 'INACTIVE' } });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { status: 'INACTIVE', version: { increment: 1 } },
+    });
   });
 
   it('reads the status again once it holds the lock', async () => {
@@ -335,7 +395,10 @@ describe('deactivate the admin of a branch', () => {
 
     await service.deactivate(id);
 
-    expect(tx.user.update).toHaveBeenCalledWith({ where: { id }, data: { status: 'INACTIVE' } });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { status: 'INACTIVE', version: { increment: 1 } },
+    });
   });
 
   it('locks the admins of that branch before counting them', async () => {
@@ -431,19 +494,19 @@ describe('reactivate in a branch', () => {
       { id: branch, active: false },
     ],
   ])('refuses staff %s', async (_, user, found) => {
-    const { prisma, service } = setup();
-    prisma.user.findUnique.mockResolvedValueOnce(user);
+    const { prisma, tx, service } = setup();
+    tx.user.findUnique.mockResolvedValueOnce(user);
     prisma.branch.findUnique.mockResolvedValue(found);
 
     await expect(service.reactivate(id)).rejects.toThrow(
       new ConflictException('Elige una sucursal activa.'),
     );
-    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 
   it('reactivates a branch admin even when the branch is inactive, to get it out of the lock', async () => {
-    const { prisma, service } = setup();
-    prisma.user.findUnique.mockResolvedValueOnce({
+    const { prisma, tx, service } = setup();
+    tx.user.findUnique.mockResolvedValueOnce({
       id,
       role: 'BRANCH_ADMIN',
       status: 'INACTIVE',
@@ -454,12 +517,15 @@ describe('reactivate in a branch', () => {
 
     await service.reactivate(id);
 
-    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id }, data: { status: 'ACTIVE' } });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { status: 'ACTIVE', version: { increment: 1 } },
+    });
   });
 
   it('still refuses a branch admin whose branch does not exist', async () => {
-    const { prisma, service } = setup();
-    prisma.user.findUnique.mockResolvedValueOnce({
+    const { prisma, tx, service } = setup();
+    tx.user.findUnique.mockResolvedValueOnce({
       id,
       role: 'BRANCH_ADMIN',
       status: 'INACTIVE',
@@ -473,8 +539,8 @@ describe('reactivate in a branch', () => {
   });
 
   it('reactivates staff of an active branch', async () => {
-    const { prisma, service } = setup();
-    prisma.user.findUnique.mockResolvedValueOnce({
+    const { tx, service } = setup();
+    tx.user.findUnique.mockResolvedValueOnce({
       id,
       role: 'CASHIER',
       status: 'INACTIVE',
@@ -484,7 +550,10 @@ describe('reactivate in a branch', () => {
 
     await service.reactivate(id);
 
-    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id }, data: { status: 'ACTIVE' } });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { status: 'ACTIVE', version: { increment: 1 } },
+    });
   });
 });
 
@@ -560,26 +629,42 @@ describe('update', () => {
   const cashier = { id, role: 'CASHIER', status: 'ACTIVE', branchId: branch };
   const newBranch = '5d1f3a20-2222-4d4d-9999-123456789abc';
 
-  it('changes the name', async () => {
-    const { tx, service } = setup();
+  it('changes the name and tells the copies with the next version', async () => {
+    const { tx, events, service } = setup();
     tx.user.findUnique.mockResolvedValue(cashier);
-    tx.user.update.mockResolvedValue({ ...cashier, fullName: 'Ana Sic', email: 'a@correo.com' });
+    tx.user.update.mockResolvedValue(stored({ fullName: 'Ana Sic', version: 2 }));
 
     const user = await service.update(id, { fullName: 'Ana Sic' });
 
-    expect(tx.user.update).toHaveBeenCalledWith({ where: { id }, data: { fullName: 'Ana Sic' } });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { fullName: 'Ana Sic', version: { increment: 1 } },
+    });
     expect(user.fullName).toBe('Ana Sic');
+    expect(events.userUpdated).toHaveBeenCalledWith(tx, {
+      userId: id,
+      email: 'ana@correo.com',
+      fullName: 'Ana Sic',
+      role: 'CASHIER',
+      branchId: branch,
+      active: true,
+      version: 2,
+    });
+    expect(events.flush).toHaveBeenCalledTimes(1);
   });
 
   it('moves staff to an active branch', async () => {
     const { tx, service } = setup();
     tx.user.findUnique.mockResolvedValue(cashier);
     tx.branch.findUnique.mockResolvedValue({ id: newBranch, active: true });
-    tx.user.update.mockResolvedValue({ ...cashier, branchId: newBranch });
+    tx.user.update.mockResolvedValue(stored({ branchId: newBranch }));
 
     await service.update(id, { branchId: newBranch });
 
-    expect(tx.user.update).toHaveBeenCalledWith({ where: { id }, data: { branchId: newBranch } });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id },
+      data: { branchId: newBranch, version: { increment: 1 } },
+    });
   });
 
   it('answers not found for unknown users', async () => {

@@ -19,6 +19,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AccountEvents } from '../accounts/account-events';
 import { AccountLinksService } from '../accounts/account-links.service';
 import {
   canCreateRole,
@@ -28,6 +29,7 @@ import {
 } from '../accounts/account-rules';
 import { lockActiveSystemAdmins, lockBranchAdmins } from '../accounts/admin-locks';
 import { MESSAGES } from '../accounts/messages';
+import { toUserUpdated } from '../accounts/user-snapshot';
 import { canLinkToBranch } from '../branches/branch-rules';
 import type { Prisma, User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -47,11 +49,14 @@ export function toManagedUser(user: User): ManagedUser {
   };
 }
 
+const NEXT_VERSION = { version: { increment: 1 } } as const;
+
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly links: AccountLinksService,
+    private readonly events: AccountEvents,
   ) {}
 
   async create(
@@ -97,10 +102,10 @@ export class UsersService {
   }
 
   async deactivate(id: string, now = new Date()): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    const changed = await this.prisma.$transaction(async (tx) => {
       const found = await this.findChangeable(tx, id);
       const user = await this.lockPeers(tx, found);
-      if (user.status === 'INACTIVE') return;
+      if (user.status === 'INACTIVE') return false;
       const activeAdmins = await tx.user.count({
         where: { role: 'SYSTEM_ADMIN', status: 'ACTIVE' },
       });
@@ -108,22 +113,32 @@ export class UsersService {
         throw new ConflictException(MESSAGES.lastSystemAdmin);
       }
       await this.assertKeepsBranchAdmin(tx, user);
-      await tx.user.update({ where: { id }, data: { status: 'INACTIVE' } });
+      await this.announce(
+        tx,
+        await tx.user.update({ where: { id }, data: { status: 'INACTIVE', ...NEXT_VERSION } }),
+      );
       await tx.refreshToken.updateMany({
         where: { userId: id, revokedAt: null },
         data: { revokedAt: now },
       });
+      return true;
     });
+    if (changed) await this.events.flush();
   }
 
   async reactivate(id: string): Promise<void> {
-    const user = await this.findChangeable(this.prisma, id);
-    if (user.status !== 'INACTIVE') return;
-    if (isBranchRole(user.role)) await this.assertBranchUsable(user.role, user.branchId);
-    await this.prisma.user.update({
-      where: { id },
-      data: { status: user.passwordHash ? 'ACTIVE' : 'PENDING' },
+    const changed = await this.prisma.$transaction(async (tx) => {
+      const user = await this.findChangeable(tx, id);
+      if (user.status !== 'INACTIVE') return false;
+      if (isBranchRole(user.role)) await this.assertBranchUsable(user.role, user.branchId);
+      const status = user.passwordHash ? 'ACTIVE' : 'PENDING';
+      await this.announce(
+        tx,
+        await tx.user.update({ where: { id }, data: { status, ...NEXT_VERSION } }),
+      );
+      return true;
     });
+    if (changed) await this.events.flush();
   }
 
   async list(actor: Identity, query: UserListQuery): Promise<UserPage> {
@@ -154,8 +169,8 @@ export class UsersService {
     return toManagedUser(await this.findVisible(actor, id));
   }
 
-  update(id: string, input: UpdateUserRequest): Promise<ManagedUser> {
-    return this.prisma.$transaction(async (tx) => {
+  async update(id: string, input: UpdateUserRequest): Promise<ManagedUser> {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const found = await this.findChangeable(tx, id);
       if (input.branchId !== undefined && input.branchId !== found.branchId) {
         if (!isBranchRole(found.role)) throw new BadRequestException(MESSAGES.branchNotAllowed);
@@ -164,8 +179,17 @@ export class UsersService {
         const user = await this.lockPeers(tx, found);
         if (input.branchId !== user.branchId) await this.assertKeepsBranchAdmin(tx, user);
       }
-      return toManagedUser(await tx.user.update({ where: { id }, data: input }));
+      const user = await tx.user.update({ where: { id }, data: { ...input, ...NEXT_VERSION } });
+      await this.announce(tx, user);
+      return toManagedUser(user);
     });
+    await this.events.flush();
+    return updated;
+  }
+
+  // The copies of other services (the branch admins of notificaciones) follow every change.
+  private announce(tx: Prisma.TransactionClient, user: User): Promise<void> {
+    return this.events.userUpdated(tx, toUserUpdated(user));
   }
 
   async resendInvitation(

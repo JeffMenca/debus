@@ -1,8 +1,10 @@
 import {
   exampleProfileUpdated,
   exampleRentalPaid,
+  exampleWalletCredited,
   profileUpdatedPayloadSchema,
   rentalPaidPayloadSchema,
+  walletCreditedPayloadSchema,
 } from '../index';
 
 describe('RentalPaid', () => {
@@ -15,6 +17,16 @@ describe('RentalPaid', () => {
       rentalPaidPayloadSchema.safeParse({ ...exampleRentalPaid, returnAt: null, clientId: null })
         .success,
     ).toBe(true);
+  });
+
+  it('carries the email to confirm the rental, null for a walk-in client without one', () => {
+    expect(rentalPaidPayloadSchema.parse(exampleRentalPaid).email).toBe('reservas@colegio.edu.gt');
+    expect(rentalPaidPayloadSchema.safeParse({ ...exampleRentalPaid, email: null }).success).toBe(
+      true,
+    );
+    expect(
+      rentalPaidPayloadSchema.safeParse({ ...exampleRentalPaid, email: undefined }).success,
+    ).toBe(false);
   });
 
   it('refuses a return before the departure', () => {
@@ -43,5 +55,26 @@ describe('ProfileUpdated', () => {
       profileUpdatedPayloadSchema.safeParse({ ...exampleProfileUpdated, nit: '1'.repeat(21) })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('WalletCredited', () => {
+  it('validates its example and a refund', () => {
+    expect(walletCreditedPayloadSchema.parse(exampleWalletCredited)).toEqual(exampleWalletCredited);
+    expect(
+      walletCreditedPayloadSchema.safeParse({
+        ...exampleWalletCredited,
+        kind: 'REFUND',
+        description: 'Devolución: Boleto Quetzaltenango - Guatemala, asiento 5',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('only credits: refuses debits, negative amounts and an invalid email', () => {
+    for (const change of [{ kind: 'TICKET' }, { amount: -10 }, { email: 'ana' }]) {
+      expect(
+        walletCreditedPayloadSchema.safeParse({ ...exampleWalletCredited, ...change }).success,
+      ).toBe(false);
+    }
   });
 });

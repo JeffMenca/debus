@@ -5,6 +5,7 @@ import {
   refundAmount,
   refundDescription,
   signedAmount,
+  toWalletCredited,
 } from './wallet-rules';
 
 const topUp = { kind: 'TOP_UP' as const, amount: 100.1, occurredOn: '2026-10-14', reference: null };
@@ -59,5 +60,34 @@ describe('wallet rules', () => {
   it('returns exactly what the debit took from the wallet', () => {
     expect(refundAmount(-85)).toBe(85);
     expect(refundAmount(-0.1 - 0.2)).toBe(0.3);
+  });
+
+  it('describes a credit for the client email, with a positive amount and the day it applies to', () => {
+    expect(
+      toWalletCredited(
+        {
+          id: 'b1a2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+          clientId: '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a',
+          kind: 'REFUND',
+          amount: 85,
+          balanceAfter: 135.5,
+          description: 'Devolución: Boleto Quetzaltenango - Guatemala, asiento 5',
+          occurredOn: '2026-10-21',
+        },
+        { email: 'ana@correo.com', fullName: 'Ana Méndez' },
+        new Date('2026-10-21T16:05:00.000Z'),
+      ),
+    ).toEqual({
+      movementId: 'b1a2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+      clientId: '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a',
+      email: 'ana@correo.com',
+      fullName: 'Ana Méndez',
+      kind: 'REFUND',
+      amount: 85,
+      balanceAfter: 135.5,
+      description: 'Devolución: Boleto Quetzaltenango - Guatemala, asiento 5',
+      occurredOn: '2026-10-21',
+      creditedAt: '2026-10-21T16:05:00.000Z',
+    });
   });
 });

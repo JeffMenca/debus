@@ -1,4 +1,8 @@
-import type { WalletMovementKind } from '@debus/contracts';
+import {
+  type WalletCreditedPayload,
+  type WalletMovementKind,
+  walletCreditedPayloadSchema,
+} from '@debus/contracts';
 
 export interface MovementIntent {
   kind: WalletMovementKind;
@@ -41,3 +45,32 @@ export const refundDescription = (debitDescription: string): string =>
 
 // A refund gives back what the debit took, never what the request says it cost.
 export const refundAmount = (debitAmount: number): number => toCents(Math.abs(debitAmount)) / 100;
+
+export interface CreditedMovement {
+  id: string;
+  clientId: string;
+  kind: WalletCreditedPayload['kind'];
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  occurredOn: string;
+}
+
+// What notificaciones needs to tell the client that money landed in the wallet.
+export const toWalletCredited = (
+  movement: CreditedMovement,
+  profile: { email: string; fullName: string },
+  creditedAt: Date,
+): WalletCreditedPayload =>
+  walletCreditedPayloadSchema.parse({
+    movementId: movement.id,
+    clientId: movement.clientId,
+    email: profile.email,
+    fullName: profile.fullName,
+    kind: movement.kind,
+    amount: movement.amount,
+    balanceAfter: movement.balanceAfter,
+    description: movement.description,
+    occurredOn: movement.occurredOn,
+    creditedAt: creditedAt.toISOString(),
+  });

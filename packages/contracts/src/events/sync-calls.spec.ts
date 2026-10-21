@@ -9,7 +9,7 @@ describe('communication share', () => {
     ]);
     expect(SYNC_CALLS).toHaveLength(3);
     expect(SYNC_CALLS.some((call) => call.from === 'clientes')).toBe(false);
-    expect(eventDrivenShare()).toBeCloseTo(22 / 25);
+    expect(eventDrivenShare()).toBeCloseTo(24 / 27);
   });
 
   it('routes at least 50% of the communication through events', () => {

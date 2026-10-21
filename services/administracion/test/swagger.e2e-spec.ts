@@ -23,6 +23,7 @@ const ROUTES: [method: 'get' | 'post' | 'patch' | 'delete', path: string, codes:
   // Called with the identity token of the deploy; the gateway never publishes them.
   ['post', '/internal/branches/republish', ['200', '400']],
   ['post', '/internal/settings/republish', ['200']],
+  ['post', '/internal/users/republish', ['200', '400']],
   ['get', '/users', ['200', '400', '401', '403']],
   ['get', '/users/{id}', ['200', '400', '401', '403', '404']],
   ['get', '/settings', ['200', '400', '401', '403']],

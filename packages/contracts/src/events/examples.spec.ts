@@ -92,7 +92,7 @@ describe('registry after the fleet pack', () => {
   });
 
   it('keeps more than half of the communication event driven', () => {
-    expect(eventDrivenShare()).toBeCloseTo(22 / 25);
+    expect(eventDrivenShare()).toBeCloseTo(24 / 27);
   });
 });
 

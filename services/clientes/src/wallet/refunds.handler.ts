@@ -4,10 +4,16 @@ import {
   refundRequestedPayloadSchema,
   todayInGuatemala,
 } from '@debus/contracts';
-import { OnEvent, type SqlClient } from '@debus/messaging';
+import { OnEvent, Outbox, type SqlClient } from '@debus/messaging';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { movementFingerprint, refundAmount, refundDescription } from './wallet-rules';
+import {
+  type CreditedMovement,
+  movementFingerprint,
+  refundAmount,
+  refundDescription,
+  toWalletCredited,
+} from './wallet-rules';
 
 // Debits take the same row lock, so a refund and a debit of the same ticket never interleave.
 const LOCK_WALLET = 'SELECT client_id FROM wallets WHERE client_id = $1::uuid FOR UPDATE';
@@ -24,10 +30,12 @@ const FIND_DEBIT = `
   WHERE client_id = $1::uuid AND reference = $2::uuid AND kind = 'TICKET'
   LIMIT 1`;
 
+// Also reads who to tell: the wallet hangs from the profile.
 const CREDIT = `
-  UPDATE wallets SET balance = balance + $2, updated_at = now()
-  WHERE client_id = $1::uuid
-  RETURNING balance::float8 AS balance`;
+  UPDATE wallets w SET balance = w.balance + $2, updated_at = now()
+  FROM client_profiles p
+  WHERE w.client_id = $1::uuid AND p.user_id = w.client_id
+  RETURNING w.balance::float8 AS balance, p.email, p.full_name`;
 
 // now() is when the transaction began, which can be before the debit it returns committed;
 // clock_timestamp() is taken after the wallet lock, so the refund always lists after that debit.
@@ -44,7 +52,10 @@ const SETTLE = 'UPDATE refunds SET movement_id = $2::uuid, amount = $3 WHERE ref
 export class RefundsHandler {
   private readonly logger = new Logger(RefundsHandler.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: Outbox,
+  ) {}
 
   @OnEvent('RefundRequested')
   async requested(payload: unknown, _envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
@@ -74,13 +85,12 @@ export class RefundsHandler {
       );
     }
     // The debit was taken from this wallet, so the row is there.
-    const [{ balance }] = await sql.$queryRawUnsafe<[{ balance: number }]>(
-      CREDIT,
-      refund.clientId,
-      amount,
-    );
+    const [{ balance, email, full_name: fullName }] = await sql.$queryRawUnsafe<
+      [{ balance: number; email: string; full_name: string }]
+    >(CREDIT, refund.clientId, amount);
     const movementId = randomUUID();
     const occurredOn = todayInGuatemala(new Date(refund.requestedAt));
+    const description = refundDescription(debit.description);
     await sql.$executeRawUnsafe(
       INSERT_MOVEMENT,
       movementId,
@@ -88,10 +98,24 @@ export class RefundsHandler {
       amount,
       balance,
       refund.ticketId,
-      refundDescription(debit.description),
+      description,
       occurredOn,
       movementFingerprint({ kind: 'REFUND', amount, occurredOn, reference: refund.ticketId }),
     );
     await sql.$executeRawUnsafe(SETTLE, refund.ticketId, movementId, amount);
+    const movement: CreditedMovement = {
+      id: movementId,
+      clientId: refund.clientId,
+      kind: 'REFUND',
+      amount,
+      balanceAfter: balance,
+      description,
+      occurredOn,
+    };
+    await this.outbox.add(
+      sql,
+      'WalletCredited',
+      toWalletCredited(movement, { email, fullName }, new Date()),
+    );
   }
 }

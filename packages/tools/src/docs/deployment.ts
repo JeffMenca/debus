@@ -56,8 +56,12 @@ const CALL_TEXT: Readonly<Record<string, string>> = {
 const WORKING_CALLS = new Set(['viajes->flota', 'ventas->viajes', 'ventas->clientes']);
 
 // The jobs, besides the outbox flush, that Cloud Scheduler runs on a service.
-const EXTRA_JOBS: Readonly<Partial<Record<Unit, { name: string; path: string }>>> = {
-  ventas: { name: 'purchase-recovery', path: '/internal/purchases/recover' },
+const EXTRA_JOBS: Readonly<Partial<Record<Unit, readonly { name: string; path: string }[]>>> = {
+  ventas: [{ name: 'purchase-recovery', path: '/internal/purchases/recover' }],
+  notificaciones: [
+    { name: 'email-flush', path: '/internal/emails/flush' },
+    { name: 'license-alerts', path: '/internal/license-alerts/run' },
+  ],
 };
 
 const node = (name: string): string => `n_${id(name)}`;
@@ -80,8 +84,7 @@ export function deploymentDiagram(unit: Unit): string {
     `  ${running(unit)} --> ${ref(`db ${unit}`, `Cloud SQL ${unit}`)}`,
     `  ${ref(`job ${unit}`, `Cloud Scheduler ${unit}-outbox-flush`)} -->|POST /outbox/flush| ${node(unit)}`,
   ];
-  const extraJob = EXTRA_JOBS[unit];
-  if (extraJob) {
+  for (const extraJob of EXTRA_JOBS[unit] ?? []) {
     lines.push(
       `  ${ref(`job ${extraJob.name}`, `Cloud Scheduler ${unit}-${extraJob.name}`)} -->|POST ${extraJob.path}| ${node(unit)}`,
     );
