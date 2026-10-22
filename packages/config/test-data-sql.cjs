@@ -113,6 +113,11 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     inTestBranches('branch_report_drivers'),
     inTestBranches('branch_report_repair_lines'),
     inTestBranches('branch_report_ticket_sales'),
+    // A cancellation carries no branch: it goes with the rental of a test branch it cancelled.
+    whenTablesExist(
+      ['branch_report_rental_cancellations', 'branch_report_rentals', 'branches'],
+      `DELETE FROM branch_report_rental_cancellations WHERE rental_id IN (SELECT id FROM branch_report_rentals WHERE branch_id IN (${testBranches}))`,
+    ),
     inTestBranches('branch_report_rentals'),
   ];
 
@@ -133,7 +138,12 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     ...['ticket_copies', 'driver_licenses', 'branch_admins'].map((table) =>
       whenTablesExist([table], `DELETE FROM ${table} WHERE email LIKE ${emails}`),
     ),
-    // clientes: the wallet and its movements go with the profile by CASCADE.
+    // clientes keeps no branches: a counter rental of a test is the one a test admin took, or the one
+    // with a test email. Online rentals, the wallet and its movements go with the profile by CASCADE.
+    whenTablesExist(
+      ['rentals', 'client_profiles'],
+      `DELETE FROM rentals WHERE email LIKE ${emails} OR created_by_id IN (SELECT user_id FROM client_profiles WHERE email LIKE ${emails})`,
+    ),
     whenTablesExist(['client_profiles'], `DELETE FROM client_profiles WHERE email LIKE ${emails}`),
     ...salesStatements(branches),
     ...fleetAndTrips,

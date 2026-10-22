@@ -28,6 +28,7 @@ describe('navigation', () => {
         [
           ['Panel', '/sucursal'],
           ['Viajes', '/sucursal/viajes'],
+          ['Alquileres', '/sucursal/alquileres'],
           ['Ventanilla', '/sucursal/ventanilla'],
         ],
       ],

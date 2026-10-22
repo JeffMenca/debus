@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { movement, movementPage, profile, wallet } from '../../test-support/account';
 import { queryWrapper } from '../../test-support/query-wrapper';
+import { rental, rentalPage } from '../../test-support/rentals';
 import { mockGatewayApi, soldTicket, ticketPage } from '../../test-support/tickets';
 import { AccountScreen } from './account-screen';
 
@@ -19,6 +20,7 @@ beforeEach(() => {
     'GET /clientes/wallet': () => Response.json(wallet()),
     'GET /clientes/profile': () => Response.json(profile()),
     'GET /clientes/wallet/movements': () => Response.json(movementPage([movement()])),
+    'GET /clientes/rentals/mine': () => Response.json(rentalPage([rental()])),
     'GET /ventas/tickets': () =>
       Response.json(ticketPage([soldTicket()], null, { total: 21, page: 2 })),
   });
@@ -56,10 +58,10 @@ describe('AccountScreen', () => {
     expect(await screen.findByText('Recarga de saldo')).toBeInTheDocument();
   });
 
-  it('shows the rentals tab, still empty', () => {
+  it('shows the rentals of the client on their tab', async () => {
     search = 'pestana=alquileres';
     renderScreen();
 
-    expect(screen.getByText(/Aquí verás los buses que alquiles/)).toBeInTheDocument();
+    expect(await screen.findByText('Precio listo, falta pagar')).toBeInTheDocument();
   });
 });

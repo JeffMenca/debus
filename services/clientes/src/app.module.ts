@@ -8,6 +8,7 @@ import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { ProfilesModule } from './profiles/profiles.module';
+import { RentalsModule } from './rentals/rentals.module';
 import { SettingsModule } from './settings/settings.module';
 import { WalletModule } from './wallet/wallet.module';
 
@@ -17,6 +18,7 @@ import { WalletModule } from './wallet/wallet.module';
     LoggerModule.forRoot({ pinoHttp: httpLoggerOptions() }),
     HealthModule,
     ProfilesModule,
+    RentalsModule,
     SettingsModule,
     WalletModule,
     PrismaModule,

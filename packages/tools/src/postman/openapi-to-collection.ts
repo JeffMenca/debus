@@ -94,6 +94,18 @@ const LEFT_OUT: { method: HttpMethod; path: RegExp; reason: string }[] = [
   },
   {
     method: 'post',
+    path: /^\/api\/clientes\/(rentals|branch-rentals)\/\{id\}\/(pay|cancel|confirm)$/,
+    reason:
+      'necesita un alquiler de prueba en el estado justo (solicitado, confirmado o pagado), que el recorrido todavía no crea',
+  },
+  {
+    method: 'post',
+    path: /^\/api\/viajes\/rental-requests\/\{id\}\/cancel$/,
+    reason:
+      'necesita un alquiler pagado que ya haya llegado a `viajes`, y el recorrido no paga ninguno',
+  },
+  {
+    method: 'post',
     path: /\/dead-letters\/\{messageId\}\/replay$/,
     reason: 'necesita un mensaje real en la cola de errores de ese servicio',
   },

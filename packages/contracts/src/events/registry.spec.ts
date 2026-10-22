@@ -9,14 +9,14 @@ import {
 } from './registry';
 
 describe('event registry', () => {
-  it('declares the 24 business event types plus the diagnostic probe', () => {
+  it('declares the 26 business event types plus the diagnostic probe', () => {
     const business = EVENT_TYPES.filter((type) => !EVENT_REGISTRY[type].diagnostic);
 
-    expect(business).toHaveLength(24);
+    expect(business).toHaveLength(26);
     expect(EVENT_REGISTRY.ProbeSent.diagnostic).toBe(true);
   });
 
-  it('declares exactly the 25 agreed event names, in registry order', () => {
+  it('declares exactly the 27 agreed event names, in registry order', () => {
     expect(EVENT_TYPES).toEqual([
       'BranchCreated',
       'BranchUpdated',
@@ -42,6 +42,8 @@ describe('event registry', () => {
       'ProfileUpdated',
       'WalletCredited',
       'UserUpdated',
+      'RentalConfirmed',
+      'RentalCancelled',
       'ProbeSent',
     ]);
   });
@@ -90,8 +92,16 @@ describe('event registry', () => {
       'RentalPaid',
       'WalletCredited',
       'UserUpdated',
+      'RentalConfirmed',
       'ProbeSent',
     ]);
+  });
+
+  it('tells the client the confirmed price, and undoes a paid rental from viajes', () => {
+    expect(publisherOf('RentalConfirmed')).toBe('clientes');
+    expect(consumersOf('RentalConfirmed')).toEqual(['notificaciones']);
+    expect(publisherOf('RentalCancelled')).toBe('viajes');
+    expect(consumersOf('RentalCancelled')).toEqual(['clientes', 'reportes']);
   });
 
   it('lists what each consumer listens to', () => {
@@ -101,6 +111,7 @@ describe('event registry', () => {
         'UserRegistered',
         'TicketSold',
         'RefundRequested',
+        'RentalCancelled',
         'ProbeSent',
       ]),
     );
@@ -117,6 +128,6 @@ describe('event registry', () => {
         'SettingsUpdated',
       ]),
     );
-    expect(eventDrivenShare()).toBeCloseTo(24 / 27);
+    expect(eventDrivenShare()).toBeCloseTo(26 / 29);
   });
 });

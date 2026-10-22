@@ -28,6 +28,21 @@ export function RentalBand() {
           Alquila un bus completo con chofer para tu familia, tu institución o tu empresa.
         </p>
         <div className={audience === 'checking' ? 'min-h-6' : undefined}>
+          {audience === 'CLIENT' && (
+            <TextLink
+              href="/alquiler"
+              tone="coral"
+              size="md"
+              className="group underline underline-offset-4"
+            >
+              Pide tu cotización
+              <ArrowRight
+                aria-hidden="true"
+                strokeWidth={1.75}
+                className="ml-1.5 inline-block size-4 align-text-bottom transition-transform group-hover:translate-x-1 motion-reduce:transition-none"
+              />
+            </TextLink>
+          )}
           {audience === 'visitor' && (
             <TextLink
               href="/registro"

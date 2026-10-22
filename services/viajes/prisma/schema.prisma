@@ -185,6 +185,7 @@ model TripArrival {
 enum RentalRequestStatus {
   PENDING
   ASSIGNED
+  CANCELLED
 }
 
 // A paid rental (RentalPaid) waiting for the branch admin to give it a bus and a driver.
@@ -202,6 +203,7 @@ model RentalRequest {
   price            Decimal             @db.Decimal(10, 2)
   status           RentalRequestStatus @default(PENDING)
   tripId           String?             @unique @map("trip_id") @db.Uuid
+  cancelledAt      DateTime?           @map("cancelled_at") @db.Timestamptz(3)
   searchText       String              @default("") @map("search_text")
   createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)

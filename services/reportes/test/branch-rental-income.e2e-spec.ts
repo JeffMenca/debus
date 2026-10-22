@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   REPORT_PDF_MAX_ROWS,
   branchRentalIncomePageSchema,
+  exampleRentalCancelled,
   exampleRentalPaid,
   exampleTripDeleted,
   exampleTripScheduled,
@@ -26,6 +27,7 @@ describe('branch rental income report', () => {
   let otherBranchId: string;
   let hugeBranchId: string;
   let substitutionBranchId: string;
+  let cancellationBranchId: string;
   const school = randomUUID();
   const walkIn = randomUUID();
   const church = randomUUID();
@@ -57,6 +59,7 @@ describe('branch rental income report', () => {
     otherBranchId = await seedTestBranch(bus, 'rental income other');
     hugeBranchId = await seedTestBranch(bus, 'rental income huge');
     substitutionBranchId = await seedTestBranch(bus, 'rental income substitution');
+    cancellationBranchId = await seedTestBranch(bus, 'rental income cancellation');
     // U+02BC, the apostrophe of the official spelling of the Mayan languages, is not in the PDF font.
     await pay(substitutionBranchId, randomUUID(), { clientName: 'Asociación Kʼicheʼ Xelajú' });
 
@@ -116,6 +119,7 @@ describe('branch rental income report', () => {
       otherBranchId,
       hugeBranchId,
       substitutionBranchId,
+      cancellationBranchId,
     ]);
     await app.close();
   });
@@ -146,6 +150,27 @@ describe('branch rental income report', () => {
     expect(page).toMatchObject({ total: 3, page: 1, pageSize: 20 });
     expect(page.summary.totals).toEqual({ rentals: 3, income: 7460 });
     expect(page.summary.groups).toEqual([]);
+  });
+
+  it('leaves out the cancelled rentals, whichever event arrived first', async () => {
+    const [kept, cancelledLate, cancelledEarly] = [randomUUID(), randomUUID(), randomUUID()];
+    const cancel = (rentalId: string) =>
+      bus.deliver('RentalCancelled', {
+        ...exampleRentalCancelled,
+        rentalId,
+        branchId: cancellationBranchId,
+      });
+    await pay(cancellationBranchId, kept, { clientName: 'Sigue en pie', price: 1000 });
+    await pay(cancellationBranchId, cancelledLate, { clientName: 'Cancelado después' });
+    await cancel(cancelledLate);
+    await cancel(cancelledEarly);
+    await pay(cancellationBranchId, cancelledEarly, { clientName: 'Cancelado antes' });
+    await cancel(cancelledLate);
+
+    const response = await get('/reports/branch-rental-income', cancellationBranchId).expect(200);
+
+    expect(names(response.body)).toEqual(['Sigue en pie']);
+    expect(response.body.summary.totals).toEqual({ rentals: 1, income: 1000 });
   });
 
   it('keeps a one-way rental, whose return is empty', async () => {

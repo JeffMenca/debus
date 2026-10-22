@@ -135,27 +135,25 @@ export class WalletService {
   }
 
   private async apply(clientId: string, key: string, intent: DebitIntent): Promise<WalletDebit> {
-    const fingerprint = movementFingerprint(intent);
     try {
-      return await this.prisma.$transaction((tx) =>
-        this.applyIn(tx, clientId, key, intent, fingerprint),
-      );
+      return await this.prisma.$transaction((tx) => this.debitIn(tx, clientId, key, intent));
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       // Another request with the same key committed first: answer with what it recorded.
       const first = await this.prisma.walletMovement.findUnique(byKey(clientId, key));
       if (!first) throw error;
-      return replayed(first, fingerprint);
+      return replayed(first, movementFingerprint(intent));
     }
   }
 
-  private async applyIn(
+  // Applies a movement inside the caller's transaction, so what it pays for commits with it.
+  async debitIn(
     tx: Prisma.TransactionClient,
     clientId: string,
     key: string,
     intent: DebitIntent,
-    fingerprint: string,
   ): Promise<WalletDebit> {
+    const fingerprint = movementFingerprint(intent);
     const existing = await tx.walletMovement.findUnique(byKey(clientId, key));
     if (existing) return replayed(existing, fingerprint);
     if (paymentWindowClosed(intent.payBy, new Date())) {

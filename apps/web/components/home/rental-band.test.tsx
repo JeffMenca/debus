@@ -36,6 +36,18 @@ describe('RentalBand', () => {
     },
   );
 
+  it('takes a signed-in client straight to ask for a quote', () => {
+    act(() => setSession(session('CLIENT')));
+    render(<RentalBand />);
+
+    expect(screen.getByRole('link', { name: /Pide tu cotización/ })).toHaveAttribute(
+      'href',
+      '/alquiler',
+    );
+    expect(screen.queryByRole('link', { name: CTA })).not.toBeInTheDocument();
+    act(() => clearSession());
+  });
+
   it('invites the group and says what is offered', () => {
     act(() => clearSession());
     render(<RentalBand />);

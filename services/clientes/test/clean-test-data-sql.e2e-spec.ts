@@ -63,4 +63,58 @@ describe('the SQL of pnpm test:clean in clientes', () => {
       }),
     ).rejects.toBeInstanceOf(Rollback);
   });
+
+  it('removes the rentals of the test accounts and those a test admin took at the counter', async () => {
+    const admin = randomUUID();
+    const client = randomUUID();
+    const foreignAdmin = randomUUID();
+    const rental = (over: Record<string, unknown>) => ({
+      id: randomUUID(),
+      channel: 'COUNTER' as const,
+      status: 'REQUESTED' as const,
+      branchId: randomUUID(),
+      clientId: null,
+      nit: 'CF',
+      clientName: 'Colegio de prueba',
+      originLabel: 'Quetzaltenango',
+      destinationLabel: 'Panajachel',
+      departureAt: new Date('2026-12-01T13:00:00.000Z'),
+      passengers: 35,
+      distanceKm: 92,
+      ratePerKm: 30,
+      estimatedPrice: 2760,
+      searchText: '',
+      createdById: foreignAdmin,
+      ...over,
+    });
+    const byTestAdmin = rental({ createdById: admin });
+    const withTestEmail = rental({ email: testEmail('colegio') });
+    const online = rental({ channel: 'ONLINE', clientId: client, createdById: client });
+    const foreign = rental({ email: 'reservas@colegio-real.example' });
+    await expect(
+      prisma.$transaction(async (tx) => {
+        for (const [userId, role] of [
+          [admin, 'BRANCH_ADMIN'],
+          [client, 'CLIENT'],
+        ] as const) {
+          await tx.clientProfile.create({
+            data: { userId, email: testEmail('alquiler'), fullName: 'Prueba', role },
+          });
+        }
+        for (const data of [byTestAdmin, withTestEmail, online, foreign]) {
+          await tx.rental.create({ data });
+        }
+
+        for (const statement of cleanupStatements({ run: TEST_RUN })) {
+          await tx.$executeRawUnsafe(statement);
+        }
+
+        const left = await tx.rental.findMany({
+          where: { id: { in: [byTestAdmin, withTestEmail, online, foreign].map((r) => r.id) } },
+        });
+        expect(left.map((r) => r.id)).toEqual([foreign.id]);
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+  });
 });

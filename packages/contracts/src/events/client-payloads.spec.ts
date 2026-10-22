@@ -1,11 +1,65 @@
 import {
   exampleProfileUpdated,
+  exampleRentalCancelled,
+  exampleRentalConfirmed,
   exampleRentalPaid,
   exampleWalletCredited,
   profileUpdatedPayloadSchema,
+  rentalCancelledPayloadSchema,
+  rentalConfirmedPayloadSchema,
   rentalPaidPayloadSchema,
   walletCreditedPayloadSchema,
 } from '../index';
+
+describe('RentalConfirmed', () => {
+  it('validates its example', () => {
+    expect(rentalConfirmedPayloadSchema.parse(exampleRentalConfirmed)).toEqual(
+      exampleRentalConfirmed,
+    );
+  });
+
+  it('always names the client and where to tell them, since only online rentals send it', () => {
+    expect(
+      rentalConfirmedPayloadSchema.safeParse({ ...exampleRentalConfirmed, clientId: null }).success,
+    ).toBe(false);
+    expect(
+      rentalConfirmedPayloadSchema.safeParse({ ...exampleRentalConfirmed, email: null }).success,
+    ).toBe(false);
+  });
+
+  it('refuses a return before the departure and a price that is not money', () => {
+    expect(
+      rentalConfirmedPayloadSchema.safeParse({
+        ...exampleRentalConfirmed,
+        returnAt: '2026-10-24T10:00:00.000Z',
+      }).success,
+    ).toBe(false);
+    expect(
+      rentalConfirmedPayloadSchema.safeParse({ ...exampleRentalConfirmed, price: 0 }).success,
+    ).toBe(false);
+  });
+});
+
+describe('RentalCancelled', () => {
+  it('validates its example and a rental that had no trip yet', () => {
+    expect(rentalCancelledPayloadSchema.parse(exampleRentalCancelled)).toEqual(
+      exampleRentalCancelled,
+    );
+    expect(
+      rentalCancelledPayloadSchema.safeParse({ ...exampleRentalCancelled, tripId: null }).success,
+    ).toBe(true);
+  });
+
+  it('refuses a rental that is not an id and a missing time', () => {
+    expect(
+      rentalCancelledPayloadSchema.safeParse({ ...exampleRentalCancelled, rentalId: 'x' }).success,
+    ).toBe(false);
+    expect(
+      rentalCancelledPayloadSchema.safeParse({ ...exampleRentalCancelled, cancelledAt: undefined })
+        .success,
+    ).toBe(false);
+  });
+});
 
 describe('RentalPaid', () => {
   it('validates its example', () => {

@@ -1,4 +1,4 @@
-import { createEnvelope, exampleRentalPaid } from '@debus/contracts';
+import { createEnvelope, exampleRentalConfirmed, exampleRentalPaid } from '@debus/contracts';
 import { RentalsHandler } from './rentals.handler';
 
 describe('RentalsHandler', () => {
@@ -26,5 +26,25 @@ describe('RentalsHandler', () => {
     await expect(handler.paid({}, createEnvelope('RentalPaid', {}, 'c'))).rejects.toThrow();
 
     expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('queues the quote of a confirmed online rental once per rental', async () => {
+    const queue = { enqueue: jest.fn().mockResolvedValue(1) };
+    const envelope = createEnvelope('RentalConfirmed', exampleRentalConfirmed, 'c');
+    const tx = {} as never;
+
+    await new RentalsHandler(queue as never).confirmed(exampleRentalConfirmed, envelope, tx);
+
+    expect(queue.enqueue).toHaveBeenCalledWith(tx, [
+      {
+        eventId: envelope.eventId,
+        dedupeKey: `rental-confirmed:${exampleRentalConfirmed.rentalId}`,
+        template: 'RENTAL_CONFIRMED',
+        message: expect.objectContaining({
+          to: exampleRentalConfirmed.email,
+          subject: 'Tu cotización está lista',
+        }),
+      },
+    ]);
   });
 });

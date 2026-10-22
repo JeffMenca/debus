@@ -4147,6 +4147,59 @@
         ]
       }
     },
+    "/api/viajes/rental-requests/{id}/cancel": {
+      "post": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "viajes_RentalRequestsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "viajes · rental-requests"
+        ]
+      }
+    },
     "/api/viajes/dead-letters": {
       "get": {
         "description": "Allowed roles: SYSTEM_ADMIN.",
@@ -4293,6 +4346,24 @@
           },
           {
             "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "origin",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "destination",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "seats",
             "required": false,
             "in": "query",
             "schema": {}
@@ -4462,6 +4533,24 @@
             "schema": {}
           },
           {
+            "name": "origin",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "destination",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "seats",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
             "name": "page",
             "required": false,
             "in": "query",
@@ -4480,6 +4569,60 @@
           },
           "400": {
             "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "ventas · trips"
+        ]
+      }
+    },
+    "/api/ventas/trips/places": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.",
+        "operationId": "ventas_TripsController_places",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "origins": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "destinations": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "origins",
+                    "destinations"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
           "401": {
             "description": "Missing session or wrong credentials."
@@ -5231,6 +5374,305 @@
         ]
       }
     },
+    "/api/ventas/tickets": {
+      "get": {
+        "description": "Allowed roles: CLIENT.",
+        "operationId": "ventas_TicketsController_history",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "CONFIRMED"
+                            ]
+                          },
+                          "channel": {
+                            "type": "string",
+                            "enum": [
+                              "ONLINE",
+                              "COUNTER"
+                            ]
+                          },
+                          "tripId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "originLabel": {
+                            "type": "string"
+                          },
+                          "destinationLabel": {
+                            "type": "string"
+                          },
+                          "departureAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "busPlate": {
+                            "type": "string"
+                          },
+                          "seats": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 80
+                            }
+                          },
+                          "unitPrice": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "total": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "nit": {
+                            "type": "string"
+                          },
+                          "buyerName": {
+                            "type": "string"
+                          },
+                          "paidOn": {
+                            "type": "string",
+                            "format": "date",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                          },
+                          "soldAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "status",
+                          "channel",
+                          "tripId",
+                          "originLabel",
+                          "destinationLabel",
+                          "departureAt",
+                          "busPlate",
+                          "seats",
+                          "unitPrice",
+                          "total",
+                          "nit",
+                          "buyerName",
+                          "paidOn",
+                          "soldAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "page": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "next": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": [
+                                    "PENDING",
+                                    "CONFIRMED"
+                                  ]
+                                },
+                                "channel": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ONLINE",
+                                    "COUNTER"
+                                  ]
+                                },
+                                "tripId": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "originLabel": {
+                                  "type": "string"
+                                },
+                                "destinationLabel": {
+                                  "type": "string"
+                                },
+                                "departureAt": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                "busPlate": {
+                                  "type": "string"
+                                },
+                                "seats": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 80
+                                  }
+                                },
+                                "unitPrice": {
+                                  "type": "number",
+                                  "exclusiveMinimum": 0
+                                },
+                                "total": {
+                                  "type": "number",
+                                  "exclusiveMinimum": 0
+                                },
+                                "nit": {
+                                  "type": "string"
+                                },
+                                "buyerName": {
+                                  "type": "string"
+                                },
+                                "paidOn": {
+                                  "type": "string",
+                                  "format": "date",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                                },
+                                "soldAt": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "status",
+                                "channel",
+                                "tripId",
+                                "originLabel",
+                                "destinationLabel",
+                                "departureAt",
+                                "busPlate",
+                                "seats",
+                                "unitPrice",
+                                "total",
+                                "nit",
+                                "buyerName",
+                                "paidOn",
+                                "soldAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "next"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total",
+                    "page",
+                    "pageSize",
+                    "summary"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "ventas · tickets"
+        ]
+      }
+    },
     "/api/ventas/dead-letters": {
       "get": {
         "description": "Allowed roles: SYSTEM_ADMIN.",
@@ -5462,6 +5904,611 @@
         ],
         "tags": [
           "clientes · profile"
+        ]
+      }
+    },
+    "/api/clientes/rentals/estimate": {
+      "get": {
+        "description": "Allowed roles: CLIENT, BRANCH_ADMIN.",
+        "operationId": "clientes_RentalsController_estimate",
+        "parameters": [
+          {
+            "name": "distanceKm",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "422": {
+            "description": "The request was understood but cannot be carried out in the current state."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · rentals"
+        ]
+      }
+    },
+    "/api/clientes/rentals": {
+      "post": {
+        "description": "Allowed roles: CLIENT.",
+        "operationId": "clientes_RentalsController_request",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "branchId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "originLabel": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "destinationLabel": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "departureAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "returnAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "passengers": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 200
+                  },
+                  "distanceKm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 2000
+                  }
+                },
+                "required": [
+                  "branchId",
+                  "originLabel",
+                  "destinationLabel",
+                  "departureAt",
+                  "returnAt",
+                  "passengers",
+                  "distanceKm"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "422": {
+            "description": "The request was understood but cannot be carried out in the current state."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · rentals"
+        ]
+      }
+    },
+    "/api/clientes/rentals/mine": {
+      "get": {
+        "description": "Allowed roles: CLIENT.",
+        "operationId": "clientes_RentalsController_history",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · rentals"
+        ]
+      }
+    },
+    "/api/clientes/rentals/{id}/pay": {
+      "post": {
+        "description": "Allowed roles: CLIENT, BRANCH_ADMIN.",
+        "operationId": "clientes_RentalsController_pay",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "required": true,
+            "in": "header",
+            "description": "The rental id.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "paidOn": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  }
+                },
+                "required": [
+                  "paidOn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          },
+          "422": {
+            "description": "The request was understood but cannot be carried out in the current state."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · rentals"
+        ]
+      }
+    },
+    "/api/clientes/rentals/{id}/cancel": {
+      "post": {
+        "description": "Allowed roles: CLIENT, BRANCH_ADMIN.",
+        "operationId": "clientes_RentalsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · rentals"
+        ]
+      }
+    },
+    "/api/clientes/branch-rentals": {
+      "get": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "clientes_BranchRentalsController_list",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · branch-rentals"
+        ]
+      },
+      "post": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "clientes_BranchRentalsController_registerCounter",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "branchId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "originLabel": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "destinationLabel": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "departureAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "returnAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "passengers": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 200
+                  },
+                  "distanceKm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 2000
+                  },
+                  "nit": {
+                    "type": "string"
+                  },
+                  "clientName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "email": {
+                    "default": null,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "price": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100000
+                  }
+                },
+                "required": [
+                  "branchId",
+                  "originLabel",
+                  "destinationLabel",
+                  "departureAt",
+                  "returnAt",
+                  "passengers",
+                  "distanceKm",
+                  "nit",
+                  "clientName",
+                  "price"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "422": {
+            "description": "The request was understood but cannot be carried out in the current state."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · branch-rentals"
+        ]
+      }
+    },
+    "/api/clientes/branch-rentals/{id}/confirm": {
+      "post": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "clientes_BranchRentalsController_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "price": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100000
+                  },
+                  "distanceKm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 2000
+                  }
+                },
+                "required": [
+                  "price"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · branch-rentals"
         ]
       }
     },

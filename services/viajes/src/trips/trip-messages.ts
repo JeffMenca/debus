@@ -50,6 +50,9 @@ export const TRIP_MESSAGES = {
     'La llegada estimada ya pasó. Elige una llegada que todavía no haya ocurrido.',
   rentalArrivalBeforeReturn: 'La llegada estimada no puede ser antes del regreso del cliente.',
   rentalArrivalBeforeDeparture: 'La llegada estimada debe ser después de la salida del alquiler.',
+  rentalPaymentPending:
+    'Todavía estamos registrando el pago de este alquiler. Intenta en un momento.',
+  rentalTripStarted: 'El viaje de este alquiler ya salió. Ya no se puede cancelar.',
 } as const;
 
 export type TripProblem = keyof typeof TRIP_MESSAGES;

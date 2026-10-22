@@ -158,6 +158,7 @@ erDiagram
     decimal price
     RentalRequestStatus status
     uuid trip_id UK
+    timestamptz cancelled_at
     text search_text
     timestamptz created_at
     timestamptz updated_at
@@ -189,11 +190,13 @@ flowchart LR
   n_notificaciones_from_viajes -.->|push| n_notificaciones["Cloud Run notificaciones"]
   n_topic_viajes --> n_administracion_from_viajes["administracion-from-viajes"]
   n_administracion_from_viajes -.->|push| n_administracion["Cloud Run administracion"]
+  n_topic_viajes --> n_clientes_from_viajes["clientes-from-viajes"]
+  n_clientes_from_viajes -.->|push| n_clientes["Cloud Run clientes"]
   n_administracion -.-> n_viajes_from_administracion["viajes-from-administracion"]
   n_viajes_from_administracion -->|push /events/pubsub| n_viajes
   n_flota -.-> n_viajes_from_flota["viajes-from-flota"]
   n_viajes_from_flota -->|push /events/pubsub| n_viajes
-  n_clientes["Cloud Run clientes"] -.-> n_viajes_from_clientes["viajes-from-clientes"]
+  n_clientes -.-> n_viajes_from_clientes["viajes-from-clientes"]
   n_viajes_from_clientes -->|push /events/pubsub| n_viajes
   n_gateway["Cloud Run gateway"] -.-> n_viajes_from_gateway["viajes-from-gateway"]
   n_viajes_from_gateway -->|push /events/pubsub| n_viajes
@@ -210,6 +213,8 @@ El outbox se escribe en la misma transacción que el viaje y lo publican el job 
 
 La llamada a `flota` pasa por un **circuit breaker** (el de `ServiceHttpClient`, un breaker por servicio destino): tras 5 intentos fallidos seguidos se abre 30 segundos y, mientras está abierto, programar falla al instante con ese mismo texto en lugar de esperar el timeout de 3 segundos. Pasado ese tiempo deja pasar una llamada de prueba. El estado es por instancia de Cloud Run; `/health` lo informa y `/admin/estado` lo muestra.
 
+**Cancelación de un alquiler pagado.** `POST /rental-requests/{id}/cancel` es el **pivote** de una saga coreografiada (detalle en [el manual de clientes](../clientes/README.md)). En una transacción bloquea primero el viaje del alquiler y después la solicitud, el mismo orden que `DELETE /trips/{id}`, así nunca se bloquean entre sí. Si el viaje ya salió responde 409 y no cambia nada. Si no, borra el viaje (`TripDeleted`), deja la solicitud `CANCELLED` y publica `RentalCancelled`, que `clientes` (devolución a la cartera) y `reportes` (quita el ingreso) aplican y reintentan hasta lograrlo. Si el alquiler ganó o perdió su viaje mientras esperaba, responde 409 "intenta de nuevo". Si el pago todavía no llegó a `viajes`, responde 404 con "Todavía estamos registrando el pago de este alquiler".
+
 <!-- prettier-ignore-start -->
 <!-- generado:eventos -->
 **Publica**
@@ -220,6 +225,7 @@ La llamada a `flota` pasa por un **circuit breaker** (el de `ServiceHttpClient`,
 | `TripDeleted` | ventas, notificaciones, flota, reportes |
 | `TripDeparted` | flota, reportes |
 | `TripCompleted` | administracion, flota, reportes |
+| `RentalCancelled` | clientes, reportes |
 
 **Consume**
 
@@ -255,6 +261,7 @@ Todas las rutas pasan por el gateway con el prefijo `/api/viajes` (aquí aparece
 | `GET` | `/health` | Responde si el servicio está en línea | Cualquier sesión |
 | `GET` | `/rental-requests` | Lista las solicitudes de alquiler | BRANCH_ADMIN |
 | `POST` | `/rental-requests/{id}/assignment` | Asigna bus y chofer a un alquiler y programa su viaje | BRANCH_ADMIN |
+| `POST` | `/rental-requests/{id}/cancel` | Cancela un alquiler pagado cuyo viaje no ha salido; clientes devuelve lo cobrado | BRANCH_ADMIN |
 | `GET` | `/trips` | Lista los viajes | BRANCH_ADMIN, DRIVER |
 | `POST` | `/trips` | Programa un viaje | BRANCH_ADMIN |
 | `GET` | `/trips/{id}` | Consulta un viaje con su salida y su llegada | BRANCH_ADMIN, DRIVER |

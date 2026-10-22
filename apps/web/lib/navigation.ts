@@ -3,6 +3,7 @@ import {
   Activity,
   Building2,
   Bus,
+  BusFront,
   CalendarDays,
   IdCard,
   LayoutGrid,
@@ -56,6 +57,7 @@ const BRANCH_ADMIN: NavGroup[] = [
     items: [
       BRANCH_PANEL,
       { label: 'Viajes', href: '/sucursal/viajes', icon: CalendarDays },
+      { label: 'Alquileres', href: '/sucursal/alquileres', icon: BusFront },
       COUNTER,
     ],
   },

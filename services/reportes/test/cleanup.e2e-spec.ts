@@ -4,6 +4,7 @@ import {
   exampleBus,
   exampleCounterTicketSold,
   exampleDriver,
+  exampleRentalCancelled,
   exampleRentalPaid,
   exampleRepairExpenseAdded,
   exampleSettingsUpdated,
@@ -63,6 +64,7 @@ describe('cleaning the test data of reportes', () => {
     await bus.deliver('RepairExpenseAdded', { ...exampleRepairExpenseAdded, expenseId, branchId });
     await bus.deliver('TicketSold', { ...exampleCounterTicketSold, ticketId, branchId });
     await bus.deliver('RentalPaid', { ...exampleRentalPaid, rentalId, branchId });
+    await bus.deliver('RentalCancelled', { ...exampleRentalCancelled, rentalId, branchId });
     const realExpenseId = randomUUID();
     await bus.deliver('RepairExpenseAdded', {
       ...exampleRepairExpenseAdded,
@@ -80,6 +82,9 @@ describe('cleaning the test data of reportes', () => {
     expect(await countOf(prisma, 'branch_report_repair_lines', 'expense_id', expenseId)).toBe(0);
     expect(await countOf(prisma, 'branch_report_ticket_sales', 'id', ticketId)).toBe(0);
     expect(await countOf(prisma, 'branch_report_rentals', 'id', rentalId)).toBe(0);
+    expect(await countOf(prisma, 'branch_report_rental_cancellations', 'rental_id', rentalId)).toBe(
+      0,
+    );
     expect(await countOf(prisma, 'branch_report_repair_lines', 'expense_id', realExpenseId)).toBe(
       2,
     );
