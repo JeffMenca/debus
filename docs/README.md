@@ -43,7 +43,7 @@ flowchart LR
 | ventas         | Boletos, asientos y la saga de compra (en desarrollo)                                                 | [ventas](ventas/README.md)                 |
 | clientes       | Perfil y cartera digital (en desarrollo)                                                              | [clientes](clientes/)                      |
 | reportes       | Reportes con exportación a PDF (los de sucursal ya existen; los del admin del sistema, en desarrollo) | [reportes](reportes/)                      |
-| notificaciones | Correos de cuentas (los de boletos, alquileres y licencias, en desarrollo)                            | [notificaciones](notificaciones/)          |
+| notificaciones | Correos de cuentas, boletos, cancelaciones, cartera y alquileres, y alertas de licencia               | [notificaciones](notificaciones/README.md) |
 
 Cada manual explica para qué sirve el servicio, sus componentes, sus tablas, su despliegue, los eventos que publica y consume, sus endpoints, sus variables de entorno y cómo probarlo. Los diagramas de tablas, de despliegue, los eventos y los endpoints **se generan** del código con `pnpm run docs` (y `pnpm run docs --check` en la integración continua los compara); el diagrama de componentes se escribe a mano.
 

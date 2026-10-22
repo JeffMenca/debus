@@ -86,6 +86,15 @@ describe('refunds of the tickets of a deleted trip', () => {
     expect(await prisma.refund.findUniqueOrThrow({ where: { reference: ticketId } })).toMatchObject(
       { movementId: movements[1]?.id, reason: 'TRIP_DELETED' },
     );
+    expect(await profiles.announced(clientId, 'WalletCredited')).toEqual([
+      expect.objectContaining({
+        movementId: movements[1]?.id,
+        kind: 'REFUND',
+        amount: 85,
+        balanceAfter: 100,
+        description: 'Devolución: Boleto Quetzaltenango - Guatemala, asiento 5',
+      }),
+    ]);
   });
 
   it('refunds what the debit charged, not what the request says', async () => {
@@ -108,6 +117,7 @@ describe('refunds of the tickets of a deleted trip', () => {
     expect(late.body.message).toBe('Este viaje se canceló y ya no se puede pagar.');
     expect(await balanceOf(clientId)).toBe(100);
     expect(await movementsOf(clientId, ticketId)).toEqual([]);
+    expect(await profiles.announced(clientId, 'WalletCredited')).toEqual([]);
   });
 
   // The order that failed in CI, forced: the refund's transaction begins, the debit commits while

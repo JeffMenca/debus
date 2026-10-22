@@ -66,6 +66,8 @@ model User {
   activatedAt      DateTime?      @map("activated_at") @db.Timestamptz(3)
   // Version of the last driver snapshot applied (drivers only): older snapshots never overwrite newer ones.
   driverVersion    Int?           @map("driver_version")
+  // Raised on every change announced with UserUpdated, so the copies keep the newest one.
+  version          Int            @default(1)
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   branch           Branch?        @relation(fields: [branchId], references: [id])

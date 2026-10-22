@@ -59,6 +59,17 @@ describe('deploymentDiagram of a service', () => {
     expect(deploymentDiagram('clientes')).not.toContain('purchase-recovery');
   });
 
+  it('draws every scheduled job of a service that has more than one', () => {
+    const diagram = deploymentDiagram('notificaciones');
+
+    expect(diagram).toMatch(
+      /Cloud Scheduler notificaciones-email-flush.*-->\|POST \/internal\/emails\/flush\| n_notificaciones/,
+    );
+    expect(diagram).toMatch(
+      /Cloud Scheduler notificaciones-license-alerts.*-->\|POST \/internal\/license-alerts\/run\| n_notificaciones/,
+    );
+  });
+
   it('writes every label in Spanish', () => {
     for (const unit of ['flota', 'viajes', 'administracion', 'notificaciones'] as const) {
       const text = deploymentDiagram(unit);

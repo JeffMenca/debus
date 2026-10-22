@@ -15,13 +15,16 @@ function sqlClient({
       .mockResolvedValueOnce([{ client_id: clientId }])
       .mockResolvedValueOnce(marked ? [{ reference: ticketId }] : [])
       .mockResolvedValueOnce(debit ? [debit] : [])
-      .mockResolvedValueOnce([{ balance: 100 }]),
+      .mockResolvedValueOnce([{ balance: 100, email: 'ana@correo.com', full_name: 'Ana Méndez' }]),
     $executeRawUnsafe: jest.fn().mockResolvedValue(1),
   };
 }
 
 describe('RefundsHandler', () => {
-  const handler = new RefundsHandler({} as never);
+  const outbox = { add: jest.fn().mockResolvedValue(undefined) };
+  const handler = new RefundsHandler({} as never, outbox as never);
+
+  beforeEach(() => outbox.add.mockClear());
 
   it('locks the wallet, marks the ticket and gives back what its debit took', async () => {
     const tx = sqlClient();
@@ -40,7 +43,7 @@ describe('RefundsHandler', () => {
     expect(markValues).toEqual([ticketId, clientId, 'TRIP_DELETED']);
     expect(debit).toContain("kind = 'TICKET'");
     expect(debitValues).toEqual([clientId, ticketId]);
-    expect(credit).toContain('balance = balance +');
+    expect(credit).toContain('balance = w.balance +');
     expect(creditValues).toEqual([clientId, amount]);
 
     const [[movement, ...movementValues], [settle, ...settleValues]] =
@@ -61,6 +64,19 @@ describe('RefundsHandler', () => {
     ]);
     expect(settle).toContain('UPDATE refunds');
     expect(settleValues).toEqual([ticketId, movementValues[0], amount]);
+    expect(credit).toContain('client_profiles');
+    expect(outbox.add).toHaveBeenCalledWith(tx, 'WalletCredited', {
+      movementId: movementValues[0],
+      clientId,
+      email: 'ana@correo.com',
+      fullName: 'Ana Méndez',
+      kind: 'REFUND',
+      amount,
+      balanceAfter: 100,
+      description: 'Devolución: Boleto Quetzaltenango - Guatemala, asientos 3 y 4',
+      occurredOn: '2026-10-15',
+      creditedAt: expect.any(String),
+    });
   });
 
   it('does nothing more for a ticket it already refunded', async () => {
@@ -70,6 +86,7 @@ describe('RefundsHandler', () => {
 
     expect(tx.$queryRawUnsafe).toHaveBeenCalledTimes(2);
     expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(outbox.add).not.toHaveBeenCalled();
   });
 
   it('only leaves the mark when nothing had been charged', async () => {
@@ -79,6 +96,7 @@ describe('RefundsHandler', () => {
 
     expect(tx.$queryRawUnsafe).toHaveBeenCalledTimes(3);
     expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(outbox.add).not.toHaveBeenCalled();
   });
 
   it('gives back the amount of the debit even when the request says otherwise', async () => {
@@ -93,7 +111,10 @@ describe('RefundsHandler', () => {
   it('uses the service client when the inbox gives no transaction', async () => {
     const prisma = sqlClient();
 
-    await new RefundsHandler(prisma as never).requested(exampleRefundRequested, envelope);
+    await new RefundsHandler(prisma as never, outbox as never).requested(
+      exampleRefundRequested,
+      envelope,
+    );
 
     expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(2);
   });

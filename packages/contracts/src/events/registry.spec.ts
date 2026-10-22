@@ -9,14 +9,14 @@ import {
 } from './registry';
 
 describe('event registry', () => {
-  it('declares the 22 business event types plus the diagnostic probe', () => {
+  it('declares the 24 business event types plus the diagnostic probe', () => {
     const business = EVENT_TYPES.filter((type) => !EVENT_REGISTRY[type].diagnostic);
 
-    expect(business).toHaveLength(22);
+    expect(business).toHaveLength(24);
     expect(EVENT_REGISTRY.ProbeSent.diagnostic).toBe(true);
   });
 
-  it('declares exactly the 23 agreed event names, in registry order', () => {
+  it('declares exactly the 25 agreed event names, in registry order', () => {
     expect(EVENT_TYPES).toEqual([
       'BranchCreated',
       'BranchUpdated',
@@ -40,6 +40,8 @@ describe('event registry', () => {
       'RefundRequested',
       'RentalPaid',
       'ProfileUpdated',
+      'WalletCredited',
+      'UserUpdated',
       'ProbeSent',
     ]);
   });
@@ -73,6 +75,25 @@ describe('event registry', () => {
     expect(consumersOf('ProfileUpdated')).toEqual(['ventas']);
   });
 
+  it('tells notificaciones everything it sends an email or an alert for', () => {
+    expect(publisherOf('WalletCredited')).toBe('clientes');
+    expect(consumersOf('WalletCredited')).toEqual(['notificaciones']);
+    expect(publisherOf('UserUpdated')).toBe('administracion');
+    expect(consumersOf('UserUpdated')).toEqual(['notificaciones']);
+    expect(eventsConsumedBy('notificaciones')).toEqual([
+      'UserRegistered',
+      'AccountLinkSent',
+      'DriverAdded',
+      'DriverUpdated',
+      'TripDeleted',
+      'TicketSold',
+      'RentalPaid',
+      'WalletCredited',
+      'UserUpdated',
+      'ProbeSent',
+    ]);
+  });
+
   it('lists what each consumer listens to', () => {
     expect(eventsConsumedBy('clientes')).toEqual(
       expect.arrayContaining([
@@ -96,6 +117,6 @@ describe('event registry', () => {
         'SettingsUpdated',
       ]),
     );
-    expect(eventDrivenShare()).toBeCloseTo(22 / 25);
+    expect(eventDrivenShare()).toBeCloseTo(24 / 27);
   });
 });

@@ -29,13 +29,87 @@ model OutboxEvent {
   @@map("outbox")
 }
 
-model SentEmail {
-  id        String   @id @default(uuid()) @db.Uuid
-  eventId   String   @map("event_id")
-  recipient String
-  template  String
-  sentAt    DateTime @default(now()) @map("sent_at") @db.Timestamptz(3)
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
 
+// The email queue. A row is one email to one recipient; (dedupe_key, recipient) keeps an event that
+// arrives twice, or is published again, from sending it twice. Account emails are sent right away
+// and recorded here without their content, because they carry a secret link.
+model SentEmail {
+  id           String      @id @default(uuid()) @db.Uuid
+  eventId      String      @map("event_id")
+  dedupeKey    String      @map("dedupe_key")
+  recipient    String
+  template     String
+  subject      String?
+  html         String?
+  text         String?
+  status       EmailStatus @default(PENDING)
+  sendAfter    DateTime    @default(now()) @map("send_after") @db.Timestamptz(3)
+  attempts     Int         @default(0)
+  lastError    String?     @map("last_error")
+  claimedUntil DateTime?   @map("claimed_until") @db.Timestamptz(3)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  sentAt       DateTime?   @map("sent_at") @db.Timestamptz(3)
+
+  @@unique([dedupeKey, recipient])
   @@index([recipient])
+  @@index([status, sendAfter])
   @@map("sent_emails")
+}
+
+// The tickets with an email, from TicketSold, to warn the buyers if the trip is cancelled.
+model TicketCopy {
+  ticketId         String   @id @map("ticket_id") @db.Uuid
+  tripId           String   @map("trip_id") @db.Uuid
+  email            String
+  buyerName        String   @map("buyer_name")
+  channel          String
+  originLabel      String   @map("origin_label")
+  destinationLabel String   @map("destination_label")
+  departureAt      DateTime @map("departure_at") @db.Timestamptz(3)
+  seats            Int[]
+  total            Decimal  @db.Decimal(12, 2)
+
+  @@index([tripId])
+  @@map("ticket_copies")
+}
+
+// Trips deleted already: a TicketSold that arrives later gets the cancellation, not the purchase.
+model CancelledTrip {
+  tripId      String   @id @map("trip_id") @db.Uuid
+  cancelledAt DateTime @default(now()) @map("cancelled_at") @db.Timestamptz(3)
+
+  @@map("cancelled_trips")
+}
+
+// Copy of the drivers of flota (DriverAdded, DriverUpdated); only a higher version replaces it.
+model DriverLicense {
+  driverId         String   @id @map("driver_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  email            String
+  fullName         String   @map("full_name")
+  licenseExpiresOn DateTime @map("license_expires_on") @db.Date
+  active           Boolean
+  version          Int
+
+  @@index([branchId])
+  @@map("driver_licenses")
+}
+
+// Copy of the branch admins of administracion (UserRegistered, UserUpdated), warned about licences.
+model BranchAdmin {
+  userId   String  @id @map("user_id") @db.Uuid
+  branchId String? @map("branch_id") @db.Uuid
+  email    String
+  fullName String  @map("full_name")
+  active   Boolean
+  version  Int
+
+  @@index([branchId])
+  @@map("branch_admins")
 }

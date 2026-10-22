@@ -13,6 +13,7 @@ import { AccountLinksService } from './account-links.service';
 import { activationReason, linkState, type LinkState } from './account-rules';
 import { hashPassword } from './crypto';
 import { MESSAGES } from './messages';
+import { toUserUpdated } from './user-snapshot';
 
 export interface ClientProfile {
   dpi: string;
@@ -114,6 +115,7 @@ export class RegistrationService {
           activatedAt: now,
           pendingProfile: Prisma.JsonNull,
           nit,
+          version: { increment: 1 },
         },
       });
       if (activated.count !== 1) throw new ConflictException(MESSAGES.linkUsed);
@@ -122,6 +124,12 @@ export class RegistrationService {
         registeredPayload(user, profile && { ...profile, nit }),
         correlationId,
       );
+      // UserRegistered carries no version: a branch admin edited while pending was announced as
+      // inactive, and only a higher version tells the copies it is active now.
+      if (user.role === 'BRANCH_ADMIN') {
+        const active = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
+        await this.events.userUpdated(tx, toUserUpdated(active), correlationId);
+      }
     });
   }
 

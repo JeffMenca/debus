@@ -249,6 +249,8 @@ test.describe('real branch reports: buses, drivers, depreciation, repairs and in
       rentalId: randomUUID(),
       branchId: trip.branchId,
       clientName: client,
+      // No confirmation email: this run only checks the report.
+      email: null,
       paidOn: today,
     });
     await expect(async () => {

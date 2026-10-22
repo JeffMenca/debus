@@ -11,7 +11,13 @@ import { erdFromPrisma } from './prisma-erd';
 export type DocService = BackendService | 'gateway';
 
 // The services whose manual this team writes; the others add theirs here.
-export const DOC_SERVICES: readonly DocService[] = ['gateway', 'administracion', 'flota', 'viajes'];
+export const DOC_SERVICES: readonly DocService[] = [
+  'gateway',
+  'administracion',
+  'flota',
+  'viajes',
+  'notificaciones',
+];
 
 export interface ManualInputs {
   service: DocService;

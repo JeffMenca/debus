@@ -1,5 +1,6 @@
 import type { AccountLinkSentPayload, AccountLinkReason } from '@debus/contracts';
-import { renderEmailLayout } from '../mail/email-layout';
+import { composeEmail } from '../mail/compose';
+import { formatDateTime } from '../mail/format';
 import type { MailMessage } from '../mail/mailer';
 
 interface Copy {
@@ -41,27 +42,14 @@ const COPY: Record<AccountLinkReason, Copy> = {
   },
 };
 
-function formatExpiry(iso: string): string {
-  return new Intl.DateTimeFormat('es-GT', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-    timeZone: 'America/Guatemala',
-  }).format(new Date(iso));
-}
-
 export function accountLinkEmail(payload: AccountLinkSentPayload): MailMessage {
   const copy = COPY[payload.reason];
   const action =
     copy.action && payload.link ? { label: copy.action, href: payload.link } : undefined;
-  const { html, text } = renderEmailLayout({
-    preheader: copy.subject,
+  return composeEmail(payload.email, copy.subject, {
     heading: `Hola, ${payload.fullName}`,
     paragraphs: [copy.paragraph],
     action,
-    // The afternoon marker "p. m." already ends in a period.
-    footnote: copy
-      .footnote(payload.expiresAt ? formatExpiry(payload.expiresAt) : '')
-      .replace(/\.\.(?=\s|$)/g, '.'),
+    footnote: copy.footnote(payload.expiresAt ? formatDateTime(payload.expiresAt) : ''),
   });
-  return { to: payload.email, subject: copy.subject, html, text };
 }

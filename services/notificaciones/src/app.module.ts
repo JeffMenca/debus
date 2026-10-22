@@ -6,9 +6,15 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { AccountLinksModule } from './account-links/account-links.module';
 import { HealthModule } from './health/health.module';
+import { LicenseAlertsModule } from './license-alerts/license-alerts.module';
+import { EmailQueueModule } from './mail/email-queue.module';
 import { MailModule } from './mail/mail.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
+import { RentalsModule } from './rentals/rentals.module';
+import { StaffModule } from './staff/staff.module';
+import { TicketsModule } from './tickets/tickets.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -17,7 +23,13 @@ import { PrismaService } from './prisma/prisma.service';
     HealthModule,
     PrismaModule,
     MailModule,
+    EmailQueueModule,
     AccountLinksModule,
+    TicketsModule,
+    WalletModule,
+    RentalsModule,
+    StaffModule,
+    LicenseAlertsModule,
     MessagingModule.forRoot({
       service: 'notificaciones',
       inbox: {

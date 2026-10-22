@@ -70,6 +70,7 @@ erDiagram
     uuid created_by_id
     timestamptz activated_at
     int driver_version
+    int version
     timestamptz created_at
     timestamptz updated_at
   }
@@ -224,9 +225,10 @@ Los eventos se escriben en la tabla `outbox` en la **misma transacción** que el
 | `BranchCreated` | flota, viajes, ventas, reportes |
 | `BranchUpdated` | flota, viajes, ventas, reportes |
 | `SettingsUpdated` | viajes, clientes, reportes |
-| `UserRegistered` | clientes |
+| `UserRegistered` | clientes, notificaciones |
 | `AccountLinkSent` | notificaciones |
 | `RepairExpenseAdded` | reportes |
+| `UserUpdated` | notificaciones |
 
 **Consume**
 
