@@ -19,7 +19,12 @@ import { TRIP_MESSAGES } from '../trips/trip-messages';
 import { availabilityProblem } from '../trips/trip-rules';
 import { TripWrites } from '../trips/trip-writes';
 import { toRentalCancelledPayload, toRentalRequest } from './rental-mappers';
-import { assignmentProblem, cancellationProblem, tripDepartureFor } from './rental-rules';
+import {
+  assignmentProblem,
+  cancellationProblem,
+  tripDepartureFor,
+  unassignableProblem,
+} from './rental-rules';
 import { rentalListWhere, rentalOrder } from './rental-scope';
 
 const LOCK_TRIP = 'SELECT id FROM trips WHERE id = $1::uuid FOR UPDATE';
@@ -89,12 +94,10 @@ export class RentalRequestsService {
       { busId: bus.id, driverId: driver.id, routeId: null },
       async (tx) => {
         // Two admins may assign the same rental at once: the second one finds it taken.
-        await tx.$queryRawUnsafe(
-          'SELECT id FROM rental_requests WHERE id = $1::uuid FOR UPDATE',
-          rentalId,
-        );
+        await tx.$queryRawUnsafe(LOCK_REQUEST, rentalId);
         const locked = await tx.rentalRequest.findUnique({ where: { id: rentalId } });
-        if (locked?.status !== 'PENDING') throw new ConflictException(TRIP_MESSAGES.rentalAssigned);
+        const taken = locked ? unassignableProblem(locked.status) : 'rentalAssigned';
+        if (taken) throw new ConflictException(TRIP_MESSAGES[taken]);
         const trip = await tx.trip.create({
           data: {
             type: 'RENTAL',

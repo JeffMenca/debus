@@ -9,6 +9,7 @@ import {
 import { FakeServiceClient, identityHeaders, ServiceHttpClient } from '@debus/server';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import type { Prisma } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { cleanTripTestData } from './support/cleanup';
@@ -181,5 +182,109 @@ describe('cancelling a paid rental (pivot of the cancellation saga)', () => {
     expect(await cancellationsOf(rentalId)).toEqual([]);
     await cancel(rentalId).expect(201);
     expect(await cancellationsOf(rentalId)).toEqual([expect.objectContaining({ tripId: null })]);
+  });
+
+  // Holds the rental row in a transaction that applies `change`, and commits only once `run` is
+  // waiting on that lock: the order of the race is forced, not left to timing.
+  async function whileHeld<T>(
+    rentalId: string,
+    change: (tx: Prisma.TransactionClient) => Promise<unknown>,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    let release: () => void = () => {};
+    let markLocked: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const locked = new Promise<void>((resolve) => (markLocked = resolve));
+    const holding = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRawUnsafe(
+          'SELECT id FROM rental_requests WHERE id = $1::uuid FOR UPDATE',
+          rentalId,
+        );
+        await change(tx);
+        markLocked();
+        await held;
+      },
+      { timeout: 20_000 },
+    );
+    await locked;
+    const answer = run();
+    await untilWaiting('SELECT id FROM rental_requests WHERE id');
+    release();
+    await holding;
+    return answer;
+  }
+
+  it('lets an assignment waiting behind a cancellation find the rental cancelled', async () => {
+    const rentalId = await paidRental();
+    const body = {
+      busId: await seedBus(prisma, fleet.branchId),
+      driverId: await seedDriver(prisma, fleet.branchId),
+      estimatedArrivalAt: '2030-08-24T23:30:00.000Z',
+    };
+
+    const answer = await whileHeld(
+      rentalId,
+      (tx) =>
+        tx.rentalRequest.update({
+          where: { id: rentalId },
+          data: { status: 'CANCELLED', cancelledAt: new Date() },
+        }),
+      () =>
+        http()
+          .post(`/rental-requests/${rentalId}/assignment`)
+          .set(admin())
+          .send(body)
+          .then((response) => response),
+    );
+
+    expect(answer.status).toBe(409);
+    expect(answer.body.message).toBe('Este alquiler fue cancelado. Ya no se le asigna bus.');
+    expect(await prisma.trip.count({ where: { rentalId } })).toBe(0);
+  });
+
+  it('asks a cancellation waiting behind an assignment to try again, and then deletes that trip', async () => {
+    const rentalId = await paidRental();
+    const busId = await seedBus(prisma, fleet.branchId);
+    const driverId = await seedDriver(prisma, fleet.branchId);
+    const tripId = randomUUID();
+
+    const answer = await whileHeld(
+      rentalId,
+      async (tx) => {
+        await tx.trip.create({
+          data: {
+            id: tripId,
+            type: 'RENTAL',
+            status: 'SCHEDULED',
+            branchId: fleet.branchId,
+            routeId: null,
+            busId,
+            busPlate: 'Z100ABC',
+            capacity: 40,
+            driverId,
+            driverName: 'Chofer de Prueba',
+            originLabel: 'Quetzaltenango',
+            destinationLabel: 'Panajachel',
+            departureAt: new Date('2030-08-24T13:00:00.000Z'),
+            estimatedArrivalAt: new Date('2030-08-24T23:30:00.000Z'),
+            ticketPrice: null,
+            rentalId,
+            createdById: randomUUID(),
+          },
+        });
+        await tx.rentalRequest.update({
+          where: { id: rentalId },
+          data: { status: 'ASSIGNED', tripId },
+        });
+      },
+      () => cancel(rentalId).then((response) => response),
+    );
+
+    expect(answer.status).toBe(409);
+    expect(await cancellationsOf(rentalId)).toEqual([]);
+    await cancel(rentalId).expect(201);
+    expect(await prisma.trip.count({ where: { id: tripId } })).toBe(0);
+    expect(await cancellationsOf(rentalId)).toEqual([expect.objectContaining({ tripId })]);
   });
 });

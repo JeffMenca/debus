@@ -21,6 +21,7 @@ describe('assignmentProblem', () => {
   it.each([
     [{ request: null }, 'rentalNotFound'],
     [{ request: { ...request, status: 'ASSIGNED' as const } }, 'rentalAssigned'],
+    [{ request: { ...request, status: 'CANCELLED' as const } }, 'rentalCancelled'],
     [{ bus: null }, 'busNotFound'],
     [{ bus: { ...bus, branchId: 'otra' } }, 'busNotFound'],
     [{ bus: { ...bus, active: false } }, 'busInactive'],

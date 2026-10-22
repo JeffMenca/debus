@@ -14,7 +14,8 @@ Un alquiler vive en la tabla `rentals` de `clientes`. Puede ser **en línea** (`
 | `CANCELLED` | Se canceló antes o después de pagar                    | Cancelado                 | Cancelado              |
 
 - **Precio estimado**: km que escribe el cliente × tarifa por km vigente ese día (copia local de `SettingsUpdated`). La tarifa queda guardada en el alquiler (`rate_per_km`), así un cambio de configuración no mueve el estimado.
-- **Confirmación**: solo desde `REQUESTED`. El admin puede corregir los km (importan para la depreciación del bus en `viajes`) y deja el estimado o escribe otro precio. Si es en línea, publica `RentalConfirmed` y `notificaciones` manda "Tu cotización está lista".
+- **Sucursal**: `clientes` guarda una copia de las sucursales (tabla `branches`, alimentada por `BranchCreated` y `BranchUpdated`). Un alquiler en línea solo se pide a una sucursal que existe y está activa; si no, responde 422.
+- **Confirmación**: solo desde `REQUESTED` y antes de la salida (después responde 422, porque ese precio ya no se podría pagar). El admin puede corregir los km (importan para la depreciación del bus en `viajes`) y deja el estimado o escribe otro precio. Si es en línea, publica `RentalConfirmed` y `notificaciones` manda "Tu cotización está lista".
 - **Ventanilla**: se registra ya `CONFIRMED`, con el precio acordado ahí. Después se cobra en efectivo con el mismo `POST /rentals/{id}/pay`, sin tocar ninguna cartera.
 - **Historial por NIT**: un cliente ve sus alquileres en línea y los de ventanilla hechos con el NIT de su perfil (nunca con `CF`), aunque sean de antes de crear la cuenta. Se consulta en el momento, sin copiar filas, así sigue al NIT si el cliente lo cambia.
 

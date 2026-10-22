@@ -95,6 +95,7 @@ function setup(current: RentalRow | null = row()) {
         nit: '45218376',
       }),
     },
+    branchCopy: { findUnique: jest.fn().mockResolvedValue({ id: BRANCH, active: true }) },
     rental: {
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) =>
         saved(row(), { requestedAt: new Date(), ...data }),
@@ -165,6 +166,15 @@ describe('RentalsService', () => {
         createdById: CLIENT,
       });
       expect(rental).toMatchObject({ status: 'REQUESTED', estimatedPrice: 2760 });
+    });
+
+    it('asks only an active branch that exists', async () => {
+      const { service, prisma } = setup();
+      prisma.branchCopy.findUnique.mockResolvedValueOnce({ id: BRANCH, active: false });
+      await expect(service.request(client, trip)).rejects.toThrow(UnprocessableEntityException);
+      prisma.branchCopy.findUnique.mockResolvedValueOnce(null);
+      await expect(service.request(client, trip)).rejects.toThrow(UnprocessableEntityException);
+      expect(prisma.rental.create).not.toHaveBeenCalled();
     });
 
     it('asks a client without NIT as the final consumer', async () => {
@@ -280,6 +290,17 @@ describe('RentalsService', () => {
       await expect(confirmed.service.confirm(admin, RENTAL, { price: 2500 })).rejects.toThrow(
         ConflictException,
       );
+    });
+
+    it('refuses to price a rental whose departure already passed', async () => {
+      const { service, outbox } = setup(
+        row({ status: 'REQUESTED', price: null, departureAt: new Date('2020-01-01T00:00:00Z') }),
+      );
+
+      await expect(service.confirm(admin, RENTAL, { price: 2500 })).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+      expect(outbox.add).not.toHaveBeenCalled();
     });
 
     it('hides the rentals of other branches', async () => {

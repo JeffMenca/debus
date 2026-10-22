@@ -302,6 +302,20 @@ describe('RentalRequestsService.assign', () => {
     expect(outbox.add).not.toHaveBeenCalled();
   });
 
+  it('refuses a rental that the branch cancelled while this one was asking flota', async () => {
+    const { tx, service } = setup();
+    tx.rentalRequest.findUnique.mockResolvedValue({ ...requestRow, status: 'CANCELLED' });
+
+    await expect(service.assign(actor, rentalId, input)).rejects.toThrow(
+      new ConflictException('Este alquiler fue cancelado. Ya no se le asigna bus.'),
+    );
+    expect(tx.$queryRawUnsafe).toHaveBeenCalledWith(
+      'SELECT id FROM rental_requests WHERE id = $1::uuid FOR UPDATE',
+      rentalId,
+    );
+    expect(tx.trip.create).not.toHaveBeenCalled();
+  });
+
   it('refuses a session without a branch', async () => {
     const { service } = setup();
 

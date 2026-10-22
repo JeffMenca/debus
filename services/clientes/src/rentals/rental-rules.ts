@@ -44,9 +44,11 @@ export function visibleTo(rental: RentalRow, actor: Identity): boolean {
   return false;
 }
 
-export function confirmProblem(rental: RentalRow): RentalProblem | null {
+// A price for a trip that already left could never be paid.
+export function confirmProblem(rental: RentalRow, now: Date): RentalProblem | null {
   if (rental.status === 'CANCELLED') return 'rentalCancelled';
-  return rental.status === 'REQUESTED' ? null : 'rentalNotRequested';
+  if (rental.status !== 'REQUESTED') return 'rentalNotRequested';
+  return departurePassed(rental.departureAt, now) ? 'departurePassed' : null;
 }
 
 // The client pays an online rental from the wallet; the branch takes the cash of a counter one.

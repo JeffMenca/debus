@@ -3361,6 +3361,75 @@
               ]
             },
             {
+              "name": "Registrar un alquiler de ventanilla",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/clientes/branch-rentals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "clientes",
+                    "branch-rentals"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{testBranchAccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"Quetzaltenango\",\n  \"destinationLabel\": \"Panajachel\",\n  \"departureAt\": \"{{testRentalDeparture}}\",\n  \"returnAt\": null,\n  \"passengers\": 30,\n  \"distanceKm\": 92,\n  \"nit\": \"CF\",\n  \"clientName\": \"{{testBranchPrefix}}Postman {{runId}}\",\n  \"email\": null,\n  \"price\": 1500\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('testRentalDeparture', new Date(Date.now() + 4320 * 60000).toISOString());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", function () {",
+                      "  pm.response.to.have.status(201);",
+                      "});",
+                      "pm.test(\"Guarda testRentalId\", function () {",
+                      "  var json = pm.response.json();",
+                      "  pm.expect(typeof json.id === 'string').to.be.true;",
+                      "  pm.collectionVariables.set(\"testRentalId\", json.id);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "Crear cajero de prueba",
               "request": {
                 "method": "POST",
@@ -6670,7 +6739,7 @@
                 }
               }
             },
-            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: necesita un alquiler de prueba en el estado justo (solicitado, confirmado o pagado), que el recorrido todavía no crea."
+            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar."
           },
           "event": [
             {
@@ -6678,7 +6747,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Not run: necesita un alquiler de prueba en el estado justo (solicitado, confirmado o pagado), que el recorrido todavía no crea",
+                  "// Not run: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar",
                   "pm.execution.skipRequest();"
                 ]
               }
@@ -7269,7 +7338,7 @@
                 }
               ]
             },
-            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: necesita un alquiler de prueba en el estado justo (solicitado, confirmado o pagado), que el recorrido todavía no crea."
+            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar."
           },
           "event": [
             {
@@ -7277,7 +7346,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Not run: necesita un alquiler de prueba en el estado justo (solicitado, confirmado o pagado), que el recorrido todavía no crea",
+                  "// Not run: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar",
                   "pm.execution.skipRequest();"
                 ]
               }
@@ -7302,7 +7371,7 @@
             "header": [
               {
                 "key": "idempotency-key",
-                "value": "{{$guid}}"
+                "value": "{{testRentalId}}"
               },
               {
                 "key": "x-correlation-id",
@@ -7351,7 +7420,7 @@
                 }
               }
             },
-            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409, 422.\n\nNo se ejecuta: necesita un alquiler de prueba en el estado justo (solicitado, confirmado o pagado), que el recorrido todavía no crea."
+            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409, 422.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
           },
           "event": [
             {
@@ -7359,8 +7428,11 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Not run: necesita un alquiler de prueba en el estado justo (solicitado, confirmado o pagado), que el recorrido todavía no crea",
-                  "pm.execution.skipRequest();"
+                  "// Changes data: it only runs against a stack on this machine.",
+                  "var base = pm.variables.get('baseUrl') || '';",
+                  "if (!/^https?:\\/\\/(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?(\\/|$)/.test(base)) {",
+                  "  pm.execution.skipRequest();",
+                  "}"
                 ]
               }
             },

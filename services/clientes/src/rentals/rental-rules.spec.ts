@@ -83,9 +83,18 @@ describe('rental rules', () => {
 
   describe('confirmProblem', () => {
     it('confirms only a rental still waiting for its price', () => {
-      expect(confirmProblem(row({ status: 'REQUESTED', price: null }))).toBeNull();
-      expect(confirmProblem(row())).toBe('rentalNotRequested');
-      expect(confirmProblem(row({ status: 'CANCELLED' }))).toBe('rentalCancelled');
+      expect(confirmProblem(row({ status: 'REQUESTED', price: null }), NOW)).toBeNull();
+      expect(confirmProblem(row(), NOW)).toBe('rentalNotRequested');
+      expect(confirmProblem(row({ status: 'CANCELLED' }), NOW)).toBe('rentalCancelled');
+    });
+
+    it('does not price a rental whose departure already passed', () => {
+      const late = row({
+        status: 'REQUESTED',
+        price: null,
+        departureAt: new Date('2026-10-21T10:00:00Z'),
+      });
+      expect(confirmProblem(late, NOW)).toBe('departurePassed');
     });
   });
 

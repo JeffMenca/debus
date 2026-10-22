@@ -91,6 +91,8 @@ export class RentalsService {
   async request(actor: Identity, request: RentalRequest): Promise<Rental> {
     const profile = await this.prisma.clientProfile.findUnique({ where: { userId: actor.userId } });
     if (!profile) throw new NotFoundException(MESSAGES.profilePending);
+    const branch = await this.prisma.branchCopy.findUnique({ where: { id: request.branchId } });
+    if (!branch?.active) throw new UnprocessableEntityException(MESSAGES.branchUnavailable);
     return this.create(request, {
       channel: 'ONLINE',
       status: 'REQUESTED',
@@ -131,7 +133,7 @@ export class RentalsService {
   ): Promise<Rental> {
     const row = await this.prisma.$transaction(async (tx) => {
       const rental = await this.lock(tx, actor, rentalId);
-      refuse(confirmProblem(rental));
+      refuse(confirmProblem(rental, new Date()));
       const distanceKm = request.distanceKm ?? rental.distanceKm.toNumber();
       const confirmed = await tx.rental.update({
         where: { id: rentalId },

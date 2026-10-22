@@ -163,6 +163,43 @@ describe('rental changes', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['trips'] });
   });
 
+  it('shows a cancelled paid rental as such right away, and asks again once clientes has it', async () => {
+    jest.useFakeTimers({ doNotFake: ['queueMicrotask', 'nextTick', 'setImmediate'] });
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      Response.json({
+        id: RENTAL_ID,
+        branchId: rental().branchId,
+        clientName: 'Ana Méndez',
+        nit: '45218376',
+        originLabel: 'Quetzaltenango',
+        destinationLabel: 'Panajachel',
+        departureAt: '2026-10-24T13:00:00.000Z',
+        returnAt: null,
+        passengers: 35,
+        distanceKm: 92,
+        price: 2500,
+        status: 'CANCELLED',
+        tripId: null,
+      }),
+    );
+    const { client, wrapper } = queryWrapper();
+    const key = ['rentals', 'branch', { status: 'PAID' }];
+    client.setQueryData(key, rentalPage([rental({ status: 'PAID' }), rental({ id: 'otro' })]));
+    const invalidate = jest.spyOn(client, 'invalidateQueries');
+    const { result } = renderHook(() => useCancelPaidRental(), { wrapper });
+
+    await mutate(() => result.current.mutateAsync(RENTAL_ID));
+
+    const page = client.getQueryData<ReturnType<typeof rentalPage>>(key);
+    expect(page?.items.map((item) => item.status)).toEqual(['CANCELLED', 'CONFIRMED']);
+    invalidate.mockClear();
+    await act(async () => {
+      jest.advanceTimersByTime(5_000);
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['rentals'] });
+    jest.useRealTimers();
+  });
+
   it('confirms the price and records a walk-in rental for the branch', async () => {
     const fetchMock = jest
       .spyOn(global, 'fetch')

@@ -328,6 +328,7 @@ describe('FLOW', () => {
         'Reactivar el chofer de prueba',
         'Abrir una ruta sin viajes',
         'Eliminar la ruta sin viajes',
+        'Registrar un alquiler de ventanilla',
         'Crear cajero de prueba',
         'Consultar el cajero de prueba',
         'Actualizar el cajero de prueba',

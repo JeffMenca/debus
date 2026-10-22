@@ -104,6 +104,11 @@ describe('event registry', () => {
     expect(consumersOf('RentalCancelled')).toEqual(['clientes', 'reportes']);
   });
 
+  it('lets clientes check that a rental goes to an active branch', () => {
+    expect(consumersOf('BranchCreated')).toContain('clientes');
+    expect(consumersOf('BranchUpdated')).toContain('clientes');
+  });
+
   it('lists what each consumer listens to', () => {
     expect(eventsConsumedBy('clientes')).toEqual(
       expect.arrayContaining([

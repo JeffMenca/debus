@@ -161,3 +161,16 @@ model Rental {
   @@index([branchId, status, departureAt, id])
   @@map("rentals")
 }
+
+// Copy of the branches of administracion, fed by BranchCreated/BranchUpdated: a rental is asked only
+// of an active branch. Events may arrive out of order, so a row is only replaced by a higher version.
+model BranchCopy {
+  id        String   @id @db.Uuid
+  code      String
+  name      String
+  active    Boolean
+  version   Int
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("branches")
+}

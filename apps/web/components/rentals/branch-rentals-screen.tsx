@@ -240,9 +240,17 @@ export function BranchRentalsScreen() {
         checkLabel="Entiendo que esto no se puede deshacer"
         onConfirm={async () => {
           if (!cancelling) return;
-          const cancel = cancelling.status === 'PAID' ? cancelPaid : cancelUnpaid;
-          await cancel.mutateAsync(cancelling.id);
-          toast.success('Cancelamos el alquiler.');
+          if (cancelling.status !== 'PAID') {
+            await cancelUnpaid.mutateAsync(cancelling.id);
+            toast.success('Cancelamos el alquiler.');
+            return;
+          }
+          await cancelPaid.mutateAsync(cancelling.id);
+          toast.success(
+            cancelling.channel === 'ONLINE'
+              ? 'Cancelamos el alquiler. La devolución llega a la cartera del cliente en unos segundos.'
+              : 'Cancelamos el alquiler. Devuelve el efectivo en la ventanilla.',
+          );
         }}
       />
     </>

@@ -16,5 +16,6 @@ export const MESSAGES = {
   rentalCancelled: 'Este alquiler está cancelado.',
   rentalAlreadyPaid: 'Este alquiler ya está pagado. Pide a tu sucursal que lo cancele.',
   rentalPaidByClient: 'Este alquiler lo paga el cliente desde su cuenta.',
+  branchUnavailable: 'Esa sucursal no está disponible. Elige una sucursal activa.',
   otherBranch: 'Solo puedes registrar alquileres de tu sucursal.',
 } as const;

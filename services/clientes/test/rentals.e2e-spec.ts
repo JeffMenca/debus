@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import { type Rental, exampleRentalCancelled } from '@debus/contracts';
+import { type Rental, exampleBranch, exampleRentalCancelled } from '@debus/contracts';
 import { InMemoryEventBus } from '@debus/messaging';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -17,6 +17,7 @@ describe('private rentals', () => {
   let rentals: ReturnType<typeof testRentals>;
   let rate: Awaited<ReturnType<typeof rentalRate>>;
   const branchId = randomUUID();
+  const closedBranchId = randomUUID();
   const adminId = randomUUID();
   const admin = identityHeaders(adminId, 'BRANCH_ADMIN', branchId);
   const server = () => app.getHttpServer();
@@ -72,11 +73,18 @@ describe('private rentals', () => {
     profiles = testProfiles(prisma);
     rentals = testRentals(prisma);
     rate = await rentalRate(prisma);
+    await bus.deliver('BranchCreated', {
+      ...exampleBranch,
+      branchId,
+      active: true,
+      version: 1,
+    });
   });
   afterAll(async () => {
     await rentals.cleanUp();
     await profiles.cleanUp();
     await rate.remove();
+    await prisma.branchCopy.deleteMany({ where: { id: { in: [branchId, closedBranchId] } } });
     await app.close();
   });
 
@@ -87,6 +95,23 @@ describe('private rentals', () => {
       .expect(200);
 
     expect(body).toMatchObject({ ratePerKm: rate.ratePerKm, estimatedPrice: 92 * rate.ratePerKm });
+  });
+
+  it('asks only an active branch', async () => {
+    const clientId = await profiles.create();
+    await bus.deliver('BranchCreated', {
+      ...exampleBranch,
+      branchId: closedBranchId,
+      active: false,
+      version: 1,
+    });
+
+    const { body } = await request(server())
+      .post('/rentals')
+      .set(identityHeaders(clientId))
+      .send({ ...trip(), branchId: closedBranchId })
+      .expect(422);
+    expect(body.message).toBe('Esa sucursal no está disponible. Elige una sucursal activa.');
   });
 
   it('goes from request to confirmed price to paid from the wallet, once', async () => {

@@ -46,6 +46,7 @@ export interface RentalsSeed {
   rentals?: Rental[];
   balance?: number;
   failList?: boolean;
+  branchName?: string;
 }
 
 const body = (route: Route): unknown => JSON.parse(route.request().postData() ?? '{}');
@@ -71,7 +72,7 @@ export async function mockRentalsGateway(page: Page, seed: RentalsSeed = {}) {
       items: [
         {
           id: RENTAL_BRANCH_ID,
-          name: 'Xela Centro',
+          name: seed.branchName ?? 'Xela Centro',
           municipality: 'Quetzaltenango',
           department: 'Quetzaltenango',
           latitude: 14.84,

@@ -28,7 +28,8 @@ export function assignmentProblem(input: {
 }): TripProblem | null {
   const { request, bus, driver, branchId } = input;
   if (!request) return 'rentalNotFound';
-  if (request.status !== 'PENDING') return 'rentalAssigned';
+  const unassignable = unassignableProblem(request.status);
+  if (unassignable) return unassignable;
   if (!bus || bus.branchId !== branchId) return 'busNotFound';
   if (!bus.active) return 'busInactive';
   if (bus.capacity < request.passengers) return 'rentalBusTooSmall';
@@ -48,6 +49,12 @@ export function assignmentProblem(input: {
   }
   return null;
 }
+
+// Why a rental that is not waiting for its bus cannot be assigned.
+export const unassignableProblem = (status: RentalRequestStatus): TripProblem | null => {
+  if (status === 'CANCELLED') return 'rentalCancelled';
+  return status === 'PENDING' ? null : 'rentalAssigned';
+};
 
 // A paid rental is cancelled while its trip, if it has one, has not left. Without the request,
 // RentalPaid has not reached viajes yet.

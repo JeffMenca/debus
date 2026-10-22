@@ -175,6 +175,9 @@ describe('BranchRentalsScreen', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Sí, cancelar alquiler' }));
 
     await waitFor(() => expect(sent.map((s) => s.route)).toEqual(['cancel paid']));
+    expect(jest.requireMock('sonner').toast.success).toHaveBeenCalledWith(
+      'Cancelamos el alquiler. La devolución llega a la cartera del cliente en unos segundos.',
+    );
   });
 
   it('cancels an unpaid rental in clientes', async () => {

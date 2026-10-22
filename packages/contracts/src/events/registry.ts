@@ -8,7 +8,7 @@ export interface EventDefinition {
   readonly diagnostic?: boolean;
 }
 
-const branchConsumers: BackendService[] = ['flota', 'viajes', 'ventas', 'reportes'];
+const branchConsumers: BackendService[] = ['flota', 'viajes', 'ventas', 'reportes', 'clientes'];
 const busConsumers: BackendService[] = ['viajes', 'reportes', 'administracion'];
 const driverConsumers: BackendService[] = [
   'viajes',

@@ -52,6 +52,21 @@ test.describe('private rentals', () => {
     await expectNoHorizontalScroll(page);
   });
 
+  test('a branch with a very long name fits the form without sideways scroll', async ({
+    page,
+    baseURL,
+  }) => {
+    const name = `Sucursal de prueba con un nombre larguísimo ${'Quetzaltenango '.repeat(4)}`;
+    await asClient(page, baseURL, { branchName: name });
+    await page.goto('/alquiler');
+
+    await page.getByLabel('Sucursal que te atiende').click();
+    await page.getByRole('option', { name: /larguísimo/ }).click();
+
+    await expect(page.getByLabel('Sucursal que te atiende')).toContainText('larguísimo');
+    await expectNoHorizontalScroll(page);
+  });
+
   test('a client pays the confirmed price from the wallet on the chosen day', async ({
     page,
     baseURL,
@@ -126,7 +141,9 @@ test.describe('private rentals', () => {
     await confirm.getByRole('checkbox').click();
     await confirm.getByRole('button', { name: 'Sí, cancelar alquiler' }).click();
 
-    await expect(page.getByText('No hay alquileres pagados.')).toBeVisible();
+    await expect(page.getByText(/Devuelve el efectivo en la ventanilla/)).toBeVisible();
+    await expect(page.getByText('Cancelado', { exact: true })).toBeVisible();
+    await expect(page.getByText('No hay alquileres pagados.')).toBeVisible({ timeout: 10_000 });
   });
 
   test('a list that fails offers to try again', async ({ page, baseURL }) => {

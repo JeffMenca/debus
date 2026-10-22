@@ -79,9 +79,14 @@ export function RentalRequestCard({ today = todayInGuatemala() }: { today?: stri
               className="w-full bg-card"
               {...invalidProps('rental-branch', problems.branchId)}
             >
-              <span className="flex min-w-0 items-center gap-2.5">
-                <Building2 aria-hidden strokeWidth={1.75} className="size-5 text-primary" />
-                <SelectValue placeholder="Elige la sucursal" />
+              {/* A long branch name is cut with an ellipsis instead of widening the form. */}
+              <span className="flex min-w-0 items-center gap-2.5 overflow-hidden">
+                <Building2
+                  aria-hidden
+                  strokeWidth={1.75}
+                  className="size-5 shrink-0 text-primary"
+                />
+                <SelectValue placeholder="Elige la sucursal" className="min-w-0 truncate" />
               </span>
             </SelectTrigger>
             <SelectContent>

@@ -45,6 +45,7 @@ export const TRIP_MESSAGES = {
   destinationInactive: 'La sucursal destino no está activa. Elige otra ruta.',
   rentalNotFound: 'No encontramos ese alquiler.',
   rentalAssigned: 'Ese alquiler ya tiene bus y chofer.',
+  rentalCancelled: 'Este alquiler fue cancelado. Ya no se le asigna bus.',
   rentalBusTooSmall: 'Ese bus tiene menos asientos que pasajeros del alquiler.',
   rentalArrivalInPast:
     'La llegada estimada ya pasó. Elige una llegada que todavía no haya ocurrido.',

@@ -3,6 +3,7 @@ import {
   type CounterRentalRequest,
   type PageQuery,
   type Rental,
+  type RentalPage,
   type RentalRequest,
   rentalEstimateSchema,
   rentalPageSchema,
@@ -92,11 +93,36 @@ export const usePayRental = () =>
 export const useCancelRental = () =>
   useRentalChange((id: string) => apiRequest(`${RENTALS_PATH}/${id}/cancel`, rentalSchema, post()));
 
-export const useCancelPaidRental = () =>
-  useRentalChange(
-    (id: string) => apiRequest(`${PAID_RENTALS_PATH}/${id}/cancel`, rentalToAssignSchema, post()),
-    [['rental-requests'], ['trips']],
-  );
+// clientes learns of the cancellation from RentalCancelled a moment later: the lists show it at once
+// and are asked for again once the refund has had time to land.
+const REFRESH_AFTER_CANCEL_MS = 5_000;
+
+export function useCancelPaidRental() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`${PAID_RENTALS_PATH}/${id}/cancel`, rentalToAssignSchema, post()),
+    onSuccess: async ({ id }) => {
+      client.setQueriesData<RentalPage>({ queryKey: RENTALS_KEY }, (page) =>
+        page?.items
+          ? {
+              ...page,
+              items: page.items.map((rental) =>
+                rental.id === id ? { ...rental, status: 'CANCELLED' } : rental,
+              ),
+            }
+          : page,
+      );
+      setTimeout(
+        () => void client.invalidateQueries({ queryKey: RENTALS_KEY }),
+        REFRESH_AFTER_CANCEL_MS,
+      );
+      await Promise.all(
+        [['rental-requests'], ['trips']].map((queryKey) => client.invalidateQueries({ queryKey })),
+      );
+    },
+  });
+}
 
 export const useConfirmRental = () =>
   useRentalChange(({ id, request }: { id: string; request: ConfirmRentalRequest }) =>
