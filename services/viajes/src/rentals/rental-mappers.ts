@@ -1,4 +1,4 @@
-import type { RentalToAssign } from '@debus/contracts';
+import type { RentalCancelledPayload, RentalToAssign } from '@debus/contracts';
 import type { Prisma } from '../generated/prisma/client';
 
 type RentalRequestRow = Prisma.RentalRequestGetPayload<object>;
@@ -17,4 +17,14 @@ export const toRentalRequest = (row: RentalRequestRow): RentalToAssign => ({
   price: row.price.toNumber(),
   status: row.status,
   tripId: row.tripId,
+});
+
+export const toRentalCancelledPayload = (
+  row: RentalRequestRow,
+  deletedTripId: string | null,
+): RentalCancelledPayload => ({
+  rentalId: row.id,
+  branchId: row.branchId,
+  tripId: deletedTripId,
+  cancelledAt: (row.cancelledAt ?? row.updatedAt).toISOString(),
 });

@@ -1,7 +1,9 @@
 import {
   confirmRentalRequestSchema,
   counterRentalRequestSchema,
+  estimateRentalPrice,
   payRentalRequestSchema,
+  rentalEstimateQuerySchema,
   rentalListQuerySchema,
   rentalRequestSchema,
 } from './rentals';
@@ -31,25 +33,48 @@ describe('rental contracts', () => {
     ).toBe(false);
   });
 
-  it('records a counter rental with a NIT or the final consumer and a name', () => {
-    expect(
-      counterRentalRequestSchema.parse({ ...request, nit: 'cf', clientName: 'Colegio San José' }),
-    ).toMatchObject({ nit: CONSUMER_NIT, clientName: 'Colegio San José' });
+  it('records a counter rental with a NIT or the final consumer, a name and its price', () => {
+    const counter = { ...request, nit: 'cf', clientName: 'Colegio San José', price: 2760 };
+    expect(counterRentalRequestSchema.parse(counter)).toMatchObject({
+      nit: CONSUMER_NIT,
+      clientName: 'Colegio San José',
+      email: null,
+      price: 2760,
+    });
+    expect(counterRentalRequestSchema.safeParse({ ...counter, price: undefined }).success).toBe(
+      false,
+    );
     expect(counterRentalRequestSchema.safeParse({ ...request, nit: 'CF' }).success).toBe(false);
     expect(
-      counterRentalRequestSchema.safeParse({
-        ...request,
-        nit: 'CF',
-        clientName: 'Colegio San José',
-        returnAt: '2026-10-23T10:00:00.000Z',
-      }).success,
+      counterRentalRequestSchema.safeParse({ ...counter, returnAt: '2026-10-23T10:00:00.000Z' })
+        .success,
     ).toBe(false);
   });
 
-  it('confirms with a price and pays on a chosen day', () => {
-    expect(confirmRentalRequestSchema.safeParse({ price: 2760 }).success).toBe(true);
+  it('keeps the email given at the counter, or none', () => {
+    const counter = { ...request, nit: 'CF', clientName: 'Colegio San José', price: 2760 };
+    expect(
+      counterRentalRequestSchema.parse({ ...counter, email: 'Reservas@Colegio.edu.gt' }).email,
+    ).toBe('reservas@colegio.edu.gt');
+    expect(counterRentalRequestSchema.parse({ ...counter, email: null }).email).toBeNull();
+    expect(counterRentalRequestSchema.safeParse({ ...counter, email: 'no' }).success).toBe(false);
+  });
+
+  it('confirms with a price, may correct the distance, and pays on a chosen day', () => {
+    expect(confirmRentalRequestSchema.parse({ price: 2760 })).toEqual({ price: 2760 });
+    expect(confirmRentalRequestSchema.parse({ price: 2760, distanceKm: 95 })).toEqual({
+      price: 2760,
+      distanceKm: 95,
+    });
     expect(confirmRentalRequestSchema.safeParse({ price: -1 }).success).toBe(false);
+    expect(confirmRentalRequestSchema.safeParse({ price: 10, distanceKm: 0 }).success).toBe(false);
     expect(payRentalRequestSchema.safeParse({ paidOn: '2026-10-21' }).success).toBe(true);
+  });
+
+  it('estimates from the distance in the query string', () => {
+    expect(rentalEstimateQuerySchema.parse({ distanceKm: '92' })).toEqual({ distanceKm: 92 });
+    expect(rentalEstimateQuerySchema.safeParse({ distanceKm: '0' }).success).toBe(false);
+    expect(rentalEstimateQuerySchema.safeParse({}).success).toBe(false);
   });
 
   it('filters by status and range, paged', () => {
@@ -62,5 +87,11 @@ describe('rental contracts', () => {
     expect(rentalListQuerySchema.safeParse({ from: '2026-10-14', to: '2026-10-13' }).success).toBe(
       false,
     );
+  });
+
+  it('estimates the distance times the rate, rounded to the cent', () => {
+    expect(estimateRentalPrice(92, 30)).toBe(2760);
+    expect(estimateRentalPrice(92.5, 30.25)).toBe(2798.13);
+    expect(estimateRentalPrice(0.1, 0.07)).toBe(0.01);
   });
 });

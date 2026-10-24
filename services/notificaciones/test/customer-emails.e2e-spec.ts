@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { testEmail } from '@debus/config/test-data';
-import { exampleRentalPaid, exampleTicketSold, exampleWalletCredited } from '@debus/contracts';
+import {
+  exampleRentalConfirmed,
+  exampleRentalPaid,
+  exampleTicketSold,
+  exampleWalletCredited,
+} from '@debus/contracts';
 import { InMemoryEventBus } from '@debus/messaging';
 import type { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -131,5 +136,15 @@ describe('emails to clients', () => {
     await drainQueue(app);
 
     expect((await findMail(email)).map((m) => m.Subject)).toEqual(['Tu alquiler está confirmado']);
+  });
+
+  it('tells the client once that the price of the rental is ready', async () => {
+    const email = testEmail('cotizacion');
+    const confirmed = { ...exampleRentalConfirmed, rentalId: randomUUID(), email };
+    await bus.deliver('RentalConfirmed', confirmed);
+    await bus.deliver('RentalConfirmed', confirmed);
+    await drainQueue(app);
+
+    expect((await findMail(email)).map((m) => m.Subject)).toEqual(['Tu cotización está lista']);
   });
 });

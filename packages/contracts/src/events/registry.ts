@@ -8,7 +8,7 @@ export interface EventDefinition {
   readonly diagnostic?: boolean;
 }
 
-const branchConsumers: BackendService[] = ['flota', 'viajes', 'ventas', 'reportes'];
+const branchConsumers: BackendService[] = ['flota', 'viajes', 'ventas', 'reportes', 'clientes'];
 const busConsumers: BackendService[] = ['viajes', 'reportes', 'administracion'];
 const driverConsumers: BackendService[] = [
   'viajes',
@@ -46,6 +46,8 @@ const definitions = {
   ProfileUpdated: { publisher: 'clientes', consumers: ['ventas'] },
   WalletCredited: { publisher: 'clientes', consumers: ['notificaciones'] },
   UserUpdated: { publisher: 'administracion', consumers: ['notificaciones'] },
+  RentalConfirmed: { publisher: 'clientes', consumers: ['notificaciones'] },
+  RentalCancelled: { publisher: 'viajes', consumers: ['clientes', 'reportes'] },
   ProbeSent: { publisher: 'gateway', consumers: [...BACKEND_SERVICES], diagnostic: true },
 } satisfies Record<string, EventDefinition>;
 

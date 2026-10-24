@@ -45,11 +45,15 @@ export const TRIP_MESSAGES = {
   destinationInactive: 'La sucursal destino no está activa. Elige otra ruta.',
   rentalNotFound: 'No encontramos ese alquiler.',
   rentalAssigned: 'Ese alquiler ya tiene bus y chofer.',
+  rentalCancelled: 'Este alquiler fue cancelado. Ya no se le asigna bus.',
   rentalBusTooSmall: 'Ese bus tiene menos asientos que pasajeros del alquiler.',
   rentalArrivalInPast:
     'La llegada estimada ya pasó. Elige una llegada que todavía no haya ocurrido.',
   rentalArrivalBeforeReturn: 'La llegada estimada no puede ser antes del regreso del cliente.',
   rentalArrivalBeforeDeparture: 'La llegada estimada debe ser después de la salida del alquiler.',
+  rentalPaymentPending:
+    'Todavía estamos registrando el pago de este alquiler. Intenta en un momento.',
+  rentalTripStarted: 'El viaje de este alquiler ya salió. Ya no se puede cancelar.',
 } as const;
 
 export type TripProblem = keyof typeof TRIP_MESSAGES;

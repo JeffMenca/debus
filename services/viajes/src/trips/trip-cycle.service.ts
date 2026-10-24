@@ -19,7 +19,8 @@ import {
   departureProblem,
   tripCosts,
 } from './trip-cycle-rules';
-import { toTripCompletedPayload, toTripDeletedPayload, toTripDepartedPayload } from './trip-events';
+import { deleteTripIn } from './trip-deletion';
+import { toTripCompletedPayload, toTripDepartedPayload } from './trip-events';
 import { queueTripsOf } from './trip-locks';
 import { TRIP_MESSAGES, type TripProblem } from './trip-messages';
 import { TripsService } from './trips.service';
@@ -167,7 +168,7 @@ export class TripCycleService {
     await this.prisma.$transaction(async (tx) => {
       const trip = await this.lockTrip(tx, actor, tripId);
       refuse(deletionProblem(trip.status));
-      await tx.trip.delete({ where: { id: tripId } });
+      await deleteTripIn(tx, this.outbox, trip, correlationId);
       // A rental is already paid: deleting its trip sends it back to be assigned again.
       if (trip.rentalId) {
         await tx.rentalRequest.update({
@@ -175,7 +176,6 @@ export class TripCycleService {
           data: { status: 'PENDING', tripId: null },
         });
       }
-      await this.outbox.add(tx, 'TripDeleted', toTripDeletedPayload(trip), correlationId);
     });
     await this.outbox.flush(REQUEST_FLUSH);
   }

@@ -71,6 +71,18 @@ export const ACTIONS: Readonly<Record<string, string>> = {
   TripsController_recordArrival: 'Registra la llegada de un viaje',
   RentalRequestsController_list: 'Lista las solicitudes de alquiler',
   RentalRequestsController_assign: 'Asigna bus y chofer a un alquiler y programa su viaje',
+  RentalRequestsController_cancel:
+    'Cancela un alquiler pagado cuyo viaje no ha salido; clientes devuelve lo cobrado',
+  RentalsController_estimate: 'Calcula el precio estimado de un alquiler con la tarifa vigente',
+  RentalsController_request: 'Pide un alquiler en línea',
+  RentalsController_history:
+    'Lista los alquileres del cliente, también los de ventanilla con su NIT',
+  RentalsController_pay:
+    'Paga un alquiler confirmado: con la cartera o, en ventanilla, en efectivo',
+  RentalsController_cancel: 'Cancela un alquiler que todavía no está pagado',
+  BranchRentalsController_list: 'Lista los alquileres de la sucursal',
+  BranchRentalsController_registerCounter: 'Registra un alquiler de ventanilla con su precio',
+  BranchRentalsController_confirm: 'Confirma o cambia el precio (y los km) de un alquiler',
 
   DeadLettersController_list: 'Lista los mensajes que fallaron y quedaron en la cola de errores',
   DeadLettersController_replay: 'Vuelve a entregar un mensaje de la cola de errores',

@@ -3,6 +3,7 @@ import {
   CORRELATION_HEADER,
   type RentalRequestListQuery,
   type RentalRequestPage,
+  type RentalToAssign,
   type Trip,
   assignRentalRequestSchema,
   rentalRequestListQuerySchema,
@@ -51,5 +52,17 @@ export class RentalRequestsController {
     @Headers(CORRELATION_HEADER) correlationId?: string,
   ): Promise<Trip> {
     return this.requests.assign(actor, id, body, correlationId);
+  }
+
+  // Ends a paid rental before its trip leaves; clientes refunds the wallet from RentalCancelled.
+  @Post(':id/cancel')
+  @apiSuccess(201)
+  @apiErrors(400, 404, 409)
+  cancel(
+    @CurrentIdentity() actor: Identity,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Headers(CORRELATION_HEADER) correlationId?: string,
+  ): Promise<RentalToAssign> {
+    return this.requests.cancel(actor, id, correlationId);
   }
 }

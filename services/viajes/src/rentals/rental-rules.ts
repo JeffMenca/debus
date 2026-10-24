@@ -1,5 +1,6 @@
 import { isLaterInstant } from '@debus/contracts';
-import type { RentalRequestStatus } from '../generated/prisma/client';
+import type { RentalRequestStatus, TripStatus } from '../generated/prisma/client';
+import { deletionProblem } from '../trips/trip-cycle-rules';
 import type { TripProblem } from '../trips/trip-messages';
 
 const MINUTE_MS = 60_000;
@@ -27,7 +28,8 @@ export function assignmentProblem(input: {
 }): TripProblem | null {
   const { request, bus, driver, branchId } = input;
   if (!request) return 'rentalNotFound';
-  if (request.status !== 'PENDING') return 'rentalAssigned';
+  const unassignable = unassignableProblem(request.status);
+  if (unassignable) return unassignable;
   if (!bus || bus.branchId !== branchId) return 'busNotFound';
   if (!bus.active) return 'busInactive';
   if (bus.capacity < request.passengers) return 'rentalBusTooSmall';
@@ -44,6 +46,25 @@ export function assignmentProblem(input: {
   // The bus stays with the client until the return, so it is not free before that.
   if (request.returnAt && arrivalAt < request.returnAt) {
     return 'rentalArrivalBeforeReturn';
+  }
+  return null;
+}
+
+// Why a rental that is not waiting for its bus cannot be assigned.
+export const unassignableProblem = (status: RentalRequestStatus): TripProblem | null => {
+  if (status === 'CANCELLED') return 'rentalCancelled';
+  return status === 'PENDING' ? null : 'rentalAssigned';
+};
+
+// A paid rental is cancelled while its trip, if it has one, has not left. Without the request,
+// RentalPaid has not reached viajes yet.
+export function cancellationProblem(
+  request: { status: RentalRequestStatus } | null,
+  trip: { status: TripStatus } | null,
+): TripProblem | null {
+  if (!request) return 'rentalPaymentPending';
+  if (request.status === 'ASSIGNED' && trip && deletionProblem(trip.status)) {
+    return 'rentalTripStarted';
   }
   return null;
 }

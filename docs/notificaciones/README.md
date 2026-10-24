@@ -193,6 +193,7 @@ No publica eventos.
 | `RentalPaid` | clientes |
 | `WalletCredited` | clientes |
 | `UserUpdated` | administracion |
+| `RentalConfirmed` | clientes |
 | `ProbeSent` | gateway |
 <!-- /generado:eventos -->
 <!-- prettier-ignore-end -->

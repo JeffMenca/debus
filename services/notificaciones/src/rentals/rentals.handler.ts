@@ -1,9 +1,13 @@
-import { type EventEnvelope, rentalPaidPayloadSchema } from '@debus/contracts';
+import {
+  type EventEnvelope,
+  rentalConfirmedPayloadSchema,
+  rentalPaidPayloadSchema,
+} from '@debus/contracts';
 import { OnEvent, type SqlClient } from '@debus/messaging';
 import { Injectable } from '@nestjs/common';
 import { emailKeys } from '../mail/email-keys';
 import { EmailQueue } from '../mail/email-queue';
-import { rentalPaidEmail } from './rental-email';
+import { rentalConfirmedEmail, rentalPaidEmail } from './rental-email';
 
 @Injectable()
 export class RentalsHandler {
@@ -19,6 +23,19 @@ export class RentalsHandler {
         dedupeKey: emailKeys.rentalPaid(rental.rentalId),
         template: 'RENTAL_PAID',
         message: rentalPaidEmail({ ...rental, email: rental.email }),
+      },
+    ]);
+  }
+
+  @OnEvent('RentalConfirmed')
+  async confirmed(payload: unknown, envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
+    const rental = rentalConfirmedPayloadSchema.parse(payload);
+    await this.queue.enqueue(tx, [
+      {
+        eventId: envelope.eventId,
+        dedupeKey: emailKeys.rentalConfirmed(rental.rentalId),
+        template: 'RENTAL_CONFIRMED',
+        message: rentalConfirmedEmail(rental),
       },
     ]);
   }

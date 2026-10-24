@@ -71,6 +71,50 @@ function setup() {
 }
 
 describe('WalletService', () => {
+  it('debits a rental inside the transaction of its caller, without opening one', async () => {
+    const { tx, prisma, service } = setup();
+    const rentalId = '6e5d4c3b-2a19-4f8e-9d7c-6b5a4f3e2d1c';
+
+    const applied = await service.debitIn(tx as never, clientId, rentalId, {
+      kind: 'RENTAL',
+      amount: 60,
+      occurredOn: '2026-10-14',
+      reference: rentalId,
+      description: 'Alquiler Quetzaltenango - Panajachel',
+    });
+
+    expect(applied).toEqual({ movementId: expect.any(String), balance: 100 });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.wallet.updateMany).toHaveBeenCalledWith({
+      where: { clientId, balance: { gte: 60 } },
+      data: { balance: { increment: -60 }, updatedAt: expect.any(Date) },
+    });
+    expect(tx.walletMovement.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        kind: 'RENTAL',
+        amount: -60,
+        reference: rentalId,
+        idempotencyKey: rentalId,
+        fingerprint: `RENTAL|6000|2026-10-14|${rentalId}`,
+      }),
+    });
+  });
+
+  it('refuses a rental debit the balance does not cover', async () => {
+    const { tx, service } = setup();
+    tx.wallet.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.debitIn(tx as never, clientId, key, {
+        kind: 'RENTAL',
+        amount: 600,
+        occurredOn: '2026-10-14',
+        reference: key,
+        description: 'Alquiler',
+      }),
+    ).rejects.toThrow(UnprocessableEntityException);
+  });
+
   it('answers the balance, or that the account is being prepared', async () => {
     const { prisma, service } = setup();
 

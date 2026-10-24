@@ -222,8 +222,8 @@ Los eventos se escriben en la tabla `outbox` en la **misma transacción** que el
 
 | Evento | Lo consumen |
 | --- | --- |
-| `BranchCreated` | flota, viajes, ventas, reportes |
-| `BranchUpdated` | flota, viajes, ventas, reportes |
+| `BranchCreated` | flota, viajes, ventas, reportes, clientes |
+| `BranchUpdated` | flota, viajes, ventas, reportes, clientes |
 | `SettingsUpdated` | viajes, clientes, reportes |
 | `UserRegistered` | clientes, notificaciones |
 | `AccountLinkSent` | notificaciones |

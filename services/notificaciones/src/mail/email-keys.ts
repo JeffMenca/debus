@@ -5,6 +5,7 @@ export const emailKeys = {
   tripCancelled: (ticketId: string) => `trip-cancelled:${ticketId}`,
   walletCredited: (movementId: string) => `wallet-credited:${movementId}`,
   rentalPaid: (rentalId: string) => `rental-paid:${rentalId}`,
+  rentalConfirmed: (rentalId: string) => `rental-confirmed:${rentalId}`,
   licenseOf: (driverId: string) => `license:${driverId}:`,
   license: (driverId: string, expiresOn: string, threshold: number) =>
     `license:${driverId}:${expiresOn}:${threshold}`,

@@ -40,12 +40,24 @@ describe('buildPubSubPlan', () => {
     expect(names).toEqual(
       expect.arrayContaining(['flota-from-viajes', 'administracion-from-flota']),
     );
-    // flota listens to every trip event, so its subscription needs no filter.
-    expect(plan.subscriptions.find((s) => s.name === 'flota-from-viajes')?.filter).toBe('');
+    // flota follows the trips but not the rental cancellations, so its subscription filters by type.
+    expect(plan.subscriptions.find((s) => s.name === 'flota-from-viajes')?.filter).toBe(
+      ['TripScheduled', 'TripDeleted', 'TripDeparted', 'TripCompleted']
+        .map((type) => `attributes.type = "${type}"`)
+        .join(' OR '),
+    );
     expect(plan.subscriptions.find((s) => s.name === 'administracion-from-flota')?.filter).toBe(
       ['BusAdded', 'BusUpdated', 'BusDeactivated', 'DriverAdded', 'DriverUpdated']
         .map((type) => `attributes.type = "${type}"`)
         .join(' OR '),
+    );
+  });
+
+  it('sends clientes only the rental cancellations of viajes', () => {
+    const plan = buildPubSubPlan({ env: 'production', projectId: 'p', location });
+
+    expect(plan.subscriptions.find((s) => s.name === 'clientes-from-viajes')?.filter).toBe(
+      'attributes.type = "RentalCancelled"',
     );
   });
 

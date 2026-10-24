@@ -134,7 +134,7 @@ describe('the collection against the data it must not touch', () => {
 
     it('are few, never run and say why', () => {
       expect(leftOut.length).toBeGreaterThan(0);
-      expect(leftOut.length).toBeLessThanOrEqual(20);
+      expect(leftOut.length).toBeLessThanOrEqual(23);
       for (const { item } of leftOut) {
         expect(prerequestOf(item)).toContain('pm.execution.skipRequest()');
         expect(item.request.description).toMatch(/No se ejecuta: \S/);
@@ -149,6 +149,9 @@ describe('the collection against the data it must not touch', () => {
           'PUT /api/flota/buses/:id/photo',
           'PUT /api/flota/drivers/:id/photo',
           'POST /api/viajes/rental-requests/:id/assignment',
+          'POST /api/viajes/rental-requests/:id/cancel',
+          'POST /api/clientes/rentals/:id/cancel',
+          'POST /api/clientes/branch-rentals/:id/confirm',
           ...[
             'administracion',
             'flota',

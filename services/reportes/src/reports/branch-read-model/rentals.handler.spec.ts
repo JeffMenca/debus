@@ -1,4 +1,4 @@
-import { createEnvelope, exampleRentalPaid } from '@debus/contracts';
+import { createEnvelope, exampleRentalCancelled, exampleRentalPaid } from '@debus/contracts';
 import { RentalsHandler } from './rentals.handler';
 
 const setup = () => {
@@ -56,6 +56,25 @@ describe('RentalsHandler', () => {
     const { prisma, handler } = setup();
 
     await handler.paid(exampleRentalPaid, envelope);
+
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a tombstone of a cancelled rental, whichever event arrives first', async () => {
+    const { tx, handler } = setup();
+
+    await handler.cancelled(exampleRentalCancelled, envelope, tx);
+
+    const [sql, ...values] = tx.$executeRawUnsafe.mock.calls[0] ?? [];
+    expect(sql).toContain('INSERT INTO branch_report_rental_cancellations');
+    expect(sql).toContain('ON CONFLICT (rental_id) DO NOTHING');
+    expect(values).toEqual([exampleRentalCancelled.rentalId, exampleRentalCancelled.cancelledAt]);
+  });
+
+  it('records a cancellation outside the inbox transaction too', async () => {
+    const { prisma, handler } = setup();
+
+    await handler.cancelled(exampleRentalCancelled, envelope);
 
     expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(1);
   });

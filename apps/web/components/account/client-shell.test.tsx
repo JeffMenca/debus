@@ -26,6 +26,10 @@ describe('ClientShell', () => {
     );
     expect(screen.getByRole('link', { name: 'Viajes' })).toHaveAttribute('href', '/viajes');
     expect(screen.getByRole('link', { name: 'Viajes' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Alquilar un bus' })).toHaveAttribute(
+      'href',
+      '/alquiler',
+    );
     expect(screen.getByRole('link', { name: 'Mi cuenta' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
   });

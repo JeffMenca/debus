@@ -94,6 +94,18 @@ const LEFT_OUT: { method: HttpMethod; path: RegExp; reason: string }[] = [
   },
   {
     method: 'post',
+    path: /^\/api\/clientes\/(rentals|branch-rentals)\/\{id\}\/(cancel|confirm)$/,
+    reason:
+      'el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar',
+  },
+  {
+    method: 'post',
+    path: /^\/api\/viajes\/rental-requests\/\{id\}\/cancel$/,
+    reason:
+      'necesita un alquiler pagado que ya haya llegado a `viajes`, y el recorrido no paga ninguno',
+  },
+  {
+    method: 'post',
     path: /\/dead-letters\/\{messageId\}\/replay$/,
     reason: 'necesita un mensaje real en la cola de errores de ese servicio',
   },
@@ -165,14 +177,23 @@ function authFor(path: string, operation: OperationObject, write: boolean): Post
   return bearerAuth(write ? '{{testBranchAccessToken}}' : '{{branchAccessToken}}');
 }
 
-function headersOf(parameters: ParameterObject[]): PostmanHeader[] {
+// A payment of a record is keyed by the id of what it pays (`/rentals/{id}/pay`), so a fresh key
+// would be refused; any other key is fresh on every send.
+const payingFor = (path: string, write: boolean): string | null => {
+  const segments = path.split('/');
+  return path.endsWith('/{id}/pay') ? pathVariable(segments, 'id', write) : null;
+};
+
+function headersOf(parameters: ParameterObject[], payingFor: string | null): PostmanHeader[] {
   return parameters
     .filter((parameter) => parameter.in === 'header')
     .map((parameter) => {
-      const generated = /^(x-correlation-id|idempotency-key)$/i.test(parameter.name);
+      const key = /^idempotency-key$/i.test(parameter.name);
+      const generated = key || /^x-correlation-id$/i.test(parameter.name);
+      const value = key && payingFor ? payingFor : '{{$guid}}';
       return {
         key: parameter.name,
-        value: generated ? '{{$guid}}' : `{{${parameter.name}}}`,
+        value: generated ? value : `{{${parameter.name}}}`,
         ...(!parameter.required && { disabled: true }),
       };
     });
@@ -261,7 +282,7 @@ function requestFor(
     request: {
       method: upperMethod,
       header: [
-        ...headersOf(parameters),
+        ...headersOf(parameters, payingFor(path, write)),
         ...(body?.contentType ? [{ key: 'Content-Type', value: body.contentType }] : []),
       ],
       url: {

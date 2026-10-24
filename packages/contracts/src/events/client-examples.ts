@@ -1,8 +1,10 @@
 import {
   type ProfileUpdatedPayload,
+  type RentalConfirmedPayload,
   type RentalPaidPayload,
   type WalletCreditedPayload,
   profileUpdatedPayloadSchema,
+  rentalConfirmedPayloadSchema,
   rentalPaidPayloadSchema,
   walletCreditedPayloadSchema,
 } from './client-payloads';
@@ -23,6 +25,22 @@ export const exampleRentalPaid: RentalPaidPayload = {
   distanceKm: 92,
   price: 2760,
   paidOn: '2026-10-21',
+};
+
+export const exampleRentalConfirmed: RentalConfirmedPayload = {
+  rentalId: EXAMPLE_IDS.rental,
+  branchId: EXAMPLE_IDS.branch,
+  clientId: '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a',
+  email: 'ana.lopez@correo.com',
+  clientName: 'Ana López',
+  originLabel: 'Quetzaltenango',
+  destinationLabel: 'Panajachel',
+  departureAt: '2026-10-24T13:00:00.000Z',
+  returnAt: '2026-10-24T23:00:00.000Z',
+  passengers: 35,
+  distanceKm: 92,
+  price: 2760,
+  confirmedAt: '2026-10-21T15:30:00.000Z',
 };
 
 export const exampleProfileUpdated: ProfileUpdatedPayload = {
@@ -47,11 +65,13 @@ export const exampleWalletCredited: WalletCreditedPayload = {
 
 export const CLIENT_EXAMPLES = {
   RentalPaid: exampleRentalPaid,
+  RentalConfirmed: exampleRentalConfirmed,
   ProfileUpdated: exampleProfileUpdated,
   WalletCredited: exampleWalletCredited,
 } as const;
 export const CLIENT_PAYLOAD_SCHEMAS = {
   RentalPaid: rentalPaidPayloadSchema,
+  RentalConfirmed: rentalConfirmedPayloadSchema,
   ProfileUpdated: profileUpdatedPayloadSchema,
   WalletCredited: walletCreditedPayloadSchema,
 } as const;

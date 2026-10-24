@@ -168,6 +168,18 @@ const OPENAPI: OpenApiDocument = {
         responses: { '201': {} },
       },
     },
+    '/api/clientes/rentals/{id}/pay': {
+      post: {
+        tags: ['clientes · rentals'],
+        description: 'Allowed roles: CLIENT, BRANCH_ADMIN.',
+        security: bearer,
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'Idempotency-Key', in: 'header', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '201': {} },
+      },
+    },
   },
 };
 
@@ -212,6 +224,7 @@ describe('toCollection', () => {
         'administracion · expense-categories',
         'administracion · sessions',
         'administracion · users',
+        'clientes · rentals',
         'flota · buses',
         'flota · health',
         'reportes · reports',
@@ -310,6 +323,12 @@ describe('toCollection', () => {
           (header) => header.key === 'Idempotency-Key',
         ),
       ).toBe(false);
+    });
+
+    it('keys the payment of a record with the id of what it pays', () => {
+      expect(
+        request(collection, 'POST /api/clientes/rentals/:id/pay').request.header,
+      ).toContainEqual({ key: 'Idempotency-Key', value: '{{testRentalId}}' });
     });
 
     it('describes who may call it, in Spanish', () => {
