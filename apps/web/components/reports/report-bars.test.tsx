@@ -55,4 +55,22 @@ describe('ReportBars', () => {
 
     expect(widthOf('z')).toBe('0%');
   });
+
+  it('draws no bar for a negative value, such as a loss, and still writes the value', () => {
+    reduced(false);
+    render(
+      <ReportBars
+        title="Barras"
+        items={[
+          { key: 'p', label: 'Cobán', value: 100 },
+          { key: 'n', label: 'Antigua', value: -40 },
+        ]}
+        format={(n) => `Q ${n}`}
+      />,
+    );
+
+    expect(widthOf('p')).toBe('100%');
+    expect(widthOf('n')).toBe('0%');
+    expect(screen.getByText('Q -40')).toBeInTheDocument();
+  });
 });

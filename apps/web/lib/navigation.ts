@@ -16,6 +16,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { REPORT_LINKS } from '@/lib/branch-reports/report-links';
+import { SYSTEM_REPORT_LINKS } from '@/lib/system-reports/report-links';
 
 export interface NavItem {
   label: string;
@@ -39,6 +40,10 @@ const SYSTEM_ADMIN: NavGroup[] = [
       { label: 'Configuración', href: '/admin/configuracion', icon: Settings2 },
       { label: 'Categorías de gasto', href: '/admin/categorias', icon: Tags },
     ],
+  },
+  {
+    label: 'Reportes',
+    items: SYSTEM_REPORT_LINKS.map(({ title, href, icon }) => ({ label: title, href, icon })),
   },
   {
     label: 'Sistema',

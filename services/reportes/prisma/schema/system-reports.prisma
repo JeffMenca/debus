@@ -1,0 +1,20 @@
+// Read model of the system administrator reports. The income, expense and repair reports read the
+// branch_report_* models; only the routes need a copy of their own. Events fill it in any order, so
+// there are no foreign keys.
+
+// A deleted route stays as a tombstone (deleted_at) so a late RouteCreated cannot bring it back; a
+// tombstone from an older event may carry no branches.
+model SystemReportRoute {
+  id                  String    @id @db.Uuid
+  originBranchId      String?   @map("origin_branch_id") @db.Uuid
+  destinationBranchId String?   @map("destination_branch_id") @db.Uuid
+  distanceKm          Decimal   @map("distance_km") @db.Decimal(7, 1)
+  ticketPrice         Decimal   @map("ticket_price") @db.Decimal(10, 2)
+  active              Boolean
+  version             Int
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@index([originBranchId])
+  @@map("system_report_routes")
+}

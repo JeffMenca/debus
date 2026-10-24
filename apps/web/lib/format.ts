@@ -60,3 +60,12 @@ export const formatShortDate = (isoDate: string, withYear = false): string =>
 const KILOMETRES = new Intl.NumberFormat('es-GT', { maximumFractionDigits: 1 });
 
 export const formatKm = (km: number): string => `${KILOMETRES.format(km)} km`;
+
+const PERCENT = new Intl.NumberFormat('es-GT', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+// `null` is a margin without income to measure against.
+export const formatPercent = (value: number | null): string =>
+  value === null ? '—' : `${PERCENT.format(value)} %`;

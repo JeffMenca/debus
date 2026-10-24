@@ -166,6 +166,27 @@ describe('DataTable', () => {
       expect(onPageChange).toHaveBeenCalledWith(2);
     });
 
+    it('counts only the rows of the server when the screen adds others, such as subtotals', () => {
+      render(
+        <DataTable
+          caption="Buses"
+          columns={columns}
+          data={people}
+          emptyMessage="Nadie"
+          pagination={{
+            page: 2,
+            pageSize: 4,
+            total: 9,
+            pageItems: 4,
+            onPageChange: jest.fn(),
+            onPageSizeChange: jest.fn(),
+          }}
+        />,
+      );
+
+      expect(screen.getByText('Mostrando 5–8 de 9')).toBeInTheDocument();
+    });
+
     it('jumps to the first and last pages', async () => {
       const onPageChange = jest.fn();
       render(
@@ -299,5 +320,24 @@ describe('DataTable', () => {
     );
 
     expect(screen.queryByText(/Detalle de/)).not.toBeInTheDocument();
+  });
+
+  it('lets a screen style and name a row, such as a subtotal', () => {
+    render(
+      <DataTable
+        caption="Buses"
+        columns={columns}
+        data={rows}
+        getRowId={(row) => row.id}
+        emptyMessage=""
+        rowProps={(row) =>
+          row.id === '2' ? { className: 'bg-lilac-100', label: 'Subtotal de Scania' } : undefined
+        }
+      />,
+    );
+
+    const named = screen.getByRole('row', { name: 'Subtotal de Scania' });
+    expect(named).toHaveClass('bg-lilac-100');
+    expect(screen.getByRole('row', { name: /Volvo B8R/ })).not.toHaveAttribute('aria-label');
   });
 });

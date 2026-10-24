@@ -4,6 +4,7 @@ import {
   formatLongDate,
   formatPhone,
   formatKm,
+  formatPercent,
   formatShortDate,
   formatQuetzales,
   initialsOf,
@@ -44,4 +45,11 @@ it('writes a distance in kilometres with at most one decimal', () => {
   expect(formatKm(206.5)).toBe('206.5 km');
   expect(formatKm(150)).toBe('150 km');
   expect(formatKm(1250.25)).toBe('1,250.3 km');
+});
+
+it('writes a percentage with one decimal and a dash when there is nothing to divide by', () => {
+  expect(formatPercent(44.8)).toBe('44.8 %');
+  expect(formatPercent(50)).toBe('50.0 %');
+  expect(formatPercent(-12.5)).toBe('-12.5 %');
+  expect(formatPercent(null)).toBe('—');
 });

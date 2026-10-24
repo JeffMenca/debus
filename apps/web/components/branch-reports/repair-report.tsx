@@ -5,8 +5,9 @@ import {
   type BranchRepairExpenseRow,
   branchRepairExpensesPageSchema,
 } from '@debus/contracts';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { DataTable, tablePagination } from '@/components/data/data-table';
+import { ExpansionContext, useRowExpansion } from '@/components/data/row-expansion';
 import { OPTIONS_PAGE, useOptionSearch } from '@/components/forms/option-search';
 import { OptionSelect } from '@/components/forms/option-select';
 import { ReportBars } from '@/components/reports/report-bars';
@@ -27,7 +28,7 @@ import {
   writeRepairReportParams,
 } from '@/lib/branch-reports/repair-report-params';
 import { formatPlate, formatQuetzales } from '@/lib/format';
-import { ExpansionContext, RepairCategories, repairReportColumns } from './repair-report-columns';
+import { RepairCategories, repairReportColumns } from './repair-report-columns';
 
 export const REPAIR_REPORT_PATH = '/api/reportes/reports/branch-repair-expenses';
 
@@ -43,20 +44,6 @@ const highlightsOf = ({ summary }: BranchRepairExpensesPage) => [
 ];
 
 const renderDetail = (row: BranchRepairExpenseRow) => <RepairCategories row={row} />;
-
-function useExpansion() {
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const toggle = useCallback(
-    (busId: string) =>
-      setExpanded((open) => {
-        const next = new Set(open);
-        if (!next.delete(busId)) next.add(busId);
-        return next;
-      }),
-    [],
-  );
-  return useMemo(() => ({ expanded, toggle }), [expanded, toggle]);
-}
 
 // What the buses of the branch spent in the workshop, by category and period (every record by
 // default); the numbers cover the whole filter and the PDF carries every row of it.
@@ -78,7 +65,7 @@ export function RepairReport() {
     ...(categoryTerm && { q: categoryTerm }),
     ...OPTIONS_PAGE,
   }).data;
-  const expansion = useExpansion();
+  const expansion = useRowExpansion();
   usePageInRange(report.data, update);
 
   const narrowed = Boolean(query.busId || query.categoryId || query.from || query.to);

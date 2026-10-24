@@ -113,6 +113,8 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     inTestBranches('branch_report_drivers'),
     inTestBranches('branch_report_repair_lines'),
     inTestBranches('branch_report_ticket_sales'),
+    inTestBranches('system_report_routes', 'origin_branch_id'),
+    inTestBranches('system_report_routes', 'destination_branch_id'),
     // A cancellation carries no branch: it goes with the rental of a test branch it cancelled.
     whenTablesExist(
       ['branch_report_rental_cancellations', 'branch_report_rentals', 'branches'],
