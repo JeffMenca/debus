@@ -1,4 +1,5 @@
 import { isActivePath, navigationFor } from './navigation';
+import { SYSTEM_REPORT_LINKS } from './system-reports/report-links';
 
 describe('navigation', () => {
   it('gives the system admin its administration links', () => {
@@ -12,8 +13,30 @@ describe('navigation', () => {
       ['Sucursales', '/admin/sucursales'],
       ['Configuración', '/admin/configuracion'],
       ['Categorías de gasto', '/admin/categorias'],
+      ['Ingresos', '/admin/reportes/ingresos'],
+      ['Gastos', '/admin/reportes/gastos'],
+      ['Ganancias', '/admin/reportes/ganancias'],
+      ['Rutas más demandadas', '/admin/reportes/rutas-demandadas'],
+      ['Taller por categoría', '/admin/reportes/taller'],
+      ['Mapa de rutas', '/admin/reportes/mapa-rutas'],
       ['Estado del sistema', '/admin/estado'],
     ]);
+  });
+
+  it('gives the system admin a group of the six reports between administration and system', () => {
+    expect(navigationFor('SYSTEM_ADMIN').map((group) => group.label)).toEqual([
+      'Administración',
+      'Reportes',
+      'Sistema',
+    ]);
+  });
+
+  it('marks the report that is open and only that one', () => {
+    for (const { href } of SYSTEM_REPORT_LINKS) {
+      const active = SYSTEM_REPORT_LINKS.filter((link) => isActivePath(href, link.href));
+      expect(active.map((link) => link.href)).toEqual([href]);
+    }
+    expect(isActivePath('/admin/reportes/ingresos', '/admin')).toBe(false);
   });
 
   it('gives the branch admin the trips and the fleet screens', () => {
@@ -55,8 +78,8 @@ describe('navigation', () => {
     ]);
   });
 
-  it('keeps the reports from the cashier, the driver and the system admin', () => {
-    for (const role of ['CASHIER', 'DRIVER', 'SYSTEM_ADMIN'] as const) {
+  it('keeps the reports from the cashier and the driver', () => {
+    for (const role of ['CASHIER', 'DRIVER'] as const) {
       const labels = navigationFor(role).map((group) => group.label);
       expect(labels).not.toContain('Reportes');
     }

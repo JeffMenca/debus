@@ -7,6 +7,7 @@ import {
   exampleRentalCancelled,
   exampleRentalPaid,
   exampleRepairExpenseAdded,
+  exampleRoute,
   exampleSettingsUpdated,
   exampleTripCompleted,
 } from '@debus/contracts';
@@ -65,6 +66,27 @@ describe('cleaning the test data of reportes', () => {
     await bus.deliver('TicketSold', { ...exampleCounterTicketSold, ticketId, branchId });
     await bus.deliver('RentalPaid', { ...exampleRentalPaid, rentalId, branchId });
     await bus.deliver('RentalCancelled', { ...exampleRentalCancelled, rentalId, branchId });
+    const originRouteId = randomUUID();
+    const destinationRouteId = randomUUID();
+    const realRouteId = randomUUID();
+    await bus.deliver('RouteCreated', {
+      ...exampleRoute,
+      routeId: originRouteId,
+      originBranchId: branchId,
+      destinationBranchId: realBranchId,
+    });
+    await bus.deliver('RouteCreated', {
+      ...exampleRoute,
+      routeId: destinationRouteId,
+      originBranchId: realBranchId,
+      destinationBranchId: branchId,
+    });
+    await bus.deliver('RouteCreated', {
+      ...exampleRoute,
+      routeId: realRouteId,
+      originBranchId: realBranchId,
+      destinationBranchId: realBranchId,
+    });
     const realExpenseId = randomUUID();
     await bus.deliver('RepairExpenseAdded', {
       ...exampleRepairExpenseAdded,
@@ -85,9 +107,13 @@ describe('cleaning the test data of reportes', () => {
     expect(await countOf(prisma, 'branch_report_rental_cancellations', 'rental_id', rentalId)).toBe(
       0,
     );
+    expect(await prisma.systemReportRoute.count({ where: { id: originRouteId } })).toBe(0);
+    expect(await prisma.systemReportRoute.count({ where: { id: destinationRouteId } })).toBe(0);
+    expect(await prisma.systemReportRoute.count({ where: { id: realRouteId } })).toBe(1);
     expect(await countOf(prisma, 'branch_report_repair_lines', 'expense_id', realExpenseId)).toBe(
       2,
     );
+    await prisma.systemReportRoute.deleteMany({ where: { id: realRouteId } });
     await prisma.$executeRawUnsafe(
       'DELETE FROM branch_report_repair_lines WHERE expense_id = $1::uuid',
       realExpenseId,

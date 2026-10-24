@@ -42,7 +42,9 @@ export function ReportBars({ title, items, format }: ReportBarsProps) {
                   COLORS[index % COLORS.length],
                   !reduced && 'animate-grow-x',
                 )}
-                style={{ width: `${biggest === 0 ? 0 : (item.value / biggest) * 100}%` }}
+                style={{
+                  width: `${biggest === 0 ? 0 : (Math.max(0, item.value) / biggest) * 100}%`,
+                }}
               />
             </div>
           </li>
