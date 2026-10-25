@@ -7,9 +7,9 @@ import {
   type PostmanRequestItem,
 } from './collection-types';
 
-// Whose session a step uses: none, the system admin, the admin of the demo branch or the admin
-// of the test branch that the writes folder creates.
-export type Session = 'none' | 'admin' | 'branch' | 'test';
+// Whose session a step uses: none, the system admin, the admin of the demo branch, a client of the
+// demo or the admin of the test branch that the writes folder creates.
+export type Session = 'none' | 'admin' | 'branch' | 'client' | 'test';
 
 export interface Step {
   name: string;
@@ -29,6 +29,7 @@ export interface Step {
 const TOKENS: Record<Exclude<Session, 'none'>, string> = {
   admin: '{{accessToken}}',
   branch: '{{branchAccessToken}}',
+  client: '{{clientAccessToken}}',
   test: '{{testBranchAccessToken}}',
 };
 

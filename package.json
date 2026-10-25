@@ -31,7 +31,7 @@
     "seed": "turbo run build --filter=@debus/tools && node packages/tools/dist/seed/cli.js",
     "docs": "turbo run build --filter=@debus/tools && node packages/tools/dist/docs/cli.js",
     "postman": "turbo run build --filter=@debus/tools && node packages/tools/dist/postman/cli.js",
-    "postman:test": "sh -c 'pnpm --filter @debus/tools exec newman run ../../postman/debus.postman_collection.json -e ../../postman/local.postman_environment.json --env-var adminPassword=${SEED_ADMIN_PASSWORD:-clave-segura-1} --env-var branchPassword=${SEED_PASSWORD:-debus-demo-2026}; s=$?; node scripts/clean-test-data.mjs; exit $s'",
+    "postman:test": "sh -c 'pnpm --filter @debus/tools exec newman run ../../postman/debus.postman_collection.json -e ../../postman/local.postman_environment.json --env-var adminPassword=${SEED_ADMIN_PASSWORD:-clave-segura-1} --env-var branchPassword=${SEED_PASSWORD:-debus-demo-2026} --env-var clientPassword=${SEED_PASSWORD:-debus-demo-2026}; s=$?; node scripts/clean-test-data.mjs; exit $s'",
     "prepare": "husky"
   },
   "devDependencies": {

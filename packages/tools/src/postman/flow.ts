@@ -35,12 +35,17 @@ function listStep(spec: {
   };
 }
 
-const report = (name: string, slug: string, query = 'pageSize=20'): Step => ({
+const report = (
+  name: string,
+  slug: string,
+  session: 'admin' | 'branch' = 'branch',
+  query = 'pageSize=20',
+): Step => ({
   name,
   method: 'GET',
   path: `/api/reportes/reports/${slug}`,
   query,
-  session: 'branch',
+  session,
   test: [...status(200), ...PAGE_OF_ROWS],
 });
 
@@ -58,6 +63,13 @@ const ACCOUNTS = {
     role: 'BRANCH_ADMIN',
     token: 'branchAccessToken',
     refresh: 'branchRefreshToken',
+  },
+  client: {
+    email: '{{clientEmail}}',
+    password: '{{clientPassword}}',
+    role: 'CLIENT',
+    token: 'clientAccessToken',
+    refresh: 'clientRefreshToken',
   },
 } as const;
 
@@ -155,6 +167,32 @@ const SYSTEM_STEPS: Step[] = [
       ]),
     ],
   },
+  report('Reporte del sistema: ingresos por sucursal', 'system-income', 'admin'),
+  report('Reporte del sistema: gastos por sucursal', 'system-expenses', 'admin'),
+  report('Reporte del sistema: ganancias', 'system-profit', 'admin'),
+  report('Reporte del sistema: rutas más demandadas', 'system-top-routes', 'admin'),
+  report('Reporte del sistema: gastos de taller por categoría', 'system-repair-expenses', 'admin'),
+  {
+    name: 'Reporte del sistema: mapa de rutas',
+    method: 'GET',
+    path: '/api/reportes/reports/system-routes-map',
+    session: 'admin',
+    test: [
+      ...status(200),
+      ...pmTest('Trae las sucursales y las rutas del mapa', [
+        json,
+        'pm.expect(Array.isArray(json.branches)).to.be.true;',
+        'pm.expect(Array.isArray(json.routes)).to.be.true;',
+      ]),
+    ],
+  },
+  {
+    name: 'Reporte del sistema en PDF: ingresos por sucursal',
+    method: 'GET',
+    path: '/api/reportes/reports/system-income/pdf',
+    session: 'admin',
+    test: [...status(200), ...PDF_TEST],
+  },
 ];
 
 const BRANCH_STEPS: Step[] = [
@@ -209,7 +247,59 @@ const BRANCH_STEPS: Step[] = [
   },
 ];
 
+// What a client of the demo sees: the wallet, the tickets and the rentals the seed loads for them.
+// Everything here only reads: the writes of the clients use the test records of the writes folder.
+const clientRead = (
+  name: string,
+  path: string,
+  query: string | undefined,
+  test: string[],
+): Step => ({
+  name,
+  method: 'GET',
+  path,
+  ...(query && { query }),
+  session: 'client',
+  test: [...status(200), ...test],
+});
+
+const CLIENT_STEPS: Step[] = [
+  login('Iniciar sesión como cliente', 'client'),
+  clientRead('Perfil del cliente', '/api/clientes/profile', undefined, [
+    ...pmTest('Trae el perfil del cliente', [
+      json,
+      "pm.expect(typeof json.userId === 'string' && json.email.length > 0).to.be.true;",
+    ]),
+  ]),
+  clientRead('Cartera del cliente', '/api/clientes/wallet', undefined, [
+    ...pmTest('Trae el saldo de la cartera', [
+      json,
+      "pm.expect(typeof json.balance === 'number' && json.balance >= 0).to.be.true;",
+    ]),
+  ]),
+  clientRead(
+    'Movimientos de la cartera',
+    '/api/clientes/wallet/movements',
+    'pageSize=20',
+    PAGE_OF_ROWS,
+  ),
+  clientRead('Boletos del cliente', '/api/ventas/tickets', 'pageSize=20', PAGE_OF_ROWS),
+  clientRead(
+    'Alquileres del cliente',
+    '/api/clientes/rentals/mine',
+    'status=all&pageSize=20',
+    PAGE_OF_ROWS,
+  ),
+  clientRead('Precio estimado de un alquiler', '/api/clientes/rentals/estimate', 'distanceKm=100', [
+    ...pmTest('Calcula el precio con la tarifa vigente', [
+      json,
+      "pm.expect(typeof json.estimatedPrice === 'number' && json.estimatedPrice > 0).to.be.true;",
+    ]),
+  ]),
+];
+
 const ENDING: Step[] = [
+  logout('Cerrar sesión (cliente)', 'clientRefreshToken'),
   logout('Cerrar sesión (admin de sucursal)', 'branchRefreshToken'),
   logout('Cerrar sesión (admin del sistema)', 'adminRefreshToken'),
 ];
@@ -217,6 +307,7 @@ const ENDING: Step[] = [
 const items: PostmanItem[] = [
   ...SYSTEM_STEPS.map(toItem),
   ...BRANCH_STEPS.map(toItem),
+  ...CLIENT_STEPS.map(toItem),
   WRITES_FOLDER,
   ...ENDING.map(toItem),
 ];

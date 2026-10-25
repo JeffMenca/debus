@@ -48,6 +48,13 @@ describe('FLOW', () => {
         'Usuarios',
         'Configuración vigente',
         'Categorías de gasto',
+        'Reporte del sistema: ingresos por sucursal',
+        'Reporte del sistema: gastos por sucursal',
+        'Reporte del sistema: ganancias',
+        'Reporte del sistema: rutas más demandadas',
+        'Reporte del sistema: gastos de taller por categoría',
+        'Reporte del sistema: mapa de rutas',
+        'Reporte del sistema en PDF: ingresos por sucursal',
         'Iniciar sesión como admin de sucursal',
         'Buses',
         'Choferes',
@@ -61,14 +68,24 @@ describe('FLOW', () => {
         'Reporte: ingresos por boletos',
         'Reporte: ingresos por alquiler',
         'Reporte en PDF: listado de buses',
+        'Iniciar sesión como cliente',
+        'Perfil del cliente',
+        'Cartera del cliente',
+        'Movimientos de la cartera',
+        'Boletos del cliente',
+        'Alquileres del cliente',
+        'Precio estimado de un alquiler',
         'Escrituras (solo local)',
+        'Cerrar sesión (cliente)',
         'Cerrar sesión (admin de sucursal)',
         'Cerrar sesión (admin del sistema)',
       ]);
     });
 
     it('covers the six branch reports and one PDF', () => {
-      const reports = all.filter((item) => item.request.url.raw.includes('/api/reportes/reports/'));
+      const reports = all.filter((item) =>
+        item.request.url.raw.includes('/api/reportes/reports/branch-'),
+      );
       expect(reports.map((item) => item.request.url.path.slice(3).join('/'))).toEqual([
         'branch-buses',
         'branch-drivers',
@@ -78,6 +95,49 @@ describe('FLOW', () => {
         'branch-rental-income',
         'branch-buses/pdf',
       ]);
+    });
+
+    it('covers the six system reports and one PDF, with the session of the system admin', () => {
+      const reports = all.filter((item) =>
+        item.request.url.raw.includes('/api/reportes/reports/system-'),
+      );
+      expect(reports.map((item) => item.request.url.path.slice(3).join('/'))).toEqual([
+        'system-income',
+        'system-expenses',
+        'system-profit',
+        'system-top-routes',
+        'system-repair-expenses',
+        'system-routes-map',
+        'system-income/pdf',
+      ]);
+      for (const item of reports) {
+        expect(item.request.auth).toMatchObject({ bearer: [{ value: '{{accessToken}}' }] });
+      }
+    });
+
+    it('reads what a client sees with the session of a client of the demo, and writes nothing', () => {
+      const names = [
+        'Perfil del cliente',
+        'Cartera del cliente',
+        'Movimientos de la cartera',
+        'Boletos del cliente',
+        'Alquileres del cliente',
+        'Precio estimado de un alquiler',
+      ];
+      expect(names.map((name) => named(name).request.url.path.slice(1).join('/'))).toEqual([
+        'clientes/profile',
+        'clientes/wallet',
+        'clientes/wallet/movements',
+        'ventas/tickets',
+        'clientes/rentals/mine',
+        'clientes/rentals/estimate',
+      ]);
+      for (const name of names) {
+        expect(named(name).request.method).toBe('GET');
+        expect(named(name).request.auth).toMatchObject({
+          bearer: [{ value: '{{clientAccessToken}}' }],
+        });
+      }
     });
 
     it('goes through the base URL and checks the status of every step', () => {
@@ -120,6 +180,8 @@ describe('FLOW', () => {
       expect(body('Iniciar sesión como admin del sistema')).toContain('{{adminPassword}}');
       expect(body('Iniciar sesión como admin de sucursal')).toContain('{{branchAdminEmail}}');
       expect(body('Iniciar sesión como admin de sucursal')).toContain('{{branchPassword}}');
+      expect(body('Iniciar sesión como cliente')).toContain('{{clientEmail}}');
+      expect(body('Iniciar sesión como cliente')).toContain('{{clientPassword}}');
     });
   });
 
@@ -149,6 +211,79 @@ describe('FLOW', () => {
       expect(variables.get('branchAccessToken')).toBe('jwt-branch');
       expect(variables.get('branchRefreshToken')).toBe('refresh-branch');
       expect(variables.get('branchId')).toBe('branch-1');
+    });
+
+    it('keeps the session of the client and fails when the login answers another role', () => {
+      const ok = sandbox({
+        accessToken: 'jwt-client',
+        refreshToken: 'refresh-client',
+        user: { role: 'CLIENT', branchId: null },
+      });
+      ok.run(execOf(named('Iniciar sesión como cliente'), 'test'));
+      expect(failed(ok.results)).toEqual([]);
+      expect(ok.variables.get('clientAccessToken')).toBe('jwt-client');
+      expect(ok.variables.get('clientRefreshToken')).toBe('refresh-client');
+      const wrong = sandbox({ ...LOGIN, user: { role: 'BRANCH_ADMIN', branchId: 'b' } });
+      wrong.run(execOf(named('Iniciar sesión como cliente'), 'test'));
+      expect(failed(wrong.results)).not.toHaveLength(0);
+    });
+
+    it.each(['Boletos del cliente', 'Alquileres del cliente', 'Movimientos de la cartera'])(
+      '%s checks a page of rows with a total',
+      (step) => {
+        const ok = sandbox(PAGE);
+        ok.run(execOf(named(step), 'test'));
+        expect(failed(ok.results)).toEqual([]);
+        const wrong = sandbox({ rows: [] });
+        wrong.run(execOf(named(step), 'test'));
+        expect(failed(wrong.results)).not.toHaveLength(0);
+      },
+    );
+
+    it('checks the wallet, the profile and the estimate of the client', () => {
+      const wallet = sandbox({ balance: 120.5, updatedAt: '2026-10-24T00:00:00.000Z' });
+      wallet.run(execOf(named('Cartera del cliente'), 'test'));
+      expect(failed(wallet.results)).toEqual([]);
+      const noBalance = sandbox({ message: 'x' });
+      noBalance.run(execOf(named('Cartera del cliente'), 'test'));
+      expect(failed(noBalance.results)).not.toHaveLength(0);
+      const profile = sandbox({ userId: 'u', email: 'a@b.co' });
+      profile.run(execOf(named('Perfil del cliente'), 'test'));
+      expect(failed(profile.results)).toEqual([]);
+      const estimate = sandbox({
+        ratePerKm: 30,
+        estimatedPrice: 3000,
+        effectiveFrom: '2026-01-01',
+      });
+      estimate.run(execOf(named('Precio estimado de un alquiler'), 'test'));
+      expect(failed(estimate.results)).toEqual([]);
+    });
+
+    it.each([
+      'Reporte del sistema: ingresos por sucursal',
+      'Reporte del sistema: gastos por sucursal',
+      'Reporte del sistema: ganancias',
+      'Reporte del sistema: rutas más demandadas',
+      'Reporte del sistema: gastos de taller por categoría',
+    ])('%s checks a page of rows with a total', (step) => {
+      const ok = sandbox({ items: [], total: 0, page: 1, pageSize: 20, summary: {} });
+      ok.run(execOf(named(step), 'test'));
+      expect(failed(ok.results)).toEqual([]);
+      const wrong = sandbox({ rows: [] });
+      wrong.run(execOf(named(step), 'test'));
+      expect(failed(wrong.results)).not.toHaveLength(0);
+    });
+
+    it('checks the map of routes and the PDF of the system income', () => {
+      const map = sandbox({ branches: [], selectedBranchId: null, routes: [] });
+      map.run(execOf(named('Reporte del sistema: mapa de rutas'), 'test'));
+      expect(failed(map.results)).toEqual([]);
+      const noMap = sandbox({ items: [] });
+      noMap.run(execOf(named('Reporte del sistema: mapa de rutas'), 'test'));
+      expect(failed(noMap.results)).not.toHaveLength(0);
+      const pdf = sandbox(null, { contentType: 'application/pdf' });
+      pdf.run(execOf(named('Reporte del sistema en PDF: ingresos por sucursal'), 'test'));
+      expect(failed(pdf.results)).toEqual([]);
     });
 
     it.each([
@@ -248,6 +383,7 @@ describe('FLOW', () => {
 
     it('expects the logouts to answer 204', () => {
       for (const name of [
+        'Cerrar sesión (cliente)',
         'Cerrar sesión (admin de sucursal)',
         'Cerrar sesión (admin del sistema)',
       ]) {
