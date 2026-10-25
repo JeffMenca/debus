@@ -6802,6 +6802,820 @@
         ]
       }
     },
+    "/api/reportes/reports/system-income": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemIncomeController_page",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-income/pdf": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemIncomeController_pdf",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-expenses": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemExpensesController_page",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-expenses/pdf": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemExpensesController_pdf",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-profit": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemProfitController_page",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-profit/pdf": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemProfitController_pdf",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-top-routes": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemTopRoutesController_page",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-top-routes/pdf": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemTopRoutesController_pdf",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-repair-expenses": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemRepairExpensesController_page",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "busId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-repair-expenses/pdf": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemRepairExpensesController_pdf",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "busId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-bus-options": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemBusOptionsController_page",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-routes-map": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemRoutesMapController_map",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-routes-map/pdf": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemRoutesMapController_pdf",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
     "/api/reportes/reports/branch-buses": {
       "get": {
         "description": "Allowed roles: BRANCH_ADMIN.",

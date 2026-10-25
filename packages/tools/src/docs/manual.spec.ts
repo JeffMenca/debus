@@ -86,6 +86,9 @@ describe('DOC_SERVICES', () => {
       'administracion',
       'flota',
       'viajes',
+      'ventas',
+      'clientes',
+      'reportes',
       'notificaciones',
     ]);
   });

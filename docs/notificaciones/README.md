@@ -11,7 +11,8 @@
 | Viaje cancelado                           | `TripDeleted`                                  | Cada boleto con correo de ese viaje, tomado de la copia `ticket_copies`                   |
 | Devolución a la cartera                   | `WalletCredited` (`REFUND`)                    | El dueño de la cartera, cuando el dinero ya está acreditado                               |
 | Recarga de saldo                          | `WalletCredited` (`TOP_UP`)                    | El dueño de la cartera                                                                    |
-| Alquiler confirmado y pagado              | `RentalPaid` con `email`                       | El correo del alquiler, si lo tiene                                                       |
+| Cotización de alquiler lista              | `RentalConfirmed`                              | El cliente que pidió el alquiler en línea, cuando la sucursal fijó el precio              |
+| Alquiler pagado                           | `RentalPaid` con `email`                       | El correo del alquiler, si lo tiene                                                       |
 | Licencia por vencer (30, 15 y 3 días)     | `DriverAdded`, `DriverUpdated` y el job diario | El chofer y los admins activos de su sucursal                                             |
 
 - **Una sola vez.** Cada correo tiene una clave de negocio (`ticket-sold:<boleto>`, `wallet-credited:<movimiento>`, `license:<chofer>:<vencimiento>:<umbral>`…). Con el destinatario es única en `sent_emails`, así que un evento repetido o republicado con otro `eventId` no repite el correo.
