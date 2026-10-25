@@ -1,15 +1,20 @@
 import { GatewayError } from './gateway-client';
 
-// A conflict that says the copy this request needs has not arrived yet.
+// A conflict (or a "not found", when the copy is the thing that is missing) that says the copy this
+// request needs has not arrived yet.
 export const pendingCopy =
   (...messages: string[]) =>
   (error: unknown): boolean =>
     error instanceof GatewayError &&
-    error.status === 409 &&
+    (error.status === 409 || error.status === 404) &&
     messages.some((message) => error.message.startsWith(message));
 
 export const STILL_REGISTERING = 'Estamos terminando de registrar';
 export const isPendingRegistration = pendingCopy(STILL_REGISTERING);
+
+// A real conflict, not a copy that is still on its way.
+export const isConflict = (error: unknown): error is GatewayError =>
+  error instanceof GatewayError && error.status === 409 && !isPendingRegistration(error);
 
 export const sleep = (ms: number): Promise<void> =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));

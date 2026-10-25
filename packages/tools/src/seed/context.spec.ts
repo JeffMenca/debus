@@ -19,6 +19,7 @@ describe('createContext', () => {
     expect(ctx.branchIds.size).toBe(0);
     expect(ctx.branchAdmins.size).toBe(0);
     expect(ctx.registeredDrivers.size).toBe(0);
+    expect(ctx.clientSessions.size).toBe(0);
     expect(ctx.now()).toBeInstanceOf(Date);
     expect(() => ctx.log('quiet')).not.toThrow();
   });

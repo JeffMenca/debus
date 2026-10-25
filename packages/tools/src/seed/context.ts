@@ -21,6 +21,8 @@ export interface SeedContext {
   branchIds: Map<string, string>;
   branchAdmins: Map<string, Session>;
   registeredDrivers: Set<string>;
+  // The clients of the demo, by their number in the catalog.
+  clientSessions: Map<number, Session>;
 }
 
 export interface SeedContextInit {
@@ -46,5 +48,6 @@ export function createContext(init: SeedContextInit): SeedContext {
     branchIds: new Map(),
     branchAdmins: new Map(),
     registeredDrivers: new Set(),
+    clientSessions: new Map(),
   };
 }
