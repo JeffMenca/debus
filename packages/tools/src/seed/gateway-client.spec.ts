@@ -88,6 +88,34 @@ describe('GatewayClient', () => {
       expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ plate: 'C482BTX' });
     });
 
+    it('sends the extra headers it is given, such as an idempotency key', async () => {
+      const { impl, calls } = fakeFetch(json(201, { id: '1' }));
+      await new GatewayClient('http://gw', impl).request(
+        session,
+        'POST',
+        '/api/clientes/wallet/top-ups',
+        { amount: 100 },
+        undefined,
+        { 'Idempotency-Key': 'key-1' },
+      );
+      expect(headerOf(calls[0], 'idempotency-key')).toBe('key-1');
+      expect(headerOf(calls[0], 'authorization')).toBe('Bearer token-1');
+    });
+
+    it('keeps the extra headers when it signs in again after a 401', async () => {
+      const { impl, calls } = fakeFetch(
+        json(200, TOKENS),
+        json(401, { message: 'Tu sesión venció.' }),
+        json(200, { ...TOKENS, accessToken: 'token-2' }),
+        json(201, { id: '1' }),
+      );
+      const client = new GatewayClient('http://gw', impl);
+      const own = await client.login('ana@debus.test', 'pw');
+      await client.request(own, 'POST', '/api/x', {}, undefined, { 'Idempotency-Key': 'k' });
+      expect(headerOf(calls[3], 'idempotency-key')).toBe('k');
+      expect(headerOf(calls[3], 'authorization')).toBe('Bearer token-2');
+    });
+
     it('sends no token and no body when there is no session and no body', async () => {
       const { impl, calls } = fakeFetch(json(200, { ok: true }));
       await new GatewayClient('http://gw', impl).request(null, 'GET', '/health');

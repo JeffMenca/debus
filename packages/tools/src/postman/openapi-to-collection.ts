@@ -29,9 +29,9 @@ const DEFAULT_BASE_URL = 'http://localhost:4000';
 const COLLECTION_DESCRIPTION = [
   'Colección generada del Swagger del gateway (`/docs-json`): una carpeta por etiqueta con todas las peticiones, más el recorrido de uso.',
   '',
-  '- **Recorrido**: inicia sesión como admin del sistema y como admin de sucursal, recorre pantallas, reportes y un PDF, y guarda los tokens y los ids que usan las demás carpetas, así que se ejecuta primero. Su carpeta "Escrituras (solo local)" crea sucursales, un chofer, un bus, una ruta, viajes y gastos de prueba (con el prefijo y el correo `@debus.test` que borra `pnpm test:clean`) y deja los ids `test…` que usan las escrituras generadas.',
+  '- **Recorrido**: inicia sesión como admin del sistema, como admin de sucursal y como un cliente del seed, recorre pantallas, los reportes de sucursal y del sistema (con un PDF de cada tipo) y la cartera, los boletos y los alquileres del cliente, y guarda los tokens y los ids que usan las demás carpetas, así que se ejecuta primero. Su carpeta "Escrituras (solo local)" crea sucursales, un chofer, un bus, una ruta, viajes y gastos de prueba (con el prefijo y el correo `@debus.test` que borra `pnpm test:clean`) y deja los ids `test…` que usan las escrituras generadas.',
   '- **Salud**: el estado del gateway; no necesita sesión.',
-  '- Variables: `baseUrl`, `mailpitUrl`, `adminEmail`, `adminPassword`, `branchAdminEmail` y `branchPassword` (ver el entorno local).',
+  '- Variables: `baseUrl`, `mailpitUrl`, `adminEmail`, `adminPassword`, `branchAdminEmail`, `branchPassword`, `clientEmail` y `clientPassword` (ver el entorno local).',
   '- Toda petición que cambia datos se salta si `baseUrl` no es de esta máquina (`localhost`), así que apuntar la colección a producción solo lee. Las escrituras generadas usan solo los ids de prueba (`testBusId`, `testTripId`…) y la sesión del admin de prueba, nunca los datos de demostración.',
   '- Cada petición comprueba que la respuesta sea uno de los códigos que documenta su operación. Las pocas que no se ejecutan dicen por qué en su descripción.',
 ].join('\n');
@@ -90,7 +90,14 @@ const LEFT_OUT: { method: HttpMethod; path: RegExp; reason: string }[] = [
   {
     method: 'post',
     path: /^\/api\/viajes\/rental-requests\/\{id\}\/assignment$/,
-    reason: 'necesita una solicitud de alquiler que crea `ventas`, y el seed todavía no las carga',
+    reason:
+      'necesita un alquiler pagado que ya haya llegado a `viajes`, y la colección solo escribe con datos de prueba',
+  },
+  {
+    method: 'post',
+    path: /^\/api\/clientes\/rentals$/,
+    reason:
+      'pide un alquiler con la sesión de un cliente, y la colección solo escribe con datos de prueba; el seed ya carga alquileres en línea',
   },
   {
     method: 'post',
@@ -174,6 +181,9 @@ function authFor(path: string, operation: OperationObject, write: boolean): Post
   if (isPublic(path, operation)) return { type: 'noauth' };
   const roles = rolesOf(operation);
   if (!roles || roles.includes('SYSTEM_ADMIN')) return bearerAuth('{{accessToken}}');
+  // What only a client can see is read with a client of the demo. A write never uses a demo session.
+  if (!write && roles.every((role) => role === 'CLIENT'))
+    return bearerAuth('{{clientAccessToken}}');
   return bearerAuth(write ? '{{testBranchAccessToken}}' : '{{branchAccessToken}}');
 }
 

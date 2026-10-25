@@ -1,5 +1,12 @@
-import { branchWithAdminsPageSchema, type BranchWithAdmins } from '@debus/contracts';
-import { ADMINISTRACION, PAGE, withQuery } from '../api';
+import {
+  branchWithAdminsPageSchema,
+  busPageSchema,
+  routePageSchema,
+  type Bus,
+  type BranchWithAdmins,
+  type Route,
+} from '@debus/contracts';
+import { ADMINISTRACION, FLOTA, PAGE, withQuery } from '../api';
 import { ensureSignedIn } from '../accounts';
 import { SEED_BRANCHES, adminEmail } from '../catalog';
 import type { SeedContext } from '../context';
@@ -45,3 +52,38 @@ export async function branchAdminSession(ctx: SeedContext, code: string): Promis
   ctx.branchAdmins.set(code, session);
   return session;
 }
+
+export type FleetBus = Bus & { assignedDriverId: string };
+
+export interface BranchFleet {
+  buses: FleetBus[];
+  routes: Route[];
+}
+
+export async function loadFleet(ctx: SeedContext, session: Session): Promise<BranchFleet> {
+  const buses = await ctx.client.request(
+    session,
+    'GET',
+    withQuery(`${FLOTA}/buses`, { ...PAGE, status: 'all' }),
+    undefined,
+    busPageSchema,
+  );
+  const routes = await ctx.client.request(
+    session,
+    'GET',
+    withQuery(`${FLOTA}/routes`, { ...PAGE, status: 'active' }),
+    undefined,
+    routePageSchema,
+  );
+  return {
+    buses: buses.items.flatMap((bus) =>
+      bus.active && bus.assignedDriverId
+        ? [{ ...bus, assignedDriverId: bus.assignedDriverId }]
+        : [],
+    ),
+    routes: routes.items,
+  };
+}
+
+// How fast a bus travels on a regular trip, for the estimated arrival of what the seed schedules.
+export const CRUISE_KM_PER_HOUR = 55;

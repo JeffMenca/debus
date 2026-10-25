@@ -15,3 +15,7 @@ export const FLOTA = '/api/flota';
 export const VIAJES = '/api/viajes';
 // The largest page the API gives; the seed looks for one record at a time, so one page is enough.
 export const PAGE = { page: 1, pageSize: 100 } as const;
+export const CLIENTES = '/api/clientes';
+export const VENTAS = '/api/ventas';
+// The header that makes a money operation happen once, however many times it is sent.
+export const IDEMPOTENCY_KEY = 'Idempotency-Key';

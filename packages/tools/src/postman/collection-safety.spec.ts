@@ -152,6 +152,7 @@ describe('the collection against the data it must not touch', () => {
           'POST /api/viajes/rental-requests/:id/cancel',
           'POST /api/clientes/rentals/:id/cancel',
           'POST /api/clientes/branch-rentals/:id/confirm',
+          'POST /api/clientes/rentals',
           ...[
             'administracion',
             'flota',

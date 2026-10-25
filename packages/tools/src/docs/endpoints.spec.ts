@@ -173,10 +173,15 @@ describe('the Spanish text of the routes', () => {
   });
 
   it('has no text for a route that no longer exists', () => {
+    // A text is kept under the name of the handler, or under the full name when two services have
+    // a handler with the same name and say different things (`ventas_TripsController_list`).
     const known = new Set(
       Object.values(real.paths)
         .flatMap((operations) => Object.values(operations))
-        .map((operation) => operation?.operationId?.replace(/^[a-z]+_/, '')),
+        .flatMap((operation) => [
+          operation?.operationId,
+          operation?.operationId?.replace(/^[a-z]+_/, ''),
+        ]),
     );
     expect(Object.keys(ACTIONS).filter((key) => !known.has(key))).toEqual([]);
   });
