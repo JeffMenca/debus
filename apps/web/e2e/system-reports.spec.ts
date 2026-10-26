@@ -507,7 +507,9 @@ test.describe('system reports', () => {
       }
 
       await expect(page).toHaveURL(new RegExp(`sucursal=${BRANCH_QUETZALTENANGO}`));
-      expect(gateway.lastQueryOf('system-routes-map').get('branchId')).toBe(BRANCH_QUETZALTENANGO);
+      await expect
+        .poll(() => gateway.lastQueryOf('system-routes-map').get('branchId'))
+        .toBe(BRANCH_QUETZALTENANGO);
       await expect(
         map.getByRole('img', { name: 'Sucursal de origen: Quetzaltenango' }),
       ).toBeVisible();
