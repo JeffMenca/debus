@@ -4,14 +4,15 @@ import type { PrismaService } from '../../src/prisma/prisma.service';
 
 const ANNOUNCED = `
   SELECT envelope->'payload' AS payload FROM outbox
-  WHERE type = 'ProfileUpdated' AND envelope->'payload'->>'clientId' = $1
+  WHERE type = $2 AND envelope->'payload'->>'clientId' = $1
   ORDER BY created_at`;
 const FORGET_ANNOUNCED = `
   DELETE FROM outbox
-  WHERE type = 'ProfileUpdated' AND envelope->'payload'->>'clientId' = ANY($1::text[])`;
+  WHERE type IN ('ProfileUpdated', 'WalletCredited')
+    AND envelope->'payload'->>'clientId' = ANY($1::text[])`;
 
 // Every profile a test creates is remembered here and removed with its wallet, its movements and
-// the ProfileUpdated events it queued.
+// the events about it that it queued.
 export function testProfiles(prisma: PrismaService) {
   const created: string[] = [];
   return {
@@ -35,10 +36,14 @@ export function testProfiles(prisma: PrismaService) {
     track(userId: string): void {
       created.push(userId);
     },
-    async announced(userId: string): Promise<Record<string, unknown>[]> {
+    async announced(
+      userId: string,
+      type: 'ProfileUpdated' | 'WalletCredited' = 'ProfileUpdated',
+    ): Promise<Record<string, unknown>[]> {
       const rows = await prisma.$queryRawUnsafe<{ payload: Record<string, unknown> }[]>(
         ANNOUNCED,
         userId,
+        type,
       );
       return rows.map((row) => row.payload);
     },

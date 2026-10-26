@@ -1,4 +1,4 @@
-import type { AvailableTrip, Page, SeatMap, Ticket } from '@debus/contracts';
+import type { AvailableTrip, Page, Purchase, SeatMap, Ticket, TicketPage } from '@debus/contracts';
 
 export const TRIP_ID = '5b4a3f2e-1d0c-4b9a-8f7e-6d5c4b3a2f1e';
 export const TICKET_ID = '8e7d6c5b-4a3f-4e2d-9c1b-0a9f8e7d6c5b';
@@ -55,15 +55,57 @@ export const soldTicket = (over: Partial<Ticket> = {}): Ticket => ({
   ...over,
 });
 
+// A purchase with the wallet as the server answers it; confirmed carries its ticket.
+export function purchase(status: Purchase['status'] = 'CONFIRMED', over: Partial<Purchase> = {}) {
+  const settled: Partial<Purchase> =
+    status === 'CONFIRMED'
+      ? { failure: null, message: null, ticket: soldTicket({ channel: 'ONLINE' }) }
+      : status === 'PENDING'
+        ? { failure: null, message: 'Estamos confirmando el pago…', ticket: null }
+        : { failure: 'INSUFFICIENT_BALANCE', message: 'No tienes saldo suficiente.', ticket: null };
+  return {
+    ticketId: TICKET_ID,
+    tripId: TRIP_ID,
+    status,
+    seats: [9, 10],
+    amount: 170,
+    paidOn: '2026-10-20',
+    ...settled,
+    ...over,
+  } as Purchase;
+}
+
+export const ticketPage = (
+  items: Ticket[],
+  next: Ticket | null = null,
+  over: Partial<Page<Ticket>> = {},
+): TicketPage => ({
+  items,
+  total: items.length,
+  page: 1,
+  pageSize: 20,
+  summary: { next },
+  ...over,
+});
+
 type Handler = (init: RequestInit) => Response | Promise<Response>;
 
-// Answers the ventas API by "METHOD /path" (the path without the query); anything else fails.
-export function mockVentasApi(routes: Record<string, Handler>) {
+// Answers the gateway by "METHOD /path" (the path after /api, without the query); anything else fails.
+export function mockGatewayApi(routes: Record<string, Handler>) {
   return jest.spyOn(global, 'fetch').mockImplementation(async (input, init = {}) => {
     const url = new URL(String(input));
-    const route = `${init.method ?? 'GET'} ${url.pathname.replace('/api/ventas', '')}`;
-    const handler = routes[route];
+    const route = `${init.method ?? 'GET'} ${url.pathname.replace('/api', '')}`;
+    // A route ending in /:id answers any last segment, such as a purchase with a random key.
+    const handler = routes[route] ?? routes[route.replace(/\/[^/]+$/, '/:id')];
     if (!handler) throw new Error(`unexpected request ${route}`);
     return handler(init);
   });
 }
+
+// The same for the ventas API alone, with the path after /api/ventas.
+export const mockVentasApi = (routes: Record<string, Handler>) =>
+  mockGatewayApi(
+    Object.fromEntries(
+      Object.entries(routes).map(([route, handler]) => [route.replace(' ', ' /ventas'), handler]),
+    ),
+  );

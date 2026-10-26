@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { AvailableTripPage, SeatMap } from '@debus/contracts';
+import type { AvailableTripPage, SeatMap, TripPlaces } from '@debus/contracts';
 import { identityHeaders } from '@debus/server';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
-import { type TestTrips, inHours, testTrips } from './support/trips';
+import { type TestTrips, inHours, testLabel, testTrips } from './support/trips';
 
 describe('trips on sale and their seat map', () => {
   let app: INestApplication;
@@ -97,6 +97,91 @@ describe('trips on sale and their seat map', () => {
     expect((body as AvailableTripPage).items).toHaveLength(1);
   });
 
+  it('matches the origin and the destination exactly, so the way back is another search', async () => {
+    const [here, there] = [`${token}o`, `${token}d`];
+    const going = await trips.create({ originLabel: here, destinationLabel: there });
+    await trips.create({ originLabel: there, destinationLabel: here });
+
+    const { body } = await listTrips({ origin: testLabel(here), destination: testLabel(there) });
+
+    expect((body as AvailableTripPage).items.map((trip) => trip.tripId)).toEqual([going]);
+    expect((body as AvailableTripPage).total).toBe(1);
+  });
+
+  it('combines the places with the day and the text, and pages what they leave', async () => {
+    const [here, there] = [`${token}c`, `${token}e`];
+    const departureAt = new Date(inHours(120));
+    const day = departureAt.toLocaleDateString('en-CA', { timeZone: 'America/Guatemala' });
+    const same = {
+      originLabel: here,
+      destinationLabel: there,
+      departureAt: departureAt.toISOString(),
+    };
+    const kept = [await trips.create(same), await trips.create(same), await trips.create(same)];
+    await trips.create({ ...same, departureAt: inHours(150) });
+    await prisma.trip.updateMany({
+      where: { tripId: { in: kept } },
+      data: { searchText: `${token}c bus` },
+    });
+    const query = {
+      origin: testLabel(here),
+      destination: testLabel(there),
+      from: day,
+      to: day,
+      q: `${token}C`,
+    };
+
+    const first = await listTrips({ ...query, pageSize: 2 });
+    const second = await listTrips({ ...query, pageSize: 2, page: 2 });
+
+    expect(first.body).toMatchObject({ total: 3, page: 1 });
+    expect(second.body).toMatchObject({ total: 3, page: 2 });
+    const ids = [
+      ...(first.body as AvailableTripPage).items,
+      ...(second.body as AvailableTripPage).items,
+    ].map((trip) => trip.tripId);
+    expect([...ids].sort()).toEqual([...kept].sort());
+  });
+
+  it('asks for room for every passenger', async () => {
+    const origin = testLabel(`${token}s`);
+    const tripId = await trips.create({ originLabel: `${token}s` });
+    await takeSeats(
+      tripId,
+      Array.from({ length: 38 }, (_, index) => index + 1),
+    );
+
+    const three = await listTrips({ origin, seats: 3 });
+    const two = await listTrips({ origin, seats: 2 });
+    const eleven = await listTrips({ origin, seats: 11 });
+
+    expect((three.body as AvailableTripPage).total).toBe(0);
+    expect((two.body as AvailableTripPage).items).toEqual([
+      expect.objectContaining({ tripId, freeSeats: 2 }),
+    ]);
+    expect(eleven.status).toBe(400);
+  });
+
+  it('lists each place with trips on sale once, and none whose trips already left', async () => {
+    const [kept, gone] = [`${token}m`, `${token}gone`];
+    await trips.create({ originLabel: kept, destinationLabel: gone });
+    await trips.create({ originLabel: kept, departureAt: inHours(50) });
+    await trips.create({ originLabel: `${token}n` });
+    await trips.create({ originLabel: gone, destinationLabel: gone, departureAt: inHours(-2) });
+
+    const { body, status } = await request(app.getHttpServer()).get('/trips/places').set(client);
+
+    expect(status).toBe(200);
+    const places = body as TripPlaces;
+    expect(places.origins.filter((place) => place === testLabel(kept))).toHaveLength(1);
+    expect(places.origins).not.toContain(testLabel(gone));
+    expect(places.destinations).toContain(testLabel(gone));
+    // In order: only this run's labels are compared, so other trips of the database never matter.
+    expect(places.origins.indexOf(testLabel(kept))).toBeLessThan(
+      places.origins.indexOf(testLabel(`${token}n`)),
+    );
+  });
+
   it('rejects a range that goes backwards', async () => {
     const { status } = await listTrips({ from: '2026-10-20', to: '2026-10-19' });
 
@@ -128,5 +213,6 @@ describe('trips on sale and their seat map', () => {
     );
     expect((await request(server).get('/trips/nope/seats').set(client)).status).toBe(400);
     expect((await request(server).get('/trips')).status).toBe(401);
+    expect((await request(server).get('/trips/places')).status).toBe(401);
   });
 });

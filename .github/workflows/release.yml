@@ -156,6 +156,26 @@ jobs:
             gcloud scheduler jobs create http "$job" "${args[@]}"
           fi
 
+      # Sends the queued emails every minute (retrying the failed ones) and the licence alerts every
+      # morning, Guatemala time.
+      - name: Schedule email delivery and licence alerts
+        if: matrix.unit == 'notificaciones'
+        run: |
+          url="https://$UNIT-$GCP_PROJECT_NUMBER.$GCP_REGION.run.app"
+          schedule() {
+            local job="$UNIT-$1" args=(--location "$GCP_REGION" --schedule "$2" --time-zone America/Guatemala
+              --uri "$url$3" --http-method POST
+              --oidc-service-account-email "pubsub-invoker@$GCP_PROJECT_ID.iam.gserviceaccount.com"
+              --oidc-token-audience "$url")
+            if gcloud scheduler jobs describe "$job" --location "$GCP_REGION" >/dev/null 2>&1; then
+              gcloud scheduler jobs update http "$job" "${args[@]}"
+            else
+              gcloud scheduler jobs create http "$job" "${args[@]}"
+            fi
+          }
+          schedule email-flush "* * * * *" /internal/emails/flush
+          schedule license-alerts "0 8 * * *" /internal/license-alerts/run
+
       # Settles the purchases that ventas left in doubt and frees the counter tickets that never finished.
       - name: Schedule purchase recovery
         if: matrix.unit == 'ventas'

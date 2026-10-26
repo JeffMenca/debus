@@ -2,8 +2,8 @@ import type { SeatMap } from '@debus/contracts';
 import { formatLongDate, formatPlate } from '@/lib/format';
 import { splitGuatemala } from '@/lib/trips/schedule';
 
-// The trip being sold, as the seats screen shows it: hours big, places under them.
-export function CounterTripCard({ trip }: { trip: SeatMap }) {
+// The trip whose seats are being sold, at the counter or online: hours big, places under them.
+export function TripTicketCard({ trip }: { trip: SeatMap }) {
   const departure = splitGuatemala(trip.departureAt);
   const arrival = splitGuatemala(trip.estimatedArrivalAt);
   return (

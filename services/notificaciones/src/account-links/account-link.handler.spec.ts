@@ -29,7 +29,14 @@ describe('AccountLinkHandler', () => {
       expect.objectContaining({ to: 'ana@correo.com', subject: 'Confirma tu correo en debus' }),
     );
     expect(prisma.sentEmail.create).toHaveBeenCalledWith({
-      data: { eventId: envelope.eventId, recipient: 'ana@correo.com', template: 'SIGNUP' },
+      data: {
+        eventId: envelope.eventId,
+        dedupeKey: `account-link:${envelope.eventId}`,
+        recipient: 'ana@correo.com',
+        template: 'SIGNUP',
+        status: 'SENT',
+        sentAt: expect.any(Date),
+      },
     });
     expect(JSON.stringify(prisma.sentEmail.create.mock.calls)).not.toContain('secret-token');
   });

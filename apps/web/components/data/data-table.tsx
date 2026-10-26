@@ -13,6 +13,7 @@ import { FileDown } from 'lucide-react';
 import type { PageQuery } from '@debus/contracts';
 import { Fragment, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { ErrorAlert } from './error-alert';
 import { TablePagination } from './table-pagination';
 
@@ -24,6 +25,8 @@ export interface DataTablePagination {
   page: number;
   pageSize: number;
   total: number;
+  // How many of the rows on screen come from the server, when the screen adds others (subtotals).
+  pageItems?: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 }
@@ -33,11 +36,13 @@ export function tablePagination(
   query: PageQuery,
   total: number | undefined,
   update: (patch: Partial<PageQuery>) => void,
+  pageItems?: number,
 ): DataTablePagination {
   return {
     page: query.page,
     pageSize: query.pageSize,
     total: total ?? 0,
+    ...(pageItems !== undefined && { pageItems }),
     onPageChange: (page) => update({ page }),
     onPageSizeChange: (pageSize) => update({ pageSize }),
   };
@@ -63,6 +68,9 @@ interface DataTableProps<T extends RowData> {
   // are open (by row id) and what each one shows.
   expandedRowIds?: ReadonlySet<string>;
   renderDetail?: (row: T) => ReactNode;
+  // A row that looks or reads different from the rest, such as a subtotal: its classes and the name
+  // a screen reader announces for it.
+  rowProps?: (row: T) => { className?: string; label?: string } | undefined;
 }
 
 // The server filters and pages before passing `data`; this component only paints the table.
@@ -83,6 +91,7 @@ export function DataTable<T extends RowData>({
   isRefreshing,
   expandedRowIds,
   renderDetail,
+  rowProps,
 }: DataTableProps<T>) {
   const table = useTable({
     features: dataTableFeatures,
@@ -163,30 +172,40 @@ export function DataTable<T extends RowData>({
                   </td>
                 </tr>
               ) : (
-                rows.map((row, index) => (
-                  <Fragment key={row.id}>
-                    <tr
-                      className="animate-arrive transition-colors hover:bg-background/60 motion-reduce:animate-none"
-                      style={{ animationDelay: `${Math.min(index, 7) * 60}ms` }}
-                    >
-                      {row.getAllCells().map((cell) => (
-                        <td key={cell.id} className="relative border-b border-muted px-3.5 py-2.5">
-                          <table.FlexRender cell={cell} />
-                        </td>
-                      ))}
-                    </tr>
-                    {renderDetail && expandedRowIds?.has(row.id) && (
-                      <tr>
-                        <td
-                          colSpan={columns.length}
-                          className="border-b border-muted bg-background/60 px-3.5 py-3"
-                        >
-                          {renderDetail(row.original)}
-                        </td>
+                rows.map((row, index) => {
+                  const special = rowProps?.(row.original);
+                  return (
+                    <Fragment key={row.id}>
+                      <tr
+                        aria-label={special?.label}
+                        className={cn(
+                          'animate-arrive transition-colors hover:bg-background/60 motion-reduce:animate-none',
+                          special?.className,
+                        )}
+                        style={{ animationDelay: `${Math.min(index, 7) * 60}ms` }}
+                      >
+                        {row.getAllCells().map((cell) => (
+                          <td
+                            key={cell.id}
+                            className="relative border-b border-muted px-3.5 py-2.5"
+                          >
+                            <table.FlexRender cell={cell} />
+                          </td>
+                        ))}
                       </tr>
-                    )}
-                  </Fragment>
-                ))
+                      {renderDetail && expandedRowIds?.has(row.id) && (
+                        <tr>
+                          <td
+                            colSpan={columns.length}
+                            className="border-b border-muted bg-background/60 px-3.5 py-3"
+                          >
+                            {renderDetail(row.original)}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -202,7 +221,7 @@ export function DataTable<T extends RowData>({
           pageSize={pagination.pageSize}
           total={pagination.total}
           from={rowsBefore + 1}
-          to={rowsBefore + data.length}
+          to={rowsBefore + (pagination.pageItems ?? data.length)}
           canPrevious={table.getCanPreviousPage()}
           canNext={table.getCanNextPage()}
           onFirst={table.firstPage}

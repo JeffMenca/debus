@@ -43,6 +43,8 @@ model ClientProfile {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
   wallet    Wallet?
+  refunds   Refund[]
+  rentals   Rental[]
 
   @@map("client_profiles")
 }
@@ -85,6 +87,20 @@ model WalletMovement {
   @@map("wallet_movements")
 }
 
+// One per ticket the wallet was asked to refund. Without a movement, nothing had been charged and the
+// row stops a debit still on its way from charging a ticket that no longer exists.
+model Refund {
+  reference  String        @id @db.Uuid
+  clientId   String        @map("client_id") @db.Uuid
+  movementId String?       @map("movement_id") @db.Uuid
+  amount     Decimal       @db.Decimal(12, 2)
+  reason     String
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  profile    ClientProfile @relation(fields: [clientId], references: [userId], onDelete: Cascade)
+
+  @@map("refunds")
+}
+
 // Copy of the settings versions of administracion, fed by SettingsUpdated. Versions never change.
 model SettingsVersionCopy {
   id                String   @id @db.Uuid
@@ -95,4 +111,66 @@ model SettingsVersionCopy {
 
   @@index([effectiveFrom, createdAt])
   @@map("settings_versions")
+}
+
+enum RentalChannel {
+  ONLINE
+  COUNTER
+}
+
+enum RentalStatus {
+  REQUESTED
+  CONFIRMED
+  PAID
+  CANCELLED
+}
+
+// A private bus rental. Online ones belong to a client; counter ones only carry the NIT given at the
+// branch (CF when none), which links them to the client who later signs up with it. The CHECK
+// constraints of the migration keep the channel, the price and the payment consistent.
+model Rental {
+  id               String         @id @db.Uuid
+  channel          RentalChannel
+  status           RentalStatus
+  branchId         String         @map("branch_id") @db.Uuid
+  clientId         String?        @map("client_id") @db.Uuid
+  nit              String
+  clientName       String         @map("client_name")
+  email            String?
+  originLabel      String         @map("origin_label")
+  destinationLabel String         @map("destination_label")
+  departureAt      DateTime       @map("departure_at") @db.Timestamptz(3)
+  returnAt         DateTime?      @map("return_at") @db.Timestamptz(3)
+  passengers       Int
+  distanceKm       Decimal        @map("distance_km") @db.Decimal(7, 1)
+  ratePerKm        Decimal        @map("rate_per_km") @db.Decimal(10, 2)
+  estimatedPrice   Decimal        @map("estimated_price") @db.Decimal(10, 2)
+  price            Decimal?       @db.Decimal(10, 2)
+  searchText       String         @map("search_text")
+  requestedAt      DateTime       @default(now()) @map("requested_at") @db.Timestamptz(3)
+  createdById      String         @map("created_by_id") @db.Uuid
+  confirmedAt      DateTime?      @map("confirmed_at") @db.Timestamptz(3)
+  confirmedById    String?        @map("confirmed_by_id") @db.Uuid
+  paidOn           DateTime?      @map("paid_on") @db.Date
+  paidAt           DateTime?      @map("paid_at") @db.Timestamptz(3)
+  cancelledAt      DateTime?      @map("cancelled_at") @db.Timestamptz(3)
+  profile          ClientProfile? @relation(fields: [clientId], references: [userId], onDelete: Cascade)
+
+  @@index([clientId, requestedAt(sort: Desc), id(sort: Desc)])
+  @@index([nit, requestedAt(sort: Desc), id(sort: Desc)])
+  @@index([branchId, status, departureAt, id])
+  @@map("rentals")
+}
+
+// Copy of the branches of administracion, fed by BranchCreated/BranchUpdated: a rental is asked only
+// of an active branch. Events may arrive out of order, so a row is only replaced by a higher version.
+model BranchCopy {
+  id        String   @id @db.Uuid
+  code      String
+  name      String
+  active    Boolean
+  version   Int
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@map("branches")
 }

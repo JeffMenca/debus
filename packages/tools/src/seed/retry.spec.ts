@@ -58,6 +58,10 @@ describe('pendingCopy', () => {
     expect(isPending(new GatewayError(409, 'Aún no tenemos el salario de ese chofer.'))).toBe(true);
   });
 
+  it('matches a 404 that starts with one of the messages, since a missing copy answers either way', () => {
+    expect(isPending(new GatewayError(404, 'Aún no tenemos el salario de ese chofer.'))).toBe(true);
+  });
+
   it('does not match other statuses, other messages or other errors', () => {
     expect(isPending(new GatewayError(400, 'Elige otra sucursal activa como destino.'))).toBe(
       false,

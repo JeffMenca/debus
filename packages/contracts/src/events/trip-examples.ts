@@ -1,9 +1,11 @@
 import { EXAMPLE_IDS } from './fleet-examples';
 import {
+  type RentalCancelledPayload,
   type TripCompletedPayload,
   type TripDeletedPayload,
   type TripDepartedPayload,
   type TripScheduledPayload,
+  rentalCancelledPayloadSchema,
   tripCompletedPayloadSchema,
   tripDeletedPayloadSchema,
   tripDepartedPayloadSchema,
@@ -62,11 +64,19 @@ export const exampleTripCompleted: TripCompletedPayload = {
   driverPay: 350,
 };
 
+export const exampleRentalCancelled: RentalCancelledPayload = {
+  rentalId: EXAMPLE_IDS.rental,
+  branchId: EXAMPLE_IDS.branch,
+  tripId: EXAMPLE_IDS.trip,
+  cancelledAt: '2026-10-22T14:00:00.000Z',
+};
+
 export const TRIP_PAYLOAD_SCHEMAS = {
   TripScheduled: tripScheduledPayloadSchema,
   TripDeleted: tripDeletedPayloadSchema,
   TripDeparted: tripDepartedPayloadSchema,
   TripCompleted: tripCompletedPayloadSchema,
+  RentalCancelled: rentalCancelledPayloadSchema,
 } as const;
 
 export const TRIP_EXAMPLES: Record<keyof typeof TRIP_PAYLOAD_SCHEMAS, unknown> = {
@@ -74,4 +84,5 @@ export const TRIP_EXAMPLES: Record<keyof typeof TRIP_PAYLOAD_SCHEMAS, unknown> =
   TripDeleted: exampleTripDeleted,
   TripDeparted: exampleTripDeparted,
   TripCompleted: exampleTripCompleted,
+  RentalCancelled: exampleRentalCancelled,
 };

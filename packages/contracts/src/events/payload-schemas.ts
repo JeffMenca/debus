@@ -1,5 +1,9 @@
 import type { z } from 'zod';
-import { accountLinkSentPayloadSchema, userRegisteredPayloadSchema } from './account-payloads';
+import {
+  accountLinkSentPayloadSchema,
+  userRegisteredPayloadSchema,
+  userUpdatedPayloadSchema,
+} from './account-payloads';
 import { branchChangedPayloadSchema, settingsUpdatedPayloadSchema } from './admin-payloads';
 import { CLIENT_PAYLOAD_SCHEMAS } from './client-examples';
 import { probeEmittedPayloadSchema } from './envelope';
@@ -16,6 +20,7 @@ export const EVENT_PAYLOAD_SCHEMAS: Record<EventType, z.ZodType> = {
   SettingsUpdated: settingsUpdatedPayloadSchema,
   UserRegistered: userRegisteredPayloadSchema,
   AccountLinkSent: accountLinkSentPayloadSchema,
+  UserUpdated: userUpdatedPayloadSchema,
   RepairExpenseAdded: repairExpenseAddedPayloadSchema,
   ...FLEET_PAYLOAD_SCHEMAS,
   ...TRIP_PAYLOAD_SCHEMAS,

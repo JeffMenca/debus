@@ -3,6 +3,7 @@ import {
   Activity,
   Building2,
   Bus,
+  BusFront,
   CalendarDays,
   IdCard,
   LayoutGrid,
@@ -15,6 +16,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { REPORT_LINKS } from '@/lib/branch-reports/report-links';
+import { SYSTEM_REPORT_LINKS } from '@/lib/system-reports/report-links';
 
 export interface NavItem {
   label: string;
@@ -40,6 +42,10 @@ const SYSTEM_ADMIN: NavGroup[] = [
     ],
   },
   {
+    label: 'Reportes',
+    items: SYSTEM_REPORT_LINKS.map(({ title, href, icon }) => ({ label: title, href, icon })),
+  },
+  {
     label: 'Sistema',
     items: [{ label: 'Estado del sistema', href: '/admin/estado', icon: Activity }],
   },
@@ -56,6 +62,7 @@ const BRANCH_ADMIN: NavGroup[] = [
     items: [
       BRANCH_PANEL,
       { label: 'Viajes', href: '/sucursal/viajes', icon: CalendarDays },
+      { label: 'Alquileres', href: '/sucursal/alquileres', icon: BusFront },
       COUNTER,
     ],
   },

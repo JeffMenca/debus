@@ -139,5 +139,5 @@ Done. Set these GitHub repository variables (Settings > Secrets and variables > 
   MEDIA_BUCKET=$MEDIA_BUCKET
 Create one GitHub environment (Settings > Environments): "production" with required reviewers.
 Then run the deploy workflow once with all=true.
-Pending: SMTP credentials as secret smtp-url, Cloud Scheduler jobs for /outbox/flush and license alerts.
+Pending: SMTP credentials as secret smtp-url (the release workflow creates the Cloud Scheduler jobs).
 OUT

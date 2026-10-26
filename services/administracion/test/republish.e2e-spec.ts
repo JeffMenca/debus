@@ -1,6 +1,8 @@
 import {
   type BranchChangedPayload,
   type SettingsUpdatedPayload,
+  type UserUpdatedPayload,
+  userUpdatedPayloadSchema,
   branchChangedPayloadSchema,
   settingsUpdatedPayloadSchema,
   todayInGuatemala,
@@ -90,6 +92,34 @@ describe('republishing for the services that keep a copy', () => {
     // so what is left to prove is that republishing adds no version of its own.
     const after = await prisma.settingsVersion.findMany({ orderBy: { id: 'asc' } });
     expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
+  });
+
+  it('sends every branch admin again with a higher version, and no other account', async () => {
+    const branch = await createTestBranch(prisma);
+    const admin = await activeAccount(app, events, { role: 'BRANCH_ADMIN', branchId: branch.id });
+    const cashier = await activeAccount(app, events, { role: 'CASHIER', branchId: branch.id });
+
+    // Limited to the test branch, so no real account changes its version.
+    const response = await http()
+      .post('/internal/users/republish')
+      .query({ branchId: branch.id })
+      .expect(200);
+
+    expect(response.body).toEqual({ republished: 1 });
+    // Activation announced version 2; the republish sends it again one higher.
+    const sent = await events.next<UserUpdatedPayload>(
+      'UserUpdated',
+      (payload) => payload.userId === admin.id && payload.version === 3,
+    );
+    expect(userUpdatedPayloadSchema.parse(sent)).toMatchObject({
+      role: 'BRANCH_ADMIN',
+      branchId: branch.id,
+      active: true,
+    });
+    await events.none<UserUpdatedPayload>(
+      'UserUpdated',
+      (payload) => payload.userId === cashier.id,
+    );
   });
 
   it('answers 400 for a branch that is not an id', async () => {

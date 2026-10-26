@@ -52,9 +52,29 @@ const choose = async (label: string, option: string | RegExp) => {
 };
 const submit = () => user.click(screen.getByRole('button', { name: 'Asignar' }));
 
+// The rental of the fixtures leaves on 2026-10-24: the clock stays before it, so what the dialog
+// proposes does not change with the day the tests run.
 beforeEach(() => {
+  jest.useFakeTimers({
+    now: new Date('2026-10-23T12:00:00.000Z'),
+    doNotFake: [
+      'setTimeout',
+      'clearTimeout',
+      'setInterval',
+      'clearInterval',
+      'setImmediate',
+      'clearImmediate',
+      'nextTick',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'cancelAnimationFrame',
+      'performance',
+    ],
+  });
   jest.mocked(toast.success).mockReset();
 });
+
+afterEach(() => jest.useRealTimers());
 
 it('names the rental it is about and asks for bus, driver and estimated arrival', () => {
   setup();
@@ -217,25 +237,7 @@ it('stays closed while there is no rental to assign', () => {
 });
 
 describe('a rental whose requested hour already passed', () => {
-  beforeEach(() =>
-    jest.useFakeTimers({
-      now: new Date('2026-10-24T13:00:00.000Z'),
-      doNotFake: [
-        'setTimeout',
-        'clearTimeout',
-        'setInterval',
-        'clearInterval',
-        'setImmediate',
-        'clearImmediate',
-        'nextTick',
-        'queueMicrotask',
-        'requestAnimationFrame',
-        'cancelAnimationFrame',
-        'performance',
-      ],
-    }),
-  );
-  afterEach(() => jest.useRealTimers());
+  beforeEach(() => jest.setSystemTime(new Date('2026-10-24T13:00:00.000Z')));
 
   it('warns that the trip leaves as soon as it is registered', () => {
     setup();

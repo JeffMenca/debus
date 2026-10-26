@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { isLaterInstant, isoDateSchema } from '../dates';
 import { searchTermSchema } from '../text';
-import { fullNameSchema } from './auth';
+import { emailSchema, fullNameSchema } from './auth';
 import { pagedDayRangeQuery } from './day-range';
 import { distanceKmSchema } from './fleet';
 import { pageSchema } from './pagination';
@@ -33,18 +33,48 @@ const rentalTripSchema = z.object({
 export const rentalRequestSchema = returnAfterDeparture(rentalTripSchema);
 export type RentalRequest = z.infer<typeof rentalRequestSchema>;
 
+// A walk-in rental is recorded already confirmed: the branch admin sets its price on the spot.
 export const counterRentalRequestSchema = returnAfterDeparture(
-  rentalTripSchema.extend({ nit: saleNitSchema, clientName: fullNameSchema }),
+  rentalTripSchema.extend({
+    nit: saleNitSchema,
+    clientName: fullNameSchema,
+    email: emailSchema.nullable().default(null),
+    price: moneySchema,
+  }),
 );
 export type CounterRentalRequest = z.infer<typeof counterRentalRequestSchema>;
 
-// The branch admin keeps the estimate or sets another price.
-export const confirmRentalRequestSchema = z.object({ price: moneySchema });
+// The branch admin keeps the estimate or sets another price, and may correct the distance.
+export const confirmRentalRequestSchema = z.object({
+  price: moneySchema,
+  distanceKm: distanceKmSchema.optional(),
+});
 export type ConfirmRentalRequest = z.infer<typeof confirmRentalRequestSchema>;
 
-// Paid from the wallet with an Idempotency-Key header.
+// Sent with Idempotency-Key = the rental id. An online rental is debited from the wallet; a counter
+// rental records the cash the branch received.
 export const payRentalRequestSchema = z.object({ paidOn: isoDateSchema });
 export type PayRentalRequest = z.infer<typeof payRentalRequestSchema>;
+
+// The distance has at most one decimal and the rate two, so whole tenths of a km times cents is
+// exact; only the final rounding to the cent remains. The API and the screens price with it.
+export function estimateRentalPrice(distanceKm: number, ratePerKm: number): number {
+  const tenthsTimesCents = Math.round(distanceKm * 10) * Math.round(ratePerKm * 100);
+  return Math.round(tenthsTimesCents / 10) / 100;
+}
+
+export const rentalEstimateQuerySchema = z.object({
+  distanceKm: z.coerce.number().pipe(distanceKmSchema),
+});
+export type RentalEstimateQuery = z.infer<typeof rentalEstimateQuerySchema>;
+
+// The rental rate in force today and what the trip would cost with it.
+export const rentalEstimateSchema = z.object({
+  ratePerKm: z.number().positive(),
+  estimatedPrice: z.number().positive(),
+  effectiveFrom: isoDateSchema,
+});
+export type RentalEstimate = z.infer<typeof rentalEstimateSchema>;
 
 export const rentalSchema = rentalTripSchema.extend({
   id: z.uuid(),
@@ -53,11 +83,15 @@ export const rentalSchema = rentalTripSchema.extend({
   clientId: z.uuid().nullable(),
   nit: z.string(),
   clientName: z.string(),
+  email: z.string().nullable(),
+  ratePerKm: z.number().positive(),
   estimatedPrice: z.number().positive(),
   price: z.number().positive().nullable(),
   requestedAt: z.iso.datetime(),
   confirmedAt: z.iso.datetime().nullable(),
   paidOn: isoDateSchema.nullable(),
+  paidAt: z.iso.datetime().nullable(),
+  cancelledAt: z.iso.datetime().nullable(),
 });
 export type Rental = z.infer<typeof rentalSchema>;
 

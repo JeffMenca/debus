@@ -215,7 +215,8 @@ export class PurchasesService {
           { ticketId, failure: outcome.failure },
           'Wallet refused a debit it should accept',
         );
-      await this.compensate(row.id, outcome.failure);
+      // A purchase closed meanwhile (the trip was deleted) keeps its own reason.
+      if (!(await this.compensate(row.id, outcome.failure))) return this.current(row.id);
       return { state: 'FAILED', failure: outcome.failure, peerMessage: outcome.peerMessage };
     }
     if (outcome.unexpected) this.logger.error({ ticketId }, outcome.reason);
@@ -224,11 +225,14 @@ export class PurchasesService {
   }
 
   // Seats are never freed while the money may have moved, and nothing is charged for seats that are gone.
+  // The ticket only goes with its trip, whose TripDeleted closes the purchase and asks for its refund.
   private async ticketGone(row: PurchaseRow, sentBefore: number): Promise<Attempt> {
     if (sentBefore === 0) {
-      await this.compensate(row.id, 'TRIP_CANCELLED');
+      if (!(await this.compensate(row.id, 'TRIP_CANCELLED'))) return this.current(row.id);
       return { state: 'FAILED', failure: 'TRIP_CANCELLED' };
     }
+    const latest = await this.current(row.id);
+    if (latest.state !== 'PENDING') return latest;
     const reason = 'The ticket is gone and a debit may already have been applied';
     this.logger.error({ ticketId: row.id }, reason);
     await this.release(row.id, reason);
@@ -238,20 +242,22 @@ export class PurchasesService {
   // T3. Only the request that moves the purchase out of PENDING announces the sale.
   private async confirm(ticketId: string, email: string, correlationId?: string): Promise<Attempt> {
     try {
-      await this.prisma.$transaction(async (tx) => {
+      const confirmed = await this.prisma.$transaction(async (tx) => {
         const { count } = await tx.purchase.updateMany({
           where: { id: ticketId, status: 'PENDING' },
           data: { status: 'CONFIRMED', lockedUntil: null, lastError: null },
         });
+        // Confirmed by another request, or closed because the trip was deleted with its ticket.
+        if (count === 0) return false;
         await tx.ticket.update({ where: { id: ticketId }, data: { status: 'CONFIRMED', email } });
         const sold = await tx.ticket.findUniqueOrThrow({
           where: { id: ticketId },
           include: SOLD_TICKET_INCLUDE,
         });
-        if (count === 1) {
-          await this.outbox.add(tx, 'TicketSold', toTicketSoldPayload(sold), correlationId);
-        }
+        await this.outbox.add(tx, 'TicketSold', toTicketSoldPayload(sold), correlationId);
+        return true;
       });
+      if (!confirmed) return this.current(ticketId);
     } catch (error) {
       // The wallet already answered: the lease expires and the same key brings the same answer again.
       this.logger.error({ ticketId, error }, 'Could not confirm a paid purchase');
@@ -262,14 +268,16 @@ export class PurchasesService {
   }
 
   // C1. The ticket goes with its seats; the purchase record stays, marked with why it failed.
-  private compensate(ticketId: string, failure: PurchaseFailure): Promise<unknown> {
-    return this.prisma.$transaction([
+  // Answers whether it closed the purchase, which may have been closed already.
+  private async compensate(ticketId: string, failure: PurchaseFailure): Promise<boolean> {
+    const [, closed] = await this.prisma.$transaction([
       this.prisma.ticket.deleteMany({ where: { id: ticketId, status: 'PENDING' } }),
       this.prisma.purchase.updateMany({
         where: { id: ticketId, status: 'PENDING' },
         data: { status: 'FAILED', failure, lockedUntil: null, lastError: null },
       }),
     ]);
+    return closed.count === 1;
   }
 
   private release(ticketId: string, reason: string): Promise<unknown> {
@@ -277,6 +285,10 @@ export class PurchasesService {
       where: { id: ticketId, status: 'PENDING' },
       data: { lockedUntil: null, lastError: reason },
     });
+  }
+
+  private async current(ticketId: string): Promise<Attempt> {
+    return this.stateOf(await this.prisma.purchase.findUniqueOrThrow({ where: { id: ticketId } }));
   }
 
   private stateOf(row: PurchaseRow): Attempt {

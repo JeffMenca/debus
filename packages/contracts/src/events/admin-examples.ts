@@ -4,6 +4,7 @@ import {
   branchChangedPayloadSchema,
   settingsUpdatedPayloadSchema,
 } from './admin-payloads';
+import { type UserUpdatedPayload, userUpdatedPayloadSchema } from './account-payloads';
 import { EXAMPLE_IDS } from './fleet-examples';
 
 export const exampleBranch: BranchChangedPayload = {
@@ -28,14 +29,26 @@ export const exampleSettingsUpdated: SettingsUpdatedPayload = {
   createdAt: '2026-10-01T15:00:00.000Z',
 };
 
+export const exampleUserUpdated: UserUpdatedPayload = {
+  userId: '3b2a1c0d-9e8f-4a7b-8c6d-5e4f3a2b1c0d',
+  email: 'marta.choc@debus.gt',
+  fullName: 'Marta Choc',
+  role: 'BRANCH_ADMIN',
+  branchId: EXAMPLE_IDS.branch,
+  active: true,
+  version: 2,
+};
+
 export const ADMIN_PAYLOAD_SCHEMAS = {
   BranchCreated: branchChangedPayloadSchema,
   BranchUpdated: branchChangedPayloadSchema,
   SettingsUpdated: settingsUpdatedPayloadSchema,
+  UserUpdated: userUpdatedPayloadSchema,
 } as const;
 
 export const ADMIN_EXAMPLES: Record<keyof typeof ADMIN_PAYLOAD_SCHEMAS, unknown> = {
   BranchCreated: exampleBranch,
   BranchUpdated: { ...exampleBranch, name: 'Quetzaltenango Centro', version: 2 },
   SettingsUpdated: exampleSettingsUpdated,
+  UserUpdated: exampleUserUpdated,
 };

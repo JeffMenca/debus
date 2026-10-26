@@ -68,3 +68,13 @@ export const tripCompletedPayloadSchema = z
     message: 'final mileage cannot be lower than the starting one',
   });
 export type TripCompletedPayload = z.infer<typeof tripCompletedPayloadSchema>;
+
+// viajes publishes it when the branch admin cancels a paid rental before its trip leaves; tripId is
+// the trip it deleted, if one was assigned. clientes gives the money back and reportes drops the income.
+export const rentalCancelledPayloadSchema = z.object({
+  rentalId: z.uuid(),
+  branchId: z.uuid(),
+  tripId: z.uuid().nullable(),
+  cancelledAt: z.iso.datetime(),
+});
+export type RentalCancelledPayload = z.infer<typeof rentalCancelledPayloadSchema>;

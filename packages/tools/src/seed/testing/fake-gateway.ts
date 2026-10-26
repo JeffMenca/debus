@@ -3,29 +3,30 @@ import { GatewayError, type Gateway, type Session } from '../gateway-client';
 import type { Mailbox } from '../mailbox';
 import { guatemalaDayRange } from '@debus/contracts';
 import type { z } from 'zod';
+import { FakeClients } from './fake-clients';
+import { FakeRentals } from './fake-rentals';
+import { FakeSales } from './fake-sales';
+import {
+  NO_ROUTE,
+  conflict,
+  page,
+  uuid,
+  type Body,
+  type FakeExtension,
+  type Row,
+} from './fake-support';
 
 // An in-memory stand-in for the parts of the API the seed uses, strict enough that a stage which
 // is not idempotent, or breaks a rule the real services enforce, fails against it.
-
-type Row = Record<string, unknown> & { id: string };
-type Body = Record<string, unknown>;
 
 export interface RecordedRequest {
   email: string | null;
   method: string;
   path: string;
   body: unknown;
+  headers: Record<string, string>;
 }
 
-const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-const page = (items: unknown[], summary: unknown) => ({
-  items,
-  total: items.length,
-  page: 1,
-  pageSize: 100,
-  summary,
-});
-const conflict = (message: string) => new GatewayError(409, message);
 const overlaps = (a: Row, b: Row) =>
   Date.parse(a.departureAt as string) < Date.parse(b.estimatedArrivalAt as string) &&
   Date.parse(b.departureAt as string) < Date.parse(a.estimatedArrivalAt as string);
@@ -40,6 +41,11 @@ export class FakeGateway implements Gateway {
   readonly trips: Row[] = [];
   readonly expenses: Row[] = [];
   readonly settings: Row[] = [];
+  // The parts of the API that live in their own files.
+  readonly clients = new FakeClients(this);
+  readonly sales = new FakeSales(this);
+  readonly rentals = new FakeRentals(this);
+  private readonly extensions: FakeExtension[] = [this.clients, this.sales, this.rentals];
   // The most rows a page may carry, whatever the request asks for.
   maxPageSize = 100;
   readonly passwords = new Map<string, string>([['admin@debus.local', 'clave-admin-1']]);
@@ -99,8 +105,9 @@ export class FakeGateway implements Gateway {
     path: string,
     body?: unknown,
     schema?: z.ZodType<T>,
+    headers: Record<string, string> = {},
   ): Promise<T> {
-    this.requests.push({ email: session?.user.email ?? null, method, path, body });
+    this.requests.push({ email: session?.user.email ?? null, method, path, body, headers });
     const failure = this.failures.find(
       (candidate) => candidate.times > 0 && candidate.pattern.test(`${method} ${path}`),
     );
@@ -109,7 +116,7 @@ export class FakeGateway implements Gateway {
       throw failure.error;
     }
     const url = new URL(path, 'http://fake');
-    const result = this.route(session, method, url, (body ?? {}) as Body);
+    const result = this.route(session, method, url, (body ?? {}) as Body, headers);
     // Through JSON, like the wire, so the schema sees what a real answer would be.
     const wire = result === undefined ? undefined : (JSON.parse(JSON.stringify(result)) as unknown);
     return (schema ? schema.parse(wire) : wire) as T;
@@ -121,7 +128,21 @@ export class FakeGateway implements Gateway {
     return branchId;
   }
 
-  private route(session: Session | null, method: string, url: URL, body: Body): unknown {
+  nextId(): string {
+    return uuid(this.next++);
+  }
+
+  private route(
+    session: Session | null,
+    method: string,
+    url: URL,
+    body: Body,
+    headers: Record<string, string>,
+  ): unknown {
+    for (const extension of this.extensions) {
+      const answer = extension.route({ session, method, url, body, headers });
+      if (answer !== NO_ROUTE) return answer;
+    }
     const key = `${method} ${url.pathname}`;
     const q = url.searchParams;
     const id = url.pathname.split('/')[4];

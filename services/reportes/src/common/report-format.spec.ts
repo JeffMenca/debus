@@ -1,10 +1,25 @@
-import { formatDay, formatInstant, formatKm, formatMoney, reportPeriod } from './report-format';
+import {
+  formatDay,
+  formatInstant,
+  formatKm,
+  formatMoney,
+  formatPercent,
+  reportPeriod,
+} from './report-format';
 
 describe('report formats', () => {
   it('writes money in quetzales with thousands separators and two decimals', () => {
     expect(formatMoney(1234.5)).toBe('Q 1,234.50');
     expect(formatMoney(0)).toBe('Q 0.00');
     expect(formatMoney(1500000)).toBe('Q 1,500,000.00');
+    expect(formatMoney(-4171.5)).toBe('-Q 4,171.50');
+  });
+
+  it('writes a percentage with one decimal and a dash when there is none', () => {
+    expect(formatPercent(12.5)).toBe('12.5 %');
+    expect(formatPercent(-138.4)).toBe('-138.4 %');
+    expect(formatPercent(100)).toBe('100.0 %');
+    expect(formatPercent(null)).toBe('—');
   });
 
   it('writes kilometers as whole numbers', () => {

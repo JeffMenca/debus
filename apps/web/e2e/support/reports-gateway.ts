@@ -134,7 +134,7 @@ export const sampleRentalIncomeRow = (
 });
 
 // The file the PDF route answers, named after the report and the day like the service does.
-const pdfAnswer = (stem: string) => ({
+export const pdfAnswer = (stem: string) => ({
   status: 200,
   body: '%PDF-1.4\n%%EOF',
   headers: {

@@ -2,8 +2,10 @@ import {
   type AvailableTripListQuery,
   type AvailableTripPage,
   type SeatMap,
+  type TripPlaces,
   USER_ROLES,
   availableTripListQuerySchema,
+  tripPlacesSchema,
 } from '@debus/contracts';
 import { Roles, ZodBody, apiErrors, apiQuery, apiSuccess } from '@debus/server';
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
@@ -26,6 +28,12 @@ export class TripsController {
     @Query(new ZodBody(availableTripListQuerySchema)) query: AvailableTripListQuery,
   ): Promise<AvailableTripPage> {
     return this.trips.list(query);
+  }
+
+  @Get('places')
+  @apiSuccess(200, tripPlacesSchema)
+  places(): Promise<TripPlaces> {
+    return this.trips.places();
   }
 
   @Get(':tripId/seats')

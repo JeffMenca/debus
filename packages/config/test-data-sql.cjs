@@ -113,6 +113,13 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     inTestBranches('branch_report_drivers'),
     inTestBranches('branch_report_repair_lines'),
     inTestBranches('branch_report_ticket_sales'),
+    inTestBranches('system_report_routes', 'origin_branch_id'),
+    inTestBranches('system_report_routes', 'destination_branch_id'),
+    // A cancellation carries no branch: it goes with the rental of a test branch it cancelled.
+    whenTablesExist(
+      ['branch_report_rental_cancellations', 'branch_report_rentals', 'branches'],
+      `DELETE FROM branch_report_rental_cancellations WHERE rental_id IN (SELECT id FROM branch_report_rentals WHERE branch_id IN (${testBranches}))`,
+    ),
     inTestBranches('branch_report_rentals'),
   ];
 
@@ -129,7 +136,16 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     ),
     whenTablesExist(['users'], `DELETE FROM users WHERE email LIKE ${emails}`),
     whenTablesExist(['sent_emails'], `DELETE FROM sent_emails WHERE recipient LIKE ${emails}`),
-    // clientes: the wallet and its movements go with the profile by CASCADE.
+    // notificaciones: its copies of tickets, drivers and branch admins of test accounts.
+    ...['ticket_copies', 'driver_licenses', 'branch_admins'].map((table) =>
+      whenTablesExist([table], `DELETE FROM ${table} WHERE email LIKE ${emails}`),
+    ),
+    // clientes keeps no branches: a counter rental of a test is the one a test admin took, or the one
+    // with a test email. Online rentals, the wallet and its movements go with the profile by CASCADE.
+    whenTablesExist(
+      ['rentals', 'client_profiles'],
+      `DELETE FROM rentals WHERE email LIKE ${emails} OR created_by_id IN (SELECT user_id FROM client_profiles WHERE email LIKE ${emails})`,
+    ),
     whenTablesExist(['client_profiles'], `DELETE FROM client_profiles WHERE email LIKE ${emails}`),
     ...salesStatements(branches),
     ...fleetAndTrips,
@@ -152,6 +168,11 @@ function salesStatements(prefixPattern) {
     whenTablesExist(
       ['purchases', 'trips', 'ticket_seats'],
       `DELETE FROM purchases WHERE trip_id IN (${testTrips})`,
+    ),
+    // A deleted trip leaves its purchases without a trip: their description names its places.
+    whenTablesExist(
+      ['purchases', 'trips'],
+      `DELETE FROM purchases p WHERE NOT EXISTS (SELECT 1 FROM trips t WHERE t.trip_id = p.trip_id) AND (p.description LIKE 'Boleto ' || ${prefixPattern} OR p.description LIKE 'Boleto % - ' || ${prefixPattern})`,
     ),
     whenTablesExist(['trips', 'ticket_seats'], `DELETE FROM trips WHERE trip_id IN (${testTrips})`),
     whenTablesExist(

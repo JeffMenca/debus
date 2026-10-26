@@ -145,6 +145,10 @@ describe('rental requests', () => {
     });
   });
 
+  it('can list the cancelled ones too', () => {
+    expect(rentalRequestListQuerySchema.parse({ status: 'CANCELLED' }).status).toBe('CANCELLED');
+  });
+
   it('asks for bus, driver and an estimated arrival to assign one', () => {
     expect(
       assignRentalRequestSchema.safeParse({

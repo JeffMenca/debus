@@ -87,6 +87,23 @@ describe('profile and wallet API', () => {
       description: 'Recarga de saldo',
       occurredOn: '2026-10-14',
     });
+    expect(await profiles.announced(clientId, 'WalletCredited')).toEqual([
+      expect.objectContaining({
+        movementId: movements.body.items[0].id,
+        kind: 'TOP_UP',
+        amount: 150.5,
+        balanceAfter: 150.5,
+        fullName: 'Cliente de prueba',
+      }),
+    ]);
+  });
+
+  it('announces no credit for a debit', async () => {
+    const clientId = await profiles.create({ balance: 50 });
+
+    await debit(clientId, 30).expect(200);
+
+    expect(await profiles.announced(clientId, 'WalletCredited')).toEqual([]);
   });
 
   it('never overdraws a wallet however many debits arrive together', async () => {

@@ -138,3 +138,11 @@ model BranchReportRental {
   @@index([branchId, paidOn])
   @@map("branch_report_rentals")
 }
+
+// A paid rental that viajes cancelled (RentalCancelled). It may arrive before the rental itself.
+model BranchReportRentalCancellation {
+  rentalId    String   @id @map("rental_id") @db.Uuid
+  cancelledAt DateTime @map("cancelled_at") @db.Timestamptz(3)
+
+  @@map("branch_report_rental_cancellations")
+}

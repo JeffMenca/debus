@@ -1,33 +1,28 @@
 import {
-  busPageSchema,
   expenseCategoryPageSchema,
   guatemalaDateTime,
   repairExpensePageSchema,
   repairExpenseSchema,
-  routePageSchema,
   tripDetailSchema,
   tripPageSchema,
   tripSchema,
-  type Bus,
   type Route,
   type Trip,
   type TripDetail,
 } from '@debus/contracts';
-import { ADMINISTRACION, FLOTA, PAGE, VIAJES, withQuery } from '../api';
+import { ADMINISTRACION, PAGE, VIAJES, withQuery } from '../api';
 import { SEED_BRANCHES, repairsFor, routesFrom } from '../catalog';
 import type { SeedContext } from '../context';
-import { addDays } from '../dates';
-import { GatewayError, type Session } from '../gateway-client';
+import { HOUR_MS, MINUTE_MS, addDays } from '../dates';
+import type { Session } from '../gateway-client';
 import { uuidFrom } from '../ids';
 import { Tally, type SeedReport } from '../report';
-import { STILL_REGISTERING, isPendingRegistration, pendingCopy, untilRegistered } from '../retry';
-import { branchAdminSession, resolveBranchIds } from './shared';
+import { STILL_REGISTERING, isConflict, pendingCopy, untilRegistered } from '../retry';
+import { CRUISE_KM_PER_HOUR, branchAdminSession, loadFleet, resolveBranchIds } from './shared';
+import type { BranchFleet, FleetBus } from './shared';
 
 const SLOTS = ['06:00', '14:00'] as const;
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
 // How long a regular trip takes, for the estimated arrival of the trips scheduled ahead.
-const CRUISE_KM_PER_HOUR = 55;
 // The trip of the day is scheduled a moment ahead, since the API refuses the past, and then its
 // departure and arrival are recorded as having happened earlier today, inside the 12 hour tolerance.
 const SCHEDULE_AHEAD_MS = 3 * MINUTE_MS;
@@ -45,42 +40,8 @@ const COPY_PENDING = pendingCopy(
 );
 const BUS_COPY_PENDING = pendingCopy('No encontramos ese bus en tu sucursal.');
 
-const isConflict = (error: unknown): error is GatewayError =>
-  error instanceof GatewayError && error.status === 409 && !isPendingRegistration(error);
 const cents = (amount: number): number => Math.round(amount * 100) / 100;
 const hours = (distanceKm: number): number => distanceKm / CRUISE_KM_PER_HOUR;
-
-type FleetBus = Bus & { assignedDriverId: string };
-
-interface BranchFleet {
-  buses: FleetBus[];
-  routes: Route[];
-}
-
-async function loadFleet(ctx: SeedContext, session: Session): Promise<BranchFleet> {
-  const buses = await ctx.client.request(
-    session,
-    'GET',
-    withQuery(`${FLOTA}/buses`, { ...PAGE, status: 'all' }),
-    undefined,
-    busPageSchema,
-  );
-  const routes = await ctx.client.request(
-    session,
-    'GET',
-    withQuery(`${FLOTA}/routes`, { ...PAGE, status: 'active' }),
-    undefined,
-    routePageSchema,
-  );
-  return {
-    buses: buses.items.flatMap((bus) =>
-      bus.active && bus.assignedDriverId
-        ? [{ ...bus, assignedDriverId: bus.assignedDriverId }]
-        : [],
-    ),
-    routes: routes.items,
-  };
-}
 
 async function tripsOf(ctx: SeedContext, session: Session, day: string): Promise<Trip[]> {
   const page = await ctx.client.request(

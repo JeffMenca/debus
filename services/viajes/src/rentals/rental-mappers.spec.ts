@@ -1,6 +1,10 @@
-import { exampleRentalPaid, rentalToAssignSchema } from '@debus/contracts';
+import {
+  exampleRentalPaid,
+  rentalCancelledPayloadSchema,
+  rentalToAssignSchema,
+} from '@debus/contracts';
 import { Prisma } from '../generated/prisma/client';
-import { toRentalRequest } from './rental-mappers';
+import { toRentalCancelledPayload, toRentalRequest } from './rental-mappers';
 
 const row = {
   id: exampleRentalPaid.rentalId,
@@ -16,6 +20,7 @@ const row = {
   price: new Prisma.Decimal('2760.00'),
   status: 'PENDING' as const,
   tripId: null,
+  cancelledAt: null as Date | null,
   searchText: 'ignored',
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -52,6 +57,23 @@ describe('toRentalRequest', () => {
       returnAt: null,
       status: 'ASSIGNED',
       tripId: exampleRentalPaid.rentalId,
+    });
+  });
+});
+
+describe('toRentalCancelledPayload', () => {
+  it('announces the cancellation with the trip it deleted', () => {
+    const cancelledAt = new Date('2026-10-22T14:00:00.000Z');
+    const payload = toRentalCancelledPayload(
+      { ...row, status: 'CANCELLED', cancelledAt },
+      exampleRentalPaid.rentalId,
+    );
+
+    expect(rentalCancelledPayloadSchema.parse(payload)).toEqual({
+      rentalId: row.id,
+      branchId: row.branchId,
+      tripId: exampleRentalPaid.rentalId,
+      cancelledAt: '2026-10-22T14:00:00.000Z',
     });
   });
 });

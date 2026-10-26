@@ -3,28 +3,43 @@ import {
   type AvailableTripListQuery,
   type AvailableTripPage,
   type SeatMap,
+  type TripPlaces,
   pageArgs,
   toPage,
 } from '@debus/contracts';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Trip } from '../generated/prisma/client';
+import { Prisma } from '../generated/prisma/client';
 import { MESSAGES } from '../messages';
 import { PrismaService } from '../prisma/prisma.service';
-import { onSaleWhere } from './trip-rules';
+import { onSaleConditions } from './trip-rules';
 
-function toAvailableTrip(row: Trip & { _count: { seats: number } }): AvailableTrip {
+interface TripOnSaleRow {
+  tripId: string;
+  routeId: string;
+  branchId: string;
+  originLabel: string;
+  destinationLabel: string;
+  departureAt: Date;
+  estimatedArrivalAt: Date;
+  ticketPrice: Prisma.Decimal;
+  busPlate: string;
+  capacity: number;
+  freeSeats: number;
+}
+
+// Prisma cannot filter by a count of a relation, so the free seats are counted in SQL.
+const tripsOnSale = (where: Prisma.Sql) => Prisma.sql`
+  FROM trips t
+  LEFT JOIN (SELECT trip_id, count(*)::int AS taken FROM ticket_seats GROUP BY trip_id) s
+    ON s.trip_id = t.trip_id
+  WHERE ${where}`;
+
+function toAvailableTrip(row: TripOnSaleRow): AvailableTrip {
   return {
-    tripId: row.tripId,
-    routeId: row.routeId,
-    branchId: row.branchId,
-    originLabel: row.originLabel,
-    destinationLabel: row.destinationLabel,
+    ...row,
     departureAt: row.departureAt.toISOString(),
     estimatedArrivalAt: row.estimatedArrivalAt.toISOString(),
-    ticketPrice: row.ticketPrice.toNumber(),
-    busPlate: row.busPlate,
-    capacity: row.capacity,
-    freeSeats: row.capacity - row._count.seats,
+    ticketPrice: Number(row.ticketPrice),
   };
 }
 
@@ -33,18 +48,42 @@ export class TripsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(query: AvailableTripListQuery, branchId?: string): Promise<AvailableTripPage> {
-    const where = onSaleWhere(query, new Date(), branchId);
-    const [rows, total] = await Promise.all([
-      this.prisma.trip.findMany({
-        where,
-        // The id breaks ties, so a trip never shows up on two pages or on none.
-        orderBy: [{ departureAt: 'asc' }, { tripId: 'asc' }],
-        include: { _count: { select: { seats: true } } },
-        ...pageArgs(query),
-      }),
-      this.prisma.trip.count({ where }),
+    const from = tripsOnSale(onSaleConditions(query, new Date(), branchId));
+    const { skip, take } = pageArgs(query);
+    const [rows, [{ total }]] = await Promise.all([
+      this.prisma.$queryRaw<TripOnSaleRow[]>(Prisma.sql`
+        SELECT t.trip_id AS "tripId", t.route_id AS "routeId", t.branch_id AS "branchId",
+          t.origin_label AS "originLabel", t.destination_label AS "destinationLabel",
+          t.departure_at AS "departureAt", t.estimated_arrival_at AS "estimatedArrivalAt",
+          t.ticket_price AS "ticketPrice", t.bus_plate AS "busPlate", t.capacity,
+          t.capacity - COALESCE(s.taken, 0) AS "freeSeats"
+        ${from}
+        ORDER BY t.departure_at, t.trip_id LIMIT ${take} OFFSET ${skip}`),
+      this.prisma.$queryRaw<[{ total: number }]>(Prisma.sql`SELECT count(*)::int AS total ${from}`),
     ]);
     return toPage(rows.map(toAvailableTrip), total, query);
+  }
+
+  async places(): Promise<TripPlaces> {
+    const where = { departureAt: { gt: new Date() } };
+    const [origins, destinations] = await Promise.all([
+      this.prisma.trip.findMany({
+        where,
+        distinct: ['originLabel'],
+        select: { originLabel: true },
+        orderBy: { originLabel: 'asc' },
+      }),
+      this.prisma.trip.findMany({
+        where,
+        distinct: ['destinationLabel'],
+        select: { destinationLabel: true },
+        orderBy: { destinationLabel: 'asc' },
+      }),
+    ]);
+    return {
+      origins: origins.map((trip) => trip.originLabel),
+      destinations: destinations.map((trip) => trip.destinationLabel),
+    };
   }
 
   async seatMap(tripId: string): Promise<SeatMap> {

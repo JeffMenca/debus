@@ -98,6 +98,44 @@ describe('the SQL of pnpm test:clean in ventas', () => {
     ).rejects.toBeInstanceOf(Rollback);
   });
 
+  it('removes the purchases of test trips that were deleted, and only those', async () => {
+    await expect(
+      prisma.$transaction(async (tx) => {
+        // A deleted trip leaves its purchase record without a trip: only the description names the places.
+        const orphan = (description: string) => {
+          const id = randomUUID();
+          return tx.purchase
+            .create({
+              data: {
+                id,
+                clientId: randomUUID(),
+                tripId: randomUUID(),
+                seats: [5],
+                amount: 85,
+                description,
+                paidOn: new Date('2026-10-21'),
+                payBy: new Date(Date.now() + 600_000),
+                status: 'FAILED',
+                failure: 'TRIP_CANCELLED',
+              },
+            })
+            .then(() => id);
+        };
+        const fromTest = await orphan(`Boleto ${testLabel('salida')} - Guatemala, asiento 5`);
+        const toTest = await orphan(`Boleto Quetzaltenango - ${testLabel('llegada')}, asiento 5`);
+        const foreign = await orphan('Boleto Quetzaltenango - Guatemala, asiento 5');
+
+        for (const statement of cleanupStatements({ run: TEST_RUN })) {
+          await tx.$executeRawUnsafe(statement);
+        }
+
+        expect(await tx.purchase.count({ where: { id: { in: [fromTest, toTest] } } })).toBe(0);
+        expect(await tx.purchase.count({ where: { id: foreign } })).toBe(1);
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+  });
+
   it('removes the client copies whose name starts with the test prefix, and only those', async () => {
     await expect(
       prisma.$transaction(async (tx) => {

@@ -71,8 +71,11 @@ export class GatewayClient {
     path: string,
     body?: unknown,
     schema?: z.ZodType<T>,
+    headers?: Record<string, string>,
   ): Promise<T> {
-    const data = await this.withRenewal(session, () => this.send(session, method, path, body));
+    const data = await this.withRenewal(session, () =>
+      this.send(session, method, path, body, headers),
+    );
     if (!schema) return data as T;
     const parsed = schema.safeParse(data);
     if (!parsed.success) {
@@ -122,11 +125,14 @@ export class GatewayClient {
     method: string,
     path: string,
     body?: unknown,
+    extra?: Record<string, string>,
   ): Promise<unknown> {
     const hasBody = body !== undefined;
+    const headers = this.headers(session, hasBody);
+    for (const [name, value] of Object.entries(extra ?? {})) headers.set(name, value);
     const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
       method,
-      headers: this.headers(session, hasBody),
+      headers,
       ...(hasBody && { body: JSON.stringify(body) }),
     });
     if (!response.ok) throw await failure(response);

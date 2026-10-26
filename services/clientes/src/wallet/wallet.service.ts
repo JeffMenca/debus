@@ -10,6 +10,7 @@ import {
   pageArgs,
   toPage,
 } from '@debus/contracts';
+import { Outbox, REQUEST_FLUSH } from '@debus/messaging';
 import { SERVER_MESSAGES, isUniqueViolation } from '@debus/server';
 import {
   BadRequestException,
@@ -26,11 +27,13 @@ import type {
 import { MESSAGES } from '../messages';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  type CreditedMovement,
   type MovementIntent,
   isSameIntent,
   movementFingerprint,
   paymentWindowClosed,
   signedAmount,
+  toWalletCredited,
 } from './wallet-rules';
 
 const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
@@ -75,7 +78,10 @@ function movementFilter(clientId: string, query: WalletMovementListQuery) {
 
 @Injectable()
 export class WalletService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: Outbox,
+  ) {}
 
   async get(clientId: string): Promise<Wallet> {
     const row = await this.prisma.wallet.findUnique({ where: { clientId } });
@@ -91,6 +97,8 @@ export class WalletService {
       reference: null,
       description: MESSAGES.topUpDescription,
     });
+    // Publishes the WalletCredited of a new top-up; the scheduled flush retries what fails.
+    await this.outbox.flush(REQUEST_FLUSH);
     return this.get(clientId);
   }
 
@@ -127,27 +135,25 @@ export class WalletService {
   }
 
   private async apply(clientId: string, key: string, intent: DebitIntent): Promise<WalletDebit> {
-    const fingerprint = movementFingerprint(intent);
     try {
-      return await this.prisma.$transaction((tx) =>
-        this.applyIn(tx, clientId, key, intent, fingerprint),
-      );
+      return await this.prisma.$transaction((tx) => this.debitIn(tx, clientId, key, intent));
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       // Another request with the same key committed first: answer with what it recorded.
       const first = await this.prisma.walletMovement.findUnique(byKey(clientId, key));
       if (!first) throw error;
-      return replayed(first, fingerprint);
+      return replayed(first, movementFingerprint(intent));
     }
   }
 
-  private async applyIn(
+  // Applies a movement inside the caller's transaction, so what it pays for commits with it.
+  async debitIn(
     tx: Prisma.TransactionClient,
     clientId: string,
     key: string,
     intent: DebitIntent,
-    fingerprint: string,
   ): Promise<WalletDebit> {
+    const fingerprint = movementFingerprint(intent);
     const existing = await tx.walletMovement.findUnique(byKey(clientId, key));
     if (existing) return replayed(existing, fingerprint);
     if (paymentWindowClosed(intent.payBy, new Date())) {
@@ -162,6 +168,12 @@ export class WalletService {
       data: { balance: { increment: amount }, updatedAt: new Date() },
     });
     if (updated.count === 0) throw await this.notApplied(tx, clientId);
+    // Looked up while holding the wallet, the lock a refund takes too: a refund that committed first
+    // is seen here and the whole debit is rolled back.
+    if (intent.kind === 'TICKET' && intent.reference) {
+      const refunded = await tx.refund.findUnique({ where: { reference: intent.reference } });
+      if (refunded) throw new UnprocessableEntityException(MESSAGES.ticketCancelled);
+    }
 
     const { balance } = await tx.wallet.findUniqueOrThrow({ where: { clientId } });
     const movement = await tx.walletMovement.create({
@@ -178,7 +190,29 @@ export class WalletService {
         fingerprint,
       },
     });
+    if (intent.kind === 'TOP_UP') {
+      await this.publishCredit(tx, {
+        id: movement.id,
+        clientId,
+        kind: 'TOP_UP',
+        amount: intent.amount,
+        balanceAfter: balance.toNumber(),
+        description: intent.description,
+        occurredOn: intent.occurredOn,
+      });
+    }
     return { movementId: movement.id, balance: balance.toNumber() };
+  }
+
+  private async publishCredit(
+    tx: Prisma.TransactionClient,
+    movement: CreditedMovement,
+  ): Promise<void> {
+    const profile = await tx.clientProfile.findUniqueOrThrow({
+      where: { userId: movement.clientId },
+      select: { email: true, fullName: true },
+    });
+    await this.outbox.add(tx, 'WalletCredited', toWalletCredited(movement, profile, new Date()));
   }
 
   private async notApplied(tx: Prisma.TransactionClient, clientId: string): Promise<Error> {

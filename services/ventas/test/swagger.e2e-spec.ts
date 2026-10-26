@@ -7,7 +7,7 @@ type Operation = {
   parameters?: { name: string; required?: boolean }[];
 };
 
-describe('the Swagger description of the trips on sale, the counter and the purchases', () => {
+describe('the Swagger description of the trips on sale, the history, the counter and the purchases', () => {
   let app: INestApplication;
   let paths: Record<string, Record<string, Operation>>;
   const statuses = (path: string, method: string) =>
@@ -28,10 +28,38 @@ describe('the Swagger description of the trips on sale, the counter and the purc
   it('documents the list with its filters and the seat map with its errors', () => {
     expect(statuses('/trips', 'get')).toEqual(expect.arrayContaining(['200', '400', '401']));
     expect(paths['/trips']?.get?.parameters?.map((parameter) => parameter.name)).toEqual(
-      expect.arrayContaining(['from', 'to', 'q', 'page', 'pageSize']),
+      expect.arrayContaining([
+        'from',
+        'to',
+        'q',
+        'origin',
+        'destination',
+        'seats',
+        'page',
+        'pageSize',
+      ]),
     );
+    expect(statuses('/trips/places', 'get')).toEqual(expect.arrayContaining(['200', '401']));
+    const places = paths['/trips/places']?.get?.responses?.['200'];
+    expect(Object.keys(places?.content?.['application/json']?.schema?.properties ?? {})).toEqual([
+      'origins',
+      'destinations',
+    ]);
     expect(statuses('/trips/{tripId}/seats', 'get')).toEqual(
       expect.arrayContaining(['200', '400', '401', '404']),
+    );
+  });
+
+  it('documents the ticket history of a client with its filters and refusals', () => {
+    expect(statuses('/tickets', 'get')).toEqual(
+      expect.arrayContaining(['200', '400', '401', '403']),
+    );
+    expect(paths['/tickets']?.get?.parameters?.map((parameter) => parameter.name)).toEqual(
+      expect.arrayContaining(['from', 'to', 'q', 'page', 'pageSize']),
+    );
+    const page = paths['/tickets']?.get?.responses?.['200'];
+    expect(Object.keys(page?.content?.['application/json']?.schema?.properties ?? {})).toEqual(
+      expect.arrayContaining(['items', 'total', 'summary']),
     );
   });
 

@@ -16,6 +16,7 @@ const setup = () => {
   const tx = {
     user: {
       findUnique: jest.fn().mockResolvedValue(null),
+      findUniqueOrThrow: jest.fn(),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     accountLink: {
@@ -47,6 +48,7 @@ const setup = () => {
   };
   const events = {
     userRegistered: jest.fn().mockResolvedValue(undefined),
+    userUpdated: jest.fn().mockResolvedValue(undefined),
     flush: jest.fn().mockResolvedValue(undefined),
   };
   const service = new RegistrationService(prisma as never, links as never, events as never);
@@ -209,6 +211,31 @@ describe('signUp', () => {
 
 describe('setPassword', () => {
   const input = { token: 't', password: 'clave-segura-1' };
+
+  it('announces an activated branch admin with a higher version, over any snapshot taken while pending', async () => {
+    const { tx, links, events, service } = setup();
+    const admin = { ...link().user, role: 'BRANCH_ADMIN', branchId: 'b-1', pendingProfile: null };
+    links.find.mockResolvedValue(link({ user: admin }));
+    tx.user.findUniqueOrThrow.mockResolvedValue({ ...admin, status: 'ACTIVE', version: 3 });
+
+    await service.setPassword(input, 'c', now);
+
+    expect(tx.user.updateMany.mock.calls[0][0].data).toMatchObject({ version: { increment: 1 } });
+    expect(events.userUpdated).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ userId: id, role: 'BRANCH_ADMIN', active: true, version: 3 }),
+      'c',
+    );
+  });
+
+  it('announces no account change for a client', async () => {
+    const { links, events, service } = setup();
+    links.find.mockResolvedValue(link());
+
+    await service.setPassword(input, 'c', now);
+
+    expect(events.userUpdated).not.toHaveBeenCalled();
+  });
 
   it('activates a pending account and publishes the profile', async () => {
     const { tx, links, events, service } = setup();

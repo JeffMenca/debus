@@ -35,7 +35,13 @@ const instantParts = new Intl.DateTimeFormat('en-US', {
   hourCycle: 'h23',
 });
 
-export const formatMoney = (amount: number): string => `Q ${money.format(amount)}`;
+// A loss is written with the sign before the currency: -Q 1,250.00.
+export const formatMoney = (amount: number): string =>
+  amount < 0 ? `-Q ${money.format(-amount)}` : `Q ${money.format(amount)}`;
+
+// An em dash stands for "no figure": it exists in the standard PDF font.
+export const formatPercent = (percent: number | null): string =>
+  percent === null ? '—' : `${percent.toFixed(1)} %`;
 
 export const formatKm = (km: number): string => `${whole.format(km)} km`;
 

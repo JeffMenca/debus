@@ -1,5 +1,9 @@
 import { testEmail } from '@debus/config/test-data';
-import type { AccountLinkSentPayload } from '@debus/contracts';
+import {
+  type AccountLinkSentPayload,
+  type UserUpdatedPayload,
+  userUpdatedPayloadSchema,
+} from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { identityHeaders as as } from '@debus/server';
@@ -50,6 +54,16 @@ describe('users', () => {
       'AccountLinkSent',
       (p) => p.email === email && p.reason === 'INVITATION',
     );
+  });
+
+  it('announces a branch admin as active once the account is activated', async () => {
+    const admin = await activeAccount(app, events, { role: 'BRANCH_ADMIN', branchId: branch });
+
+    const activated = await events.next<UserUpdatedPayload>(
+      'UserUpdated',
+      (payload) => payload.userId === admin.id,
+    );
+    expect(activated).toMatchObject({ role: 'BRANCH_ADMIN', active: true, version: 2 });
   });
 
   it('limits a branch admin to cashiers and drivers of their branch', async () => {
@@ -111,6 +125,28 @@ describe('users', () => {
       .set(as(admin.id, 'SYSTEM_ADMIN'))
       .expect(204);
     await request(server).post('/auth/login').send(cashier).expect(200);
+
+    // Each change goes out with the next version; one that changes nothing announces nothing.
+    await request(server)
+      .post(`/users/${cashier.id}/reactivate`)
+      .set(as(admin.id, 'SYSTEM_ADMIN'))
+      .expect(204);
+    const ofCashier = (payload: UserUpdatedPayload) => payload.userId === cashier.id;
+    const deactivated = await events.next<UserUpdatedPayload>(
+      'UserUpdated',
+      (payload) => ofCashier(payload) && !payload.active,
+    );
+    const back = await events.next<UserUpdatedPayload>(
+      'UserUpdated',
+      (payload) => ofCashier(payload) && payload.active,
+    );
+    expect(userUpdatedPayloadSchema.parse(deactivated)).toMatchObject({
+      role: 'CASHIER',
+      branchId: branch,
+      version: 3,
+    });
+    expect(back.version).toBe(4);
+    expect(await events.count('UserUpdated', ofCashier)).toBe(2);
   });
 
   it('keeps at least one system admin from the first boot', async () => {

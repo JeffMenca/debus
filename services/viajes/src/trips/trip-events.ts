@@ -5,7 +5,7 @@ import type {
 } from '@debus/contracts';
 import type { Prisma } from '../generated/prisma/client';
 
-type TripRow = Prisma.TripGetPayload<object>;
+export type TripRow = Prisma.TripGetPayload<object>;
 type DepartureRow = Prisma.TripDepartureGetPayload<object>;
 type ArrivalRow = Prisma.TripArrivalGetPayload<object>;
 

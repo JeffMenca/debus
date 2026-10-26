@@ -9,7 +9,11 @@ import { isActivePath } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 // Only screens that exist are listed; each new client screen adds its link here.
-const LINKS = [{ href: '/cuenta', label: 'Mi cuenta' }];
+const LINKS = [
+  { href: '/viajes', label: 'Viajes' },
+  { href: '/alquiler', label: 'Alquilar un bus' },
+  { href: '/cuenta', label: 'Mi cuenta' },
+];
 
 export function ClientShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();

@@ -1,4 +1,4 @@
-import { assignmentProblem, tripDepartureFor } from './rental-rules';
+import { assignmentProblem, cancellationProblem, tripDepartureFor } from './rental-rules';
 
 const request = {
   status: 'PENDING' as const,
@@ -21,6 +21,7 @@ describe('assignmentProblem', () => {
   it.each([
     [{ request: null }, 'rentalNotFound'],
     [{ request: { ...request, status: 'ASSIGNED' as const } }, 'rentalAssigned'],
+    [{ request: { ...request, status: 'CANCELLED' as const } }, 'rentalCancelled'],
     [{ bus: null }, 'busNotFound'],
     [{ bus: { ...bus, branchId: 'otra' } }, 'busNotFound'],
     [{ bus: { ...bus, active: false } }, 'busInactive'],
@@ -129,5 +130,26 @@ describe('assignmentProblem with a departure that already passed', () => {
         now,
       }),
     ).toBe('rentalArrivalInPast');
+  });
+});
+
+describe('cancellationProblem', () => {
+  it('cancels a paid rental while its trip has not left', () => {
+    expect(cancellationProblem({ status: 'PENDING' }, null)).toBeNull();
+    expect(cancellationProblem({ status: 'ASSIGNED' }, { status: 'SCHEDULED' })).toBeNull();
+    expect(cancellationProblem({ status: 'CANCELLED' }, null)).toBeNull();
+  });
+
+  it('refuses once the trip of the rental left', () => {
+    expect(cancellationProblem({ status: 'ASSIGNED' }, { status: 'IN_TRANSIT' })).toBe(
+      'rentalTripStarted',
+    );
+    expect(cancellationProblem({ status: 'ASSIGNED' }, { status: 'COMPLETED' })).toBe(
+      'rentalTripStarted',
+    );
+  });
+
+  it('waits for the payment that viajes has not received yet', () => {
+    expect(cancellationProblem(null, null)).toBe('rentalPaymentPending');
   });
 });

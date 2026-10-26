@@ -37,6 +37,9 @@ const debit = {
   occurredOn: '2026-10-14',
 };
 
+const outboxOf = (service: WalletService) =>
+  (service as unknown as { outbox: { add: jest.Mock } }).outbox;
+
 function setup() {
   const tx = {
     walletMovement: {
@@ -48,7 +51,12 @@ function setup() {
       findUnique: jest.fn().mockResolvedValue(wallet(100)),
       findUniqueOrThrow: jest.fn().mockResolvedValue(wallet(100)),
     },
+    refund: { findUnique: jest.fn().mockResolvedValue(null) },
+    clientProfile: {
+      findUniqueOrThrow: jest.fn().mockResolvedValue({ email, fullName: 'Ana López' }),
+    },
   };
+  const outbox = { add: jest.fn().mockResolvedValue(undefined), flush: jest.fn() };
   const prisma = {
     $transaction: jest.fn(async (work: (client: typeof tx) => unknown) => work(tx)),
     wallet: { findUnique: jest.fn().mockResolvedValue(wallet(100)) },
@@ -59,10 +67,54 @@ function setup() {
       count: jest.fn().mockResolvedValue(0),
     },
   };
-  return { tx, prisma, service: new WalletService(prisma as never) };
+  return { tx, prisma, outbox, service: new WalletService(prisma as never, outbox as never) };
 }
 
 describe('WalletService', () => {
+  it('debits a rental inside the transaction of its caller, without opening one', async () => {
+    const { tx, prisma, service } = setup();
+    const rentalId = '6e5d4c3b-2a19-4f8e-9d7c-6b5a4f3e2d1c';
+
+    const applied = await service.debitIn(tx as never, clientId, rentalId, {
+      kind: 'RENTAL',
+      amount: 60,
+      occurredOn: '2026-10-14',
+      reference: rentalId,
+      description: 'Alquiler Quetzaltenango - Panajachel',
+    });
+
+    expect(applied).toEqual({ movementId: expect.any(String), balance: 100 });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.wallet.updateMany).toHaveBeenCalledWith({
+      where: { clientId, balance: { gte: 60 } },
+      data: { balance: { increment: -60 }, updatedAt: expect.any(Date) },
+    });
+    expect(tx.walletMovement.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        kind: 'RENTAL',
+        amount: -60,
+        reference: rentalId,
+        idempotencyKey: rentalId,
+        fingerprint: `RENTAL|6000|2026-10-14|${rentalId}`,
+      }),
+    });
+  });
+
+  it('refuses a rental debit the balance does not cover', async () => {
+    const { tx, service } = setup();
+    tx.wallet.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.debitIn(tx as never, clientId, key, {
+        kind: 'RENTAL',
+        amount: 600,
+        occurredOn: '2026-10-14',
+        reference: key,
+        description: 'Alquiler',
+      }),
+    ).rejects.toThrow(UnprocessableEntityException);
+  });
+
   it('answers the balance, or that the account is being prepared', async () => {
     const { prisma, service } = setup();
 
@@ -101,6 +153,28 @@ describe('WalletService', () => {
     });
   });
 
+  it('tells the client about a new top-up in the same transaction, and publishes it right away', async () => {
+    const { tx, outbox, service } = setup();
+
+    await service.topUp(clientId, key, { amount: 100, paidOn: '2026-10-14' });
+
+    expect(outbox.add).toHaveBeenCalledWith(
+      tx,
+      'WalletCredited',
+      expect.objectContaining({
+        clientId,
+        email,
+        fullName: 'Ana López',
+        kind: 'TOP_UP',
+        amount: 100,
+        balanceAfter: 100,
+        description: 'Recarga de saldo',
+        occurredOn: '2026-10-14',
+      }),
+    );
+    expect(outbox.flush).toHaveBeenCalledTimes(1);
+  });
+
   it('answers a repeated top-up without touching the balance again', async () => {
     const { tx, service } = setup();
     tx.walletMovement.findUnique.mockResolvedValue(movementRow());
@@ -112,6 +186,7 @@ describe('WalletService', () => {
     });
     expect(tx.wallet.updateMany).not.toHaveBeenCalled();
     expect(tx.walletMovement.create).not.toHaveBeenCalled();
+    expect(outboxOf(service).add).not.toHaveBeenCalled();
   });
 
   it('refuses a key already used for something else', async () => {
@@ -184,6 +259,16 @@ describe('WalletService', () => {
     expect(result).toEqual({ movementId: expect.any(String), balance: 70, email });
   });
 
+  it('announces no credit for a debit', async () => {
+    const { tx, outbox, service } = setup();
+
+    await service.debit(ticketId, debit);
+
+    expect(tx.walletMovement.create).toHaveBeenCalled();
+    expect(outbox.add).not.toHaveBeenCalled();
+    expect(outbox.flush).not.toHaveBeenCalled();
+  });
+
   it('answers a new debit with the email of the profile of the client', async () => {
     const { prisma, service } = setup();
 
@@ -247,6 +332,47 @@ describe('WalletService', () => {
       movementId: 'b1a2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
       balance: 70,
     });
+  });
+
+  it('refuses to charge a ticket whose trip was cancelled, once it holds the wallet', async () => {
+    const { tx, service } = setup();
+    tx.refund.findUnique.mockResolvedValue({ reference: ticketId });
+
+    const error = await service.debit(ticketId, debit).catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(UnprocessableEntityException);
+    expect(error).toMatchObject({ message: 'Este viaje se canceló y ya no se puede pagar.' });
+    expect(tx.refund.findUnique).toHaveBeenCalledWith({ where: { reference: ticketId } });
+    // Checked after the update that locks the wallet, the same lock the refund takes.
+    const [locked] = tx.wallet.updateMany.mock.invocationCallOrder;
+    const [checked] = tx.refund.findUnique.mock.invocationCallOrder;
+    expect(locked).toBeLessThan(checked ?? 0);
+    expect(tx.walletMovement.create).not.toHaveBeenCalled();
+  });
+
+  it('answers a debit already applied even if its ticket was refunded later', async () => {
+    const { tx, service } = setup();
+    tx.refund.findUnique.mockResolvedValue({ reference: ticketId });
+    tx.walletMovement.findUnique.mockResolvedValue(
+      movementRow({
+        kind: 'TICKET',
+        amount: new Prisma.Decimal(-30),
+        balanceAfter: new Prisma.Decimal(70),
+        reference: ticketId,
+        idempotencyKey: ticketId,
+        fingerprint: `TICKET|3000|2026-10-14|${ticketId}`,
+      }),
+    );
+
+    expect(await service.debit(ticketId, debit)).toMatchObject({ balance: 70 });
+  });
+
+  it('never looks for refunds on a top-up', async () => {
+    const { tx, service } = setup();
+
+    await service.topUp(clientId, key, { amount: 100, paidOn: '2026-10-14' });
+
+    expect(tx.refund.findUnique).not.toHaveBeenCalled();
   });
 
   it('applies a debit whose payBy has not arrived, and keeps it out of the fingerprint', async () => {

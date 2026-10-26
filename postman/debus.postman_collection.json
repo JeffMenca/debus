@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "debus API",
-    "description": "Colección generada del Swagger del gateway (`/docs-json`): una carpeta por etiqueta con todas las peticiones, más el recorrido de uso.\n\n- **Recorrido**: inicia sesión como admin del sistema y como admin de sucursal, recorre pantallas, reportes y un PDF, y guarda los tokens y los ids que usan las demás carpetas, así que se ejecuta primero. Su carpeta \"Escrituras (solo local)\" crea sucursales, un chofer, un bus, una ruta, viajes y gastos de prueba (con el prefijo y el correo `@debus.test` que borra `pnpm test:clean`) y deja los ids `test…` que usan las escrituras generadas.\n- **Salud**: el estado del gateway; no necesita sesión.\n- Variables: `baseUrl`, `mailpitUrl`, `adminEmail`, `adminPassword`, `branchAdminEmail` y `branchPassword` (ver el entorno local).\n- Toda petición que cambia datos se salta si `baseUrl` no es de esta máquina (`localhost`), así que apuntar la colección a producción solo lee. Las escrituras generadas usan solo los ids de prueba (`testBusId`, `testTripId`…) y la sesión del admin de prueba, nunca los datos de demostración.\n- Cada petición comprueba que la respuesta sea uno de los códigos que documenta su operación. Las pocas que no se ejecutan dicen por qué en su descripción.",
+    "description": "Colección generada del Swagger del gateway (`/docs-json`): una carpeta por etiqueta con todas las peticiones, más el recorrido de uso.\n\n- **Recorrido**: inicia sesión como admin del sistema, como admin de sucursal y como un cliente del seed, recorre pantallas, los reportes de sucursal y del sistema (con un PDF de cada tipo) y la cartera, los boletos y los alquileres del cliente, y guarda los tokens y los ids que usan las demás carpetas, así que se ejecuta primero. Su carpeta \"Escrituras (solo local)\" crea sucursales, un chofer, un bus, una ruta, viajes y gastos de prueba (con el prefijo y el correo `@debus.test` que borra `pnpm test:clean`) y deja los ids `test…` que usan las escrituras generadas.\n- **Salud**: el estado del gateway; no necesita sesión.\n- Variables: `baseUrl`, `mailpitUrl`, `adminEmail`, `adminPassword`, `branchAdminEmail`, `branchPassword`, `clientEmail` y `clientPassword` (ver el entorno local).\n- Toda petición que cambia datos se salta si `baseUrl` no es de esta máquina (`localhost`), así que apuntar la colección a producción solo lee. Las escrituras generadas usan solo los ids de prueba (`testBusId`, `testTripId`…) y la sesión del admin de prueba, nunca los datos de demostración.\n- Cada petición comprueba que la respuesta sea uno de los códigos que documenta su operación. Las pocas que no se ejecutan dicen por qué en su descripción.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -351,6 +351,364 @@
                   "  var json = pm.response.json();",
                   "  pm.expect(json.items.length >= 8).to.be.true;",
                   "  pm.collectionVariables.set(\"expenseCategoryId\", json.items[0].id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte del sistema: ingresos por sucursal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-income?pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-income"
+              ],
+              "query": [
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae una página de filas con su total\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(Array.isArray(json.items)).to.be.true;",
+                  "  pm.expect(typeof json.total === 'number').to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte del sistema: gastos por sucursal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-expenses?pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-expenses"
+              ],
+              "query": [
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae una página de filas con su total\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(Array.isArray(json.items)).to.be.true;",
+                  "  pm.expect(typeof json.total === 'number').to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte del sistema: ganancias",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-profit?pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-profit"
+              ],
+              "query": [
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae una página de filas con su total\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(Array.isArray(json.items)).to.be.true;",
+                  "  pm.expect(typeof json.total === 'number').to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte del sistema: rutas más demandadas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-top-routes?pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-top-routes"
+              ],
+              "query": [
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae una página de filas con su total\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(Array.isArray(json.items)).to.be.true;",
+                  "  pm.expect(typeof json.total === 'number').to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte del sistema: gastos de taller por categoría",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-repair-expenses?pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-repair-expenses"
+              ],
+              "query": [
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae una página de filas con su total\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(Array.isArray(json.items)).to.be.true;",
+                  "  pm.expect(typeof json.total === 'number').to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte del sistema: mapa de rutas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-routes-map",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-routes-map"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae las sucursales y las rutas del mapa\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(Array.isArray(json.branches)).to.be.true;",
+                  "  pm.expect(Array.isArray(json.routes)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reporte del sistema en PDF: ingresos por sucursal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-income/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-income",
+                "pdf"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Devuelve un PDF\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/pdf\");",
                   "});"
                 ]
               }
@@ -1073,6 +1431,365 @@
                   "});",
                   "pm.test(\"Devuelve un PDF\", function () {",
                   "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/pdf\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar sesión como cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/administracion/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "administracion",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{clientEmail}}\",\n  \"password\": \"{{clientPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Inicia sesión como CLIENT\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(json.user.role).to.equal(\"CLIENT\");",
+                  "  pm.collectionVariables.set(\"clientAccessToken\", json.accessToken);",
+                  "  pm.collectionVariables.set(\"clientRefreshToken\", json.refreshToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Perfil del cliente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "profile"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae el perfil del cliente\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(typeof json.userId === 'string' && json.email.length > 0).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cartera del cliente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "wallet"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae el saldo de la cartera\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(typeof json.balance === 'number' && json.balance >= 0).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Movimientos de la cartera",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/wallet/movements?pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "wallet",
+                "movements"
+              ],
+              "query": [
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae una página de filas con su total\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(Array.isArray(json.items)).to.be.true;",
+                  "  pm.expect(typeof json.total === 'number').to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Boletos del cliente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventas/tickets?pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "tickets"
+              ],
+              "query": [
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae una página de filas con su total\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(Array.isArray(json.items)).to.be.true;",
+                  "  pm.expect(typeof json.total === 'number').to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alquileres del cliente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/rentals/mine?status=all&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "rentals",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "all"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Trae una página de filas con su total\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(Array.isArray(json.items)).to.be.true;",
+                  "  pm.expect(typeof json.total === 'number').to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Precio estimado de un alquiler",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/rentals/estimate?distanceKm=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "rentals",
+                "estimate"
+              ],
+              "query": [
+                {
+                  "key": "distanceKm",
+                  "value": "100"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Calcula el precio con la tarifa vigente\", function () {",
+                  "  var json = pm.response.json();",
+                  "  pm.expect(typeof json.estimatedPrice === 'number' && json.estimatedPrice > 0).to.be.true;",
                   "});"
                 ]
               }
@@ -3361,6 +4078,75 @@
               ]
             },
             {
+              "name": "Registrar un alquiler de ventanilla",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/clientes/branch-rentals",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "clientes",
+                    "branch-rentals"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{testBranchAccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"Quetzaltenango\",\n  \"destinationLabel\": \"Panajachel\",\n  \"departureAt\": \"{{testRentalDeparture}}\",\n  \"returnAt\": null,\n  \"passengers\": 30,\n  \"distanceKm\": 92,\n  \"nit\": \"CF\",\n  \"clientName\": \"{{testBranchPrefix}}Postman {{runId}}\",\n  \"email\": null,\n  \"price\": 1500\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('testRentalDeparture', new Date(Date.now() + 4320 * 60000).toISOString());"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", function () {",
+                      "  pm.response.to.have.status(201);",
+                      "});",
+                      "pm.test(\"Guarda testRentalId\", function () {",
+                      "  var json = pm.response.json();",
+                      "  pm.expect(typeof json.id === 'string').to.be.true;",
+                      "  pm.collectionVariables.set(\"testRentalId\", json.id);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "Crear cajero de prueba",
               "request": {
                 "method": "POST",
@@ -4015,6 +4801,55 @@
                   }
                 }
               ]
+            }
+          ]
+        },
+        {
+          "name": "Cerrar sesión (cliente)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/administracion/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "administracion",
+                "auth",
+                "logout"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{clientRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 204\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
             }
           ]
         },
@@ -6473,6 +7308,232 @@
       ]
     },
     {
+      "name": "clientes · branch-rentals",
+      "item": [
+        {
+          "name": "GET /api/clientes/branch-rentals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/branch-rentals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "branch-rentals"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{branchAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/clientes/branch-rentals",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/branch-rentals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "branch-rentals"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{testBranchAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"texto\",\n  \"destinationLabel\": \"texto\",\n  \"departureAt\": \"{{$isoTimestamp}}\",\n  \"returnAt\": \"{{$isoTimestamp}}\",\n  \"passengers\": 1,\n  \"distanceKm\": 1,\n  \"nit\": \"texto\",\n  \"clientName\": \"texto\",\n  \"price\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 422.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Changes data: it only runs against a stack on this machine.",
+                  "var base = pm.variables.get('baseUrl') || '';",
+                  "if (!/^https?:\\/\\/(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?(\\/|$)/.test(base)) {",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (201, 400, 422)\", function () {",
+                  "  pm.expect([201, 400, 422]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/clientes/branch-rentals/:id/confirm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-correlation-id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/branch-rentals/:id/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "branch-rentals",
+                ":id",
+                "confirm"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{testBranchRentalId}}"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{testBranchAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Not run: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (201, 400, 404, 409)\", function () {",
+                  "  pm.expect([201, 400, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "clientes · dead-letters",
       "item": [
         {
@@ -6804,6 +7865,347 @@
                 "exec": [
                   "pm.test(\"Responde con un código documentado (200, 400, 404, 409)\", function () {",
                   "  pm.expect([200, 400, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "clientes · rentals",
+      "item": [
+        {
+          "name": "POST /api/clientes/rentals",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/rentals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "rentals"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{testBranchAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"texto\",\n  \"destinationLabel\": \"texto\",\n  \"departureAt\": \"{{$isoTimestamp}}\",\n  \"returnAt\": \"{{$isoTimestamp}}\",\n  \"passengers\": 1,\n  \"distanceKm\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Roles permitidos: CLIENT.\n\nRespuestas: 201, 400, 401, 403, 404, 422.\n\nNo se ejecuta: pide un alquiler con la sesión de un cliente, y la colección solo escribe con datos de prueba; el seed ya carga alquileres en línea."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Not run: pide un alquiler con la sesión de un cliente, y la colección solo escribe con datos de prueba; el seed ya carga alquileres en línea",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (201, 400, 404, 422)\", function () {",
+                  "  pm.expect([201, 400, 404, 422]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/clientes/rentals/estimate",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/rentals/estimate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "rentals",
+                "estimate"
+              ],
+              "query": [
+                {
+                  "key": "distanceKm",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{branchAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 200, 400, 401, 403, 422."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400, 422)\", function () {",
+                  "  pm.expect([200, 400, 422]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/clientes/rentals/mine",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/rentals/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "rentals",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: CLIENT.\n\nRespuestas: 200, 400, 401, 403, 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400, 404)\", function () {",
+                  "  pm.expect([200, 400, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/clientes/rentals/:id/cancel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/rentals/:id/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "rentals",
+                ":id",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{testRentalId}}"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{testBranchAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Not run: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (201, 400, 404, 409)\", function () {",
+                  "  pm.expect([201, 400, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/clientes/rentals/:id/pay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "idempotency-key",
+                "value": "{{testRentalId}}"
+              },
+              {
+                "key": "x-correlation-id",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/rentals/:id/pay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "rentals",
+                ":id",
+                "pay"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{testRentalId}}"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{testBranchAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paidOn\": \"{{today}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409, 422.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Changes data: it only runs against a stack on this machine.",
+                  "var base = pm.variables.get('baseUrl') || '';",
+                  "if (!/^https?:\\/\\/(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?(\\/|$)/.test(base)) {",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (201, 400, 404, 409, 422)\", function () {",
+                  "  pm.expect([201, 400, 404, 409, 422]).to.include(pm.response.code);",
                   "});"
                 ]
               }
@@ -9877,6 +11279,905 @@
               }
             }
           ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-bus-options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-bus-options",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-bus-options"
+              ],
+              "query": [
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-expenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-expenses"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-expenses/pdf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-expenses/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-expenses",
+                "pdf"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403, 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400, 409)\", function () {",
+                  "  pm.expect([200, 400, 409]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test(\"Devuelve un PDF\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/pdf\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-income",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-income",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-income"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-income/pdf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-income/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-income",
+                "pdf"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403, 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400, 409)\", function () {",
+                  "  pm.expect([200, 400, 409]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test(\"Devuelve un PDF\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/pdf\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-profit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-profit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-profit"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-profit/pdf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-profit/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-profit",
+                "pdf"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403, 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400, 409)\", function () {",
+                  "  pm.expect([200, 400, 409]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test(\"Devuelve un PDF\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/pdf\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-repair-expenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-repair-expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-repair-expenses"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "busId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-repair-expenses/pdf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-repair-expenses/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-repair-expenses",
+                "pdf"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "busId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403, 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400, 409)\", function () {",
+                  "  pm.expect([200, 400, 409]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test(\"Devuelve un PDF\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/pdf\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-routes-map",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-routes-map",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-routes-map"
+              ],
+              "query": [
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-routes-map/pdf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-routes-map/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-routes-map",
+                "pdf"
+              ],
+              "query": [
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test(\"Devuelve un PDF\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/pdf\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-top-routes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-top-routes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-top-routes"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reportes/reports/system-top-routes/pdf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reportes/reports/system-top-routes/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reportes",
+                "reports",
+                "system-top-routes",
+                "pdf"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "branchId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN.\n\nRespuestas: 200, 400, 401, 403, 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400, 409)\", function () {",
+                  "  pm.expect([200, 400, 409]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test(\"Devuelve un PDF\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/pdf\");",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -10156,6 +12457,21 @@
                 },
                 {
                   "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "origin",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "destination",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "seats",
                   "value": "",
                   "disabled": true
                 },
@@ -10551,6 +12867,80 @@
       ]
     },
     {
+      "name": "ventas · tickets",
+      "item": [
+        {
+          "name": "GET /api/ventas/tickets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventas/tickets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "tickets"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "{{today}}",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: CLIENT.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "ventas · trips",
       "item": [
         {
@@ -10581,6 +12971,21 @@
                 },
                 {
                   "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "origin",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "destination",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "seats",
                   "value": "",
                   "disabled": true
                 },
@@ -10616,6 +13021,49 @@
                 "exec": [
                   "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
                   "  pm.expect([200, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/ventas/trips/places",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventas/trips/places",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventas",
+                "trips",
+                "places"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.\n\nRespuestas: 200, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200)\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
                   "});"
                 ]
               }
@@ -11013,7 +13461,7 @@
                 }
               }
             },
-            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409, 502, 503.\n\nNo se ejecuta: necesita una solicitud de alquiler que crea `ventas`, y el seed todavía no las carga."
+            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409, 502, 503.\n\nNo se ejecuta: necesita un alquiler pagado que ya haya llegado a `viajes`, y la colección solo escribe con datos de prueba."
           },
           "event": [
             {
@@ -11021,7 +13469,72 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Not run: necesita una solicitud de alquiler que crea `ventas`, y el seed todavía no las carga",
+                  "// Not run: necesita un alquiler pagado que ya haya llegado a `viajes`, y la colección solo escribe con datos de prueba",
+                  "pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (201, 400, 404, 409)\", function () {",
+                  "  pm.expect([201, 400, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/viajes/rental-requests/:id/cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-correlation-id",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/viajes/rental-requests/:id/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "viajes",
+                "rental-requests",
+                ":id",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{testRentalRequestId}}"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{testBranchAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: necesita un alquiler pagado que ya haya llegado a `viajes`, y el recorrido no paga ninguno."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Not run: necesita un alquiler pagado que ya haya llegado a `viajes`, y el recorrido no paga ninguno",
                   "pm.execution.skipRequest();"
                 ]
               }

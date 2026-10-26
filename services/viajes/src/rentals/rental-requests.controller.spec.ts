@@ -33,4 +33,13 @@ describe('RentalRequestsController', () => {
     expect(result).toEqual({ id: 't' });
     expect(requests.assign).toHaveBeenCalledWith(actor, 'r', body, 'c');
   });
+
+  it('cancels a paid rental on behalf of the caller', async () => {
+    const requests = { cancel: jest.fn().mockResolvedValue({ id: 'r', status: 'CANCELLED' }) };
+
+    const result = await new RentalRequestsController(requests as never).cancel(actor, 'r', 'c');
+
+    expect(result).toEqual({ id: 'r', status: 'CANCELLED' });
+    expect(requests.cancel).toHaveBeenCalledWith(actor, 'r', 'c');
+  });
 });

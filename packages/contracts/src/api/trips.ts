@@ -126,7 +126,8 @@ export const tripDetailSchema = tripSchema.extend({
 });
 export type TripDetail = z.infer<typeof tripDetailSchema>;
 
-export const RENTAL_REQUEST_STATUSES = ['PENDING', 'ASSIGNED'] as const;
+// A paid rental waits for its bus (PENDING), has its trip (ASSIGNED) or was cancelled by the branch.
+export const RENTAL_REQUEST_STATUSES = ['PENDING', 'ASSIGNED', 'CANCELLED'] as const;
 export type RentalRequestStatus = (typeof RENTAL_REQUEST_STATUSES)[number];
 
 export const rentalToAssignSchema = z.object({

@@ -1,9 +1,8 @@
 'use client';
 
 import type { BranchRepairExpenseRow, RepairCategoryShare } from '@debus/contracts';
-import { ChevronRight } from 'lucide-react';
-import { createContext, useContext } from 'react';
 import { columnHelperFor } from '@/components/data/data-table';
+import { ExpandToggle } from '@/components/data/row-expansion';
 import { formatPlate, formatQuetzales } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -18,36 +17,10 @@ const numberHeader = (header: string) => <span className="block text-right">{hea
 
 const linesLabel = (lines: number) => `${lines} ${lines === 1 ? 'línea' : 'líneas'}`;
 
-// Which buses are open lives outside the columns: columns that change with it would be rebuilt on
-// every click and the button that was pressed would lose the keyboard focus.
-interface Expansion {
-  expanded: ReadonlySet<string>;
-  toggle: (busId: string) => void;
-}
-export const ExpansionContext = createContext<Expansion>({
-  expanded: new Set(),
-  toggle: () => undefined,
-});
-
-// The button that opens a bus: it is the way in for the keyboard and names the bus for a screen reader.
+// The button that opens a bus: it names the bus for a screen reader.
 function BusToggle({ row }: { row: BranchRepairExpenseRow }) {
-  const { expanded, toggle } = useContext(ExpansionContext);
-  const open = expanded.has(row.busId);
   return (
-    <button
-      type="button"
-      aria-expanded={open}
-      onClick={() => toggle(row.busId)}
-      className="flex items-center gap-2 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-    >
-      <ChevronRight
-        aria-hidden
-        strokeWidth={1.75}
-        className={cn(
-          'size-4.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none',
-          open && 'rotate-90',
-        )}
-      />
+    <ExpandToggle id={row.busId}>
       <span className="flex flex-wrap items-baseline gap-x-2">
         <span className={cn('whitespace-nowrap', row.plate !== null && 'font-mono font-bold')}>
           {busTitle(row)}
@@ -56,7 +29,7 @@ function BusToggle({ row }: { row: BranchRepairExpenseRow }) {
           <span className="text-muted-foreground">{`${row.brand} ${row.model}`}</span>
         )}
       </span>
-    </button>
+    </ExpandToggle>
   );
 }
 

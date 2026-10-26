@@ -22,16 +22,36 @@ const tripRow = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+// What the list query answers: the trip with its free seats already counted.
+const listedRow = () => ({
+  tripId,
+  routeId: tripRow().routeId,
+  branchId: tripRow().branchId,
+  originLabel: 'Quetzaltenango',
+  destinationLabel: 'Guatemala',
+  departureAt,
+  estimatedArrivalAt: tripRow().estimatedArrivalAt,
+  ticketPrice: new Prisma.Decimal(85.5),
+  busPlate: 'C482BTX',
+  capacity: 40,
+  freeSeats: 37,
+});
+
 function setup() {
   const prisma = {
+    $queryRaw: jest
+      .fn()
+      .mockResolvedValueOnce([listedRow()])
+      .mockResolvedValueOnce([{ total: 41 }]),
     trip: {
-      findMany: jest.fn().mockResolvedValue([{ ...tripRow(), _count: { seats: 3 } }]),
-      count: jest.fn().mockResolvedValue(41),
+      findMany: jest.fn(),
       findUnique: jest.fn(),
     },
   };
   return { prisma, service: new TripsService(prisma as never) };
 }
+
+const sqlOf = (call: unknown[]) => call[0] as Prisma.Sql;
 
 describe('TripsService', () => {
   it('lists the trips on sale with their free seats, in a stable order', async () => {
@@ -59,15 +79,14 @@ describe('TripsService', () => {
       page: 3,
       pageSize: 20,
     });
-    const [args] = prisma.trip.findMany.mock.calls[0];
-    expect(args).toMatchObject({
-      where: { departureAt: { gt: expect.any(Date) }, searchText: { contains: 'xela' } },
-      orderBy: [{ departureAt: 'asc' }, { tripId: 'asc' }],
-      include: { _count: { select: { seats: true } } },
-      skip: 40,
-      take: 20,
-    });
-    expect(prisma.trip.count).toHaveBeenCalledWith({ where: args.where });
+    const list = sqlOf(prisma.$queryRaw.mock.calls[0]);
+    const count = sqlOf(prisma.$queryRaw.mock.calls[1]);
+    expect(list.sql).toContain('t.capacity - COALESCE(s.taken, 0) AS "freeSeats"');
+    // The id breaks ties, so a trip never shows up on two pages or on none.
+    expect(list.sql).toContain('ORDER BY t.departure_at, t.trip_id LIMIT ? OFFSET ?');
+    expect(list.values).toEqual([expect.any(Date), '%xela%', 20, 40]);
+    expect(count.sql).toContain('SELECT count(*)::int AS total');
+    expect(count.values).toEqual([expect.any(Date), '%xela%']);
   });
 
   it('lists only the trips of one branch when asked for its counter', async () => {
@@ -75,8 +94,45 @@ describe('TripsService', () => {
 
     await service.list({ page: 1, pageSize: 20 }, tripRow().branchId);
 
-    expect(prisma.trip.findMany.mock.calls[0][0].where).toMatchObject({
-      branchId: tripRow().branchId,
+    expect(sqlOf(prisma.$queryRaw.mock.calls[0]).values).toContain(tripRow().branchId);
+  });
+
+  it('answers no trips and a zero total when nothing matches', async () => {
+    const { prisma, service } = setup();
+    prisma.$queryRaw
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ total: 0 }]);
+
+    await expect(service.list({ page: 1, pageSize: 20, seats: 4 })).resolves.toEqual({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+    });
+  });
+
+  it('lists the places of the trips still on sale, each once and in order', async () => {
+    const { prisma, service } = setup();
+    prisma.trip.findMany
+      .mockResolvedValueOnce([{ originLabel: 'Cobán' }, { originLabel: 'Quetzaltenango' }])
+      .mockResolvedValueOnce([{ destinationLabel: 'Guatemala' }]);
+
+    await expect(service.places()).resolves.toEqual({
+      origins: ['Cobán', 'Quetzaltenango'],
+      destinations: ['Guatemala'],
+    });
+    expect(prisma.trip.findMany).toHaveBeenCalledWith({
+      where: { departureAt: { gt: expect.any(Date) } },
+      distinct: ['originLabel'],
+      select: { originLabel: true },
+      orderBy: { originLabel: 'asc' },
+    });
+    expect(prisma.trip.findMany).toHaveBeenCalledWith({
+      where: { departureAt: { gt: expect.any(Date) } },
+      distinct: ['destinationLabel'],
+      select: { destinationLabel: true },
+      orderBy: { destinationLabel: 'asc' },
     });
   });
 

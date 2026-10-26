@@ -12,3 +12,9 @@ export function uuidFrom(text: string): string {
     hex.slice(20, 32),
   ].join('-');
 }
+
+// A stable number in [0, 1) for a text, so the seed can decide "for about a third of the trips"
+// without a random generator: the same trip always falls on the same side.
+export function fraction(text: string): number {
+  return parseInt(createHash('sha1').update(text).digest('hex').slice(0, 8), 16) / 0x1_0000_0000;
+}

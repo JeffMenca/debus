@@ -1,6 +1,7 @@
 'use client';
 
 import { StatusTabs } from '@/components/data/status-tabs';
+import { RentalHistory } from '@/components/rentals/rental-history';
 import { TopUpCard } from '@/components/wallet/top-up-card';
 import { MovementsList } from '@/components/wallet/movements-list';
 import { WalletCard } from '@/components/wallet/wallet-card';
@@ -11,18 +12,13 @@ import {
   writeAccountView,
 } from '@/lib/account/account-view-params';
 import { ProfileCard } from './profile-card';
+import { TicketHistory } from './ticket-history';
 
 const TABS: { value: AccountTab; label: string }[] = [
   { value: 'TICKETS', label: 'Boletos' },
   { value: 'RENTALS', label: 'Alquileres' },
   { value: 'MOVEMENTS', label: 'Movimientos' },
 ];
-
-function EmptyTab({ children }: { children: string }) {
-  return (
-    <p className="rounded-3xl bg-card px-6 py-10 text-center text-muted-foreground">{children}</p>
-  );
-}
 
 export function AccountScreen() {
   const [view, update] = useUrlQuery(readAccountView, writeAccountView);
@@ -46,12 +42,10 @@ export function AccountScreen() {
           />
         </div>
         {view.tab === 'TICKETS' && (
-          <EmptyTab>
-            Aquí verás los boletos que compres, también los de ventanilla con tu NIT.
-          </EmptyTab>
+          <TicketHistory query={{ page: view.page, pageSize: view.pageSize }} onChange={update} />
         )}
         {view.tab === 'RENTALS' && (
-          <EmptyTab>Aquí verás los buses que alquiles para tu grupo.</EmptyTab>
+          <RentalHistory query={{ page: view.page, pageSize: view.pageSize }} onChange={update} />
         )}
         {view.tab === 'MOVEMENTS' && (
           <MovementsList

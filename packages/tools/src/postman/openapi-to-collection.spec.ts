@@ -168,6 +168,34 @@ const OPENAPI: OpenApiDocument = {
         responses: { '201': {} },
       },
     },
+    '/api/clientes/rentals': {
+      post: {
+        tags: ['clientes · rentals'],
+        description: 'Allowed roles: CLIENT.',
+        security: bearer,
+        responses: { '201': {} },
+      },
+    },
+    '/api/clientes/rentals/mine': {
+      get: {
+        tags: ['clientes · rentals'],
+        description: 'Allowed roles: CLIENT.',
+        security: bearer,
+        responses: { '200': {} },
+      },
+    },
+    '/api/clientes/rentals/{id}/pay': {
+      post: {
+        tags: ['clientes · rentals'],
+        description: 'Allowed roles: CLIENT, BRANCH_ADMIN.',
+        security: bearer,
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'Idempotency-Key', in: 'header', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '201': {} },
+      },
+    },
   },
 };
 
@@ -212,6 +240,7 @@ describe('toCollection', () => {
         'administracion · expense-categories',
         'administracion · sessions',
         'administracion · users',
+        'clientes · rentals',
         'flota · buses',
         'flota · health',
         'reportes · reports',
@@ -312,6 +341,12 @@ describe('toCollection', () => {
       ).toBe(false);
     });
 
+    it('keys the payment of a record with the id of what it pays', () => {
+      expect(
+        request(collection, 'POST /api/clientes/rentals/:id/pay').request.header,
+      ).toContainEqual({ key: 'Idempotency-Key', value: '{{testRentalId}}' });
+    });
+
     it('describes who may call it, in Spanish', () => {
       expect(request(collection, 'GET /api/flota/buses').request.description).toContain(
         'Roles permitidos: BRANCH_ADMIN.',
@@ -333,6 +368,14 @@ describe('toCollection', () => {
     it('reads with the system admin session for what it may do, alone or with others, and for any session', () => {
       expect(tokenOf('GET /api/administracion/users')).toBe('{{accessToken}}');
       expect(tokenOf('GET /api/administracion/branches')).toBe('{{accessToken}}');
+    });
+
+    it('reads with the session of a client what only a client can see', () => {
+      expect(tokenOf('GET /api/clientes/rentals/mine')).toBe('{{clientAccessToken}}');
+    });
+
+    it('keeps the branch admin session for what a client and a branch admin share', () => {
+      expect(tokenOf('POST /api/clientes/rentals/:id/pay')).toBe('{{testBranchAccessToken}}');
     });
 
     it('writes with the test branch admin, never with the session of the demo branch', () => {
@@ -475,6 +518,7 @@ describe('leftOutReason', () => {
     ['put', '/api/flota/buses/{id}/photo'],
     ['put', '/api/flota/drivers/{id}/photo'],
     ['post', '/api/viajes/rental-requests/{id}/assignment'],
+    ['post', '/api/clientes/rentals'],
     ['post', '/api/flota/dead-letters/{messageId}/replay'],
     ['delete', '/api/notificaciones/dead-letters/{messageId}'],
   ] as const)('leaves out %s %s with a reason', (method, path) => {
