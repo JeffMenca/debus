@@ -12,6 +12,7 @@ import {
   Settings2,
   Tags,
   Ticket,
+  UserRound,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -28,6 +29,13 @@ export interface NavGroup {
   label: string;
   items: NavItem[];
 }
+
+// Every staff member has a profile (NIT, DPI, phone and address) they can edit; clients edit theirs
+// in their account.
+const ACCOUNT: NavGroup = {
+  label: 'Cuenta',
+  items: [{ label: 'Mi perfil', href: '/perfil', icon: UserRound }],
+};
 
 // Only screens that exist are listed; each new screen adds its link here.
 const SYSTEM_ADMIN: NavGroup[] = [
@@ -49,12 +57,13 @@ const SYSTEM_ADMIN: NavGroup[] = [
     label: 'Sistema',
     items: [{ label: 'Estado del sistema', href: '/admin/estado', icon: Activity }],
   },
+  ACCOUNT,
 ];
 
 const BRANCH_PANEL: NavItem = { label: 'Panel', href: '/sucursal', icon: LayoutGrid };
 const COUNTER: NavItem = { label: 'Ventanilla', href: '/sucursal/ventanilla', icon: Ticket };
 
-const BRANCH_STAFF: NavGroup[] = [{ label: 'Operación', items: [BRANCH_PANEL, COUNTER] }];
+const BRANCH_STAFF: NavGroup[] = [{ label: 'Operación', items: [BRANCH_PANEL, COUNTER] }, ACCOUNT];
 
 const BRANCH_ADMIN: NavGroup[] = [
   {
@@ -82,6 +91,7 @@ const BRANCH_ADMIN: NavGroup[] = [
     label: 'Reportes',
     items: REPORT_LINKS.map(({ title, href, icon }) => ({ label: title, href, icon })),
   },
+  ACCOUNT,
 ];
 
 const DRIVER: NavGroup[] = [
@@ -89,6 +99,7 @@ const DRIVER: NavGroup[] = [
     label: 'Mi trabajo',
     items: [{ label: 'Mis viajes', href: '/chofer', icon: CalendarDays }],
   },
+  ACCOUNT,
 ];
 
 const NAVIGATION: Record<UserRole, NavGroup[]> = {

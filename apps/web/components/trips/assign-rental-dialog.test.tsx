@@ -7,6 +7,7 @@ import { useBusesPage } from '../../hooks/use-buses';
 import { useDriverOptions } from '../../hooks/use-drivers';
 import { useAssignRental } from '../../hooks/use-rental-requests';
 import { bus, busPage, driver, driverPage } from '../../test-support/fleet';
+import { pinDate } from '../../test-support/fake-clock';
 import { rentalRequest, trip } from '../../test-support/trips';
 import { AssignRentalDialog } from './assign-rental-dialog';
 
@@ -53,8 +54,11 @@ const choose = async (label: string, option: string | RegExp) => {
 const submit = () => user.click(screen.getByRole('button', { name: 'Asignar' }));
 
 beforeEach(() => {
+  // The day before the rental in the fixtures, so its requested hour is still ahead.
+  pinDate('2026-10-23T18:00:00.000Z');
   jest.mocked(toast.success).mockReset();
 });
+afterEach(() => jest.useRealTimers());
 
 it('names the rental it is about and asks for bus, driver and estimated arrival', () => {
   setup();

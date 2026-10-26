@@ -56,7 +56,7 @@ describe('ReportBars', () => {
     expect(widthOf('z')).toBe('0%');
   });
 
-  it('draws no bar for a negative value, such as a loss, and still writes the value', () => {
+  it('draws a loss in the warning tone, measured by its size, and still writes the value', () => {
     reduced(false);
     render(
       <ReportBars
@@ -70,7 +70,25 @@ describe('ReportBars', () => {
     );
 
     expect(widthOf('p')).toBe('100%');
-    expect(widthOf('n')).toBe('0%');
+    expect(widthOf('n')).toBe('40%');
+    expect(screen.getByTestId('bar-n')).toHaveClass('bg-destructive');
     expect(screen.getByText('Q -40')).toBeInTheDocument();
+  });
+
+  it('still draws the bars when every branch lost money', () => {
+    reduced(false);
+    render(
+      <ReportBars
+        title="Barras"
+        items={[
+          { key: 'a', label: 'Cobán', value: -200 },
+          { key: 'b', label: 'Antigua', value: -50 },
+        ]}
+        format={String}
+      />,
+    );
+
+    expect(widthOf('a')).toBe('100%');
+    expect(widthOf('b')).toBe('25%');
   });
 });

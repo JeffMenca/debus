@@ -25,6 +25,7 @@ describe('proxy', () => {
       '/sucursal/:path*',
       '/chofer/:path*',
       '/cuenta/:path*',
+      '/perfil/:path*',
     ]);
   });
 });
