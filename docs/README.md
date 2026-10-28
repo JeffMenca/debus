@@ -94,3 +94,7 @@ flowchart LR
 - **Swagger**: `/docs` en el gateway, con los siete servicios unidos.
 - **Colección Postman**: [`postman/debus.postman_collection.json`](../postman/debus.postman_collection.json), generada del Swagger (`pnpm postman`) con un recorrido de uso.
 - **Datos de demostración**: [`datos-de-prueba.md`](datos-de-prueba.md).
+
+## Repositorios por unidad
+
+Además del monorepo, cada unidad (`gateway`, los siete servicios y `web`) tiene un repositorio privado de solo lectura, `rrobertobt/sa-debus-<unidad>`, con el historial de sus archivos y de los paquetes compartidos que usa. El monorepo sigue siendo la fuente de verdad: los espejos se regeneran con `pnpm mirror` (prueba local en un directorio temporal) y `pnpm mirror --push` (crea los repositorios si faltan y los actualiza). Cada espejo compila y prueba por sí solo (`pnpm install --frozen-lockfile && pnpm build && pnpm test`); el despliegue y las pruebas de integración se quedan en el monorepo.
