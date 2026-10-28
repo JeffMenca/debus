@@ -120,6 +120,157 @@ describe('cleaning the test data of reportes', () => {
     );
   });
 
+  describe('the rows of a branch that no longer exists in administracion', () => {
+    const BRANCH_TABLES = [
+      'branch_report_trips',
+      'branch_report_ticket_sales',
+      'branch_report_buses',
+      'branch_report_drivers',
+      'branch_report_repair_lines',
+      'branch_report_rentals',
+    ] as const;
+    const orphanBranchId = randomUUID();
+    const keptBranchId = randomUUID();
+    const rentals: string[] = [];
+
+    // One row of every read model the reports read, as the events leave them, for a branch with no copy.
+    async function seedRows(branchId: string, otherEnd: string) {
+      const busId = randomUUID();
+      const driverId = randomUUID();
+      const rentalId = randomUUID();
+      rentals.push(rentalId);
+      await bus.deliver('BusAdded', { ...exampleBus, busId, branchId });
+      await bus.deliver('DriverAdded', { ...exampleDriver, driverId, branchId });
+      await bus.deliver('TripCompleted', {
+        ...exampleTripCompleted,
+        tripId: randomUUID(),
+        branchId,
+        busId,
+        driverId,
+      });
+      await bus.deliver('RepairExpenseAdded', {
+        ...exampleRepairExpenseAdded,
+        expenseId: randomUUID(),
+        branchId,
+      });
+      await bus.deliver('TicketSold', {
+        ...exampleCounterTicketSold,
+        ticketId: randomUUID(),
+        branchId,
+      });
+      await bus.deliver('RentalPaid', { ...exampleRentalPaid, rentalId, branchId });
+      await bus.deliver('RentalCancelled', { ...exampleRentalCancelled, rentalId, branchId });
+      await bus.deliver('RouteCreated', {
+        ...exampleRoute,
+        routeId: randomUUID(),
+        originBranchId: branchId,
+        destinationBranchId: otherEnd,
+      });
+      await bus.deliver('RouteCreated', {
+        ...exampleRoute,
+        routeId: randomUUID(),
+        originBranchId: otherEnd,
+        destinationBranchId: branchId,
+      });
+    }
+
+    const rowsOf = async (tx: Pick<PrismaService, '$queryRawUnsafe'>, branchId: string) => {
+      const counts: Record<string, number> = {};
+      for (const table of BRANCH_TABLES) {
+        const [row] = await tx.$queryRawUnsafe<{ n: bigint }[]>(
+          `SELECT COUNT(*) AS n FROM ${table} WHERE branch_id = $1::uuid`,
+          branchId,
+        );
+        counts[table] = Number(row?.n);
+      }
+      const [routes] = await tx.$queryRawUnsafe<{ n: bigint }[]>(
+        'SELECT COUNT(*) AS n FROM system_report_routes WHERE origin_branch_id = $1::uuid OR destination_branch_id = $1::uuid',
+        branchId,
+      );
+      counts.system_report_routes = Number(routes?.n);
+      const [cancellations] = await tx.$queryRawUnsafe<{ n: bigint }[]>(
+        `SELECT COUNT(*) AS n FROM branch_report_rental_cancellations
+         WHERE rental_id IN (SELECT id FROM branch_report_rentals WHERE branch_id = $1::uuid)`,
+        branchId,
+      );
+      counts.branch_report_rental_cancellations = Number(cancellations?.n);
+      return counts;
+    };
+    const everyTableHasRows = (counts: Record<string, number>) =>
+      Object.values(counts).every((count) => count > 0);
+    const noTableHasRows = (counts: Record<string, number>) =>
+      Object.values(counts).every((count) => count === 0);
+
+    // A transaction that is always rolled back: the statements run for real, and nothing stays.
+    async function cleanInRollback(
+      options: Parameters<typeof cleanupStatements>[0],
+      check: (tx: Pick<PrismaService, '$queryRawUnsafe'>) => Promise<void>,
+    ) {
+      await expect(
+        prisma.$transaction(async (tx) => {
+          for (const statement of cleanupStatements(options)) await tx.$executeRawUnsafe(statement);
+          await check(tx);
+          throw new Rollback();
+        }),
+      ).rejects.toBeInstanceOf(Rollback);
+    }
+
+    beforeAll(async () => {
+      // The routes of the lost branch go even though the other end still exists.
+      await seedRows(orphanBranchId, keptBranchId);
+      await seedRows(keptBranchId, keptBranchId);
+    });
+    afterAll(async () => {
+      for (const branchId of [orphanBranchId, keptBranchId]) {
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM branch_report_rental_cancellations WHERE rental_id = ANY($1::uuid[])`,
+          rentals,
+        );
+        for (const table of BRANCH_TABLES) {
+          await prisma.$executeRawUnsafe(
+            `DELETE FROM ${table} WHERE branch_id = $1::uuid`,
+            branchId,
+          );
+        }
+        await prisma.$executeRawUnsafe(
+          'DELETE FROM system_report_routes WHERE origin_branch_id = $1::uuid OR destination_branch_id = $1::uuid',
+          branchId,
+        );
+      }
+    });
+
+    it('seeded a row in every table for both branches', async () => {
+      expect(everyTableHasRows(await rowsOf(prisma, orphanBranchId))).toBe(true);
+      expect(everyTableHasRows(await rowsOf(prisma, keptBranchId))).toBe(true);
+    });
+
+    it('are removed from every read model, and those of a branch that still exists stay', async () => {
+      await cleanInRollback({ branchIds: [keptBranchId] }, async (tx) => {
+        expect(noTableHasRows(await rowsOf(tx, orphanBranchId))).toBe(true);
+        expect(everyTableHasRows(await rowsOf(tx, keptBranchId))).toBe(true);
+      });
+    });
+
+    it.each([
+      ['an empty list', []],
+      ['no list', null],
+    ])(
+      'are kept when administracion gave %s, so an unreachable source never empties reportes',
+      async (_label, branchIds) => {
+        await cleanInRollback({ branchIds }, async (tx) => {
+          expect(everyTableHasRows(await rowsOf(tx, orphanBranchId))).toBe(true);
+          expect(everyTableHasRows(await rowsOf(tx, keptBranchId))).toBe(true);
+        });
+      },
+    );
+
+    it('refuses an id that is not a UUID instead of putting it in the SQL', () => {
+      expect(() => cleanupStatements({ branchIds: ["x'); DROP TABLE users; --"] })).toThrow(
+        /is not a UUID/,
+      );
+    });
+  });
+
   it('keeps the rates whose version still exists in administracion and drops the rest', async () => {
     const alive = randomUUID();
     const gone = randomUUID();

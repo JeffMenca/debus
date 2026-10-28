@@ -36,6 +36,40 @@ describe('branchMarkerElement', () => {
     expect(marker.querySelector('[data-part="pin"]')).toHaveClass('ring-muted-foreground/60');
   });
 
+  it.each([
+    ['below', ['top-full', 'mt-1.5', '-translate-x-1/2']],
+    ['above', ['bottom-full', 'mb-1.5', '-translate-x-1/2']],
+    ['right', ['left-full', 'ml-1.5', '-translate-y-1/2']],
+    ['left', ['right-full', 'mr-1.5', '-translate-y-1/2']],
+  ] as const)('puts the tag %s the pin', (side, classes) => {
+    const marker = branchMarkerElement('Antigua Guatemala', 'destination', side);
+
+    expect(marker.querySelector('[data-part="tag"]')).toHaveClass(...classes);
+  });
+
+  it('puts the tag below the pin when no side is given', () => {
+    const marker = branchMarkerElement('Antigua Guatemala', 'destination');
+
+    expect(marker.querySelector('[data-part="tag"]')).toHaveClass('top-full');
+  });
+
+  it.each(['below', 'above', 'right', 'left'] as const)(
+    'leaves the pin on the coordinate whatever side the tag takes (%s)',
+    (side) => {
+      const marker = branchMarkerElement('Cobán', 'origin', side);
+
+      // The marker is a box centered on the coordinate, and the pin is centered in the box.
+      expect(marker).toHaveClass('size-6', '-translate-x-1/2', '-translate-y-1/2');
+      expect(marker.querySelector('[data-part="pin"]')).toHaveClass(
+        'absolute',
+        'top-1/2',
+        'left-1/2',
+        '-translate-x-1/2',
+        '-translate-y-1/2',
+      );
+    },
+  );
+
   it('writes the name as text, never as markup', () => {
     const marker = branchMarkerElement('<img src=x onerror=alert(1)>', 'destination');
 

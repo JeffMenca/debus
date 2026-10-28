@@ -7,6 +7,7 @@ import { useBusesPage } from '../../hooks/use-buses';
 import { useDriverOptions } from '../../hooks/use-drivers';
 import { useAssignRental } from '../../hooks/use-rental-requests';
 import { bus, busPage, driver, driverPage } from '../../test-support/fleet';
+import { pinDate } from '../../test-support/fake-clock';
 import { rentalRequest, trip } from '../../test-support/trips';
 import { AssignRentalDialog } from './assign-rental-dialog';
 
@@ -55,25 +56,10 @@ const submit = () => user.click(screen.getByRole('button', { name: 'Asignar' }))
 // The rental of the fixtures leaves on 2026-10-24: the clock stays before it, so what the dialog
 // proposes does not change with the day the tests run.
 beforeEach(() => {
-  jest.useFakeTimers({
-    now: new Date('2026-10-23T12:00:00.000Z'),
-    doNotFake: [
-      'setTimeout',
-      'clearTimeout',
-      'setInterval',
-      'clearInterval',
-      'setImmediate',
-      'clearImmediate',
-      'nextTick',
-      'queueMicrotask',
-      'requestAnimationFrame',
-      'cancelAnimationFrame',
-      'performance',
-    ],
-  });
+  // The day before the rental in the fixtures, so its requested hour is still ahead.
+  pinDate('2026-10-23T18:00:00.000Z');
   jest.mocked(toast.success).mockReset();
 });
-
 afterEach(() => jest.useRealTimers());
 
 it('names the rental it is about and asks for bus, driver and estimated arrival', () => {

@@ -24,7 +24,7 @@ jobs:
       GCP_REGION: ${{ vars.GCP_REGION }}
       DEPLOY_SA: ${{ vars.GCP_DEPLOY_SA }}
       # service/resource pairs with a POST /internal/<resource>/republish route; the order matters
-      # when a copy is built from another one (branches and settings before fleet, branch admins before
+      # when a copy is built from another one (branches and settings before fleet, accounts before
       # the drivers whose licence alerts they get)
       ALL_TARGETS: administracion/branches,administracion/settings,administracion/users,flota/drivers,flota/routes,flota/buses
     steps:

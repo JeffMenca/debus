@@ -191,4 +191,28 @@ describe('CounterSale', () => {
 
     expect(await screen.findByRole('button', { name: 'Asiento 5' })).toBeInTheDocument();
   });
+
+  it.each([
+    [404, 'No encontramos ese viaje', 'No encontramos ese viaje. Puede que ya no esté a la venta.'],
+    [409, 'Este viaje ya salió', 'Este viaje ya salió. Elige otro horario.'],
+  ])(
+    'says so when the trip answers %i and lets the person pick another',
+    async (status, title, message) => {
+      mockVentasApi({
+        [`GET /trips/${TRIP_ID}/seats`]: () =>
+          Response.json({ statusCode: status, message }, { status }),
+      });
+      const onBack = jest.fn();
+      render(<CounterSale tripId={TRIP_ID} today={TODAY} onBack={onBack} />, {
+        wrapper: queryWrapper().wrapper,
+      });
+
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Cambiar viaje' }));
+
+      expect(onBack).toHaveBeenCalledTimes(1);
+    },
+  );
 });

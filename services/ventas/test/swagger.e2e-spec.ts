@@ -46,7 +46,7 @@ describe('the Swagger description of the trips on sale, the history, the counter
       'destinations',
     ]);
     expect(statuses('/trips/{tripId}/seats', 'get')).toEqual(
-      expect.arrayContaining(['200', '400', '401', '404']),
+      expect.arrayContaining(['200', '400', '401', '404', '409']),
     );
   });
 

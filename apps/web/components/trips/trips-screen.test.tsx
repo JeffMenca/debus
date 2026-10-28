@@ -225,16 +225,17 @@ describe('TripsScreen', () => {
   it('writes the first day in the address and goes back to the first page', () => {
     setup({ address: 'pagina=2' });
 
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-11-02' } });
+    // A day that is never today, so the field always reports a change.
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2030-03-15' } });
 
     const { path, params } = lastAddress();
     expect(path).toBe('/sucursal/viajes');
-    expect(params.get('desde')).toBe('2026-11-02');
+    expect(params.get('desde')).toBe('2030-03-15');
     expect(params.has('pagina')).toBe(false);
   });
 
   it('goes back to today when the first day is cleared', () => {
-    setup({ address: 'desde=2026-11-02' });
+    setup({ address: 'desde=2030-03-02' });
 
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '' } });
 
@@ -242,20 +243,20 @@ describe('TripsScreen', () => {
   });
 
   it('writes the last day, and clearing it removes it from the address', () => {
-    setup({ address: 'hasta=2026-11-02' });
+    setup({ address: 'hasta=2030-03-02' });
 
-    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-11-09' } });
-    expect(lastAddress().params.get('hasta')).toBe('2026-11-09');
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2030-03-09' } });
+    expect(lastAddress().params.get('hasta')).toBe('2030-03-09');
 
     fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '' } });
     expect(lastAddress().params.has('hasta')).toBe(false);
   });
 
   it('keeps the two days from crossing', () => {
-    setup({ address: 'desde=2026-11-02&hasta=2026-11-09' });
+    setup({ address: 'desde=2030-03-02&hasta=2030-03-09' });
 
-    expect(screen.getByLabelText('Desde')).toHaveAttribute('max', '2026-11-09');
-    expect(screen.getByLabelText('Hasta')).toHaveAttribute('min', '2026-11-02');
+    expect(screen.getByLabelText('Desde')).toHaveAttribute('max', '2030-03-09');
+    expect(screen.getByLabelText('Hasta')).toHaveAttribute('min', '2030-03-02');
   });
 
   it('changes the tab in the address and goes back to the first page', async () => {

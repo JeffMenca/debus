@@ -40,7 +40,7 @@ const patterns = (run) => ({
   branches: `'${TEST_BRANCH_PREFIX}${run ?? ''}%'`,
 });
 
-function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
+function cleanupStatements({ run = null, settingsVersionIds = null, branchIds = null } = {}) {
   checkRun(run);
   const { emails, branches } = patterns(run);
   const testUsers = `SELECT id FROM users WHERE email LIKE ${emails}`;
@@ -157,6 +157,7 @@ function cleanupStatements({ run = null, settingsVersionIds = null } = {}) {
     // Services that keep a copy of the branches have no accounts, so every test branch goes.
     whenTableExistsWithout('branches', 'users', `DELETE FROM branches WHERE name LIKE ${branches}`),
     ...copiesStatements(settingsVersionIds),
+    ...orphanBranchStatements(branchIds),
   ];
 }
 
@@ -173,6 +174,10 @@ function salesStatements(prefixPattern) {
     whenTablesExist(
       ['purchases', 'trips'],
       `DELETE FROM purchases p WHERE NOT EXISTS (SELECT 1 FROM trips t WHERE t.trip_id = p.trip_id) AND (p.description LIKE 'Boleto ' || ${prefixPattern} OR p.description LIKE 'Boleto % - ' || ${prefixPattern})`,
+    ),
+    whenTablesExist(
+      ['departed_trips', 'trips'],
+      `DELETE FROM departed_trips WHERE trip_id IN (${testTrips})`,
     ),
     whenTablesExist(['trips', 'ticket_seats'], `DELETE FROM trips WHERE trip_id IN (${testTrips})`),
     whenTablesExist(
@@ -196,6 +201,41 @@ function copiesStatements(settingsVersionIds) {
     whenTablesExist(
       ['branch_report_depreciation_rates'],
       `DELETE FROM branch_report_depreciation_rates${where}`,
+    ),
+  ];
+}
+
+// reportes keeps its read models by branch id, with no foreign key: when a test branch goes, rows of
+// a run that is not this one (or that lost its copy first) stay behind and the reports show them as
+// "Sucursal sin datos". The branches of administracion are the source of truth, and the product never
+// deletes one (it deactivates it), so a row of any other branch is a leftover. Without the list (an
+// unreachable or empty source) nothing is removed: reportes is never emptied by a missing answer.
+function orphanBranchStatements(branchIds) {
+  if (branchIds == null || branchIds.length === 0) return [];
+  for (const id of branchIds) {
+    if (!UUID.test(id)) throw new Error(`${id} is not a UUID`);
+  }
+  const alive = branchIds.map((id) => `'${id}'::uuid`).join(', ');
+  const orphans = (column) => `${column} NOT IN (${alive})`;
+  const cancellations = whenTablesExist(
+    ['branch_report_rental_cancellations', 'branch_report_rentals'],
+    `DELETE FROM branch_report_rental_cancellations WHERE rental_id IN (SELECT id FROM branch_report_rentals WHERE ${orphans('branch_id')})`,
+  );
+  return [
+    cancellations,
+    ...[
+      'branch_report_trips',
+      'branch_report_ticket_sales',
+      'branch_report_buses',
+      'branch_report_drivers',
+      'branch_report_repair_lines',
+      'branch_report_rentals',
+    ].map((table) =>
+      whenTablesExist([table], `DELETE FROM ${table} WHERE ${orphans('branch_id')}`),
+    ),
+    whenTablesExist(
+      ['system_report_routes'],
+      `DELETE FROM system_report_routes WHERE ${orphans('origin_branch_id')} OR ${orphans('destination_branch_id')}`,
     ),
   ];
 }

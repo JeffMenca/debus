@@ -26,6 +26,7 @@ import {
 } from '@/lib/tickets/counter-sale';
 import { useSeatMap } from '@/lib/tickets/trips-api';
 import { CounterReceipt } from './counter-receipt';
+import { TripMissing, isTripGone, tripGoneTitle } from './trip-missing';
 import { TripTicketCard } from './trip-ticket-card';
 
 interface CounterSaleProps {
@@ -54,6 +55,16 @@ export function CounterSale({ tripId, today = todayInGuatemala(), onBack }: Coun
   const [problems, setProblems] = useState<BuyerProblems>({});
 
   if (sale.isSuccess) return <CounterReceipt ticket={sale.data} onNext={onBack} />;
+  if (isTripGone(map.error)) {
+    return (
+      <TripMissing message={map.error.message} title={tripGoneTitle(map.error)}>
+        <Button variant="ghost" onClick={onBack} className="pl-2">
+          <ChevronLeft aria-hidden strokeWidth={1.75} className="size-4.5" />
+          Cambiar viaje
+        </Button>
+      </TripMissing>
+    );
+  }
 
   // A seat sold by someone else in the meantime leaves the choice when the map comes back.
   const seats = picked.filter((seat) => !map.data?.taken.includes(seat));

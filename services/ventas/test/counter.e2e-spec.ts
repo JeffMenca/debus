@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { ticketSoldPayloadSchema } from '@debus/contracts';
+import { exampleTripDeparted, ticketSoldPayloadSchema } from '@debus/contracts';
+import { InMemoryEventBus } from '@debus/messaging';
 import { identityHeaders } from '@debus/server';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -7,12 +8,13 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './support/app';
 import { testClients, testNit } from './support/clients';
 import { soldEvents } from './support/sold-events';
-import { type TestTrips, testTrips } from './support/trips';
+import { type TestTrips, inHours, testTrips } from './support/trips';
 
 describe('selling at the counter', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let trips: TestTrips;
+  let bus: InMemoryEventBus;
   let clients: ReturnType<typeof testClients>;
   let sold: ReturnType<typeof soldEvents>;
   const branchId = randomUUID();
@@ -30,6 +32,7 @@ describe('selling at the counter', () => {
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
+    bus = InMemoryEventBus.attach(app);
     trips = testTrips(prisma);
     clients = testClients(prisma);
     sold = soldEvents(prisma);
@@ -68,6 +71,19 @@ describe('selling at the counter', () => {
       clientId: null,
       seats: [9, 10],
     });
+  });
+
+  it('refuses a trip that already left, even before its scheduled hour, and leaves nothing behind', async () => {
+    const tripId = await trips.create({ branchId, departureAt: inHours(2) });
+    await bus.deliver('TripDeparted', { ...exampleTripDeparted, tripId, branchId });
+    const key = randomUUID();
+
+    const response = await sell({ tripId, seats: [4] }, key).expect(409);
+
+    expect(response.body.message).toBe('Este viaje ya salió. Elige otro horario.');
+    expect(await prisma.ticket.count({ where: { id: key } })).toBe(0);
+    expect(await prisma.ticketSeat.count({ where: { tripId } })).toBe(0);
+    expect(await sold.of(key)).toHaveLength(0);
   });
 
   it('links the sale to the client who holds the NIT', async () => {

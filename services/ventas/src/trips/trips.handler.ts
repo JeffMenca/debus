@@ -1,6 +1,8 @@
 import {
   type EventEnvelope,
+  tripCompletedPayloadSchema,
   tripDeletedPayloadSchema,
+  tripDepartedPayloadSchema,
   tripScheduledPayloadSchema,
 } from '@debus/contracts';
 import { OnEvent, Outbox, type SqlClient } from '@debus/messaging';
@@ -42,6 +44,12 @@ const CLOSE_PURCHASES = `
 const DELETE_TRIP = 'DELETE FROM trips WHERE trip_id = $1::uuid';
 const BURY_TRIP =
   'INSERT INTO deleted_trips (trip_id) VALUES ($1::uuid) ON CONFLICT (trip_id) DO NOTHING';
+
+// The mark has no link to the trip copy: the event may arrive before the copy does, and a repeated
+// or late one leaves the first departure as it was.
+const MARK_DEPARTED = `
+  INSERT INTO departed_trips (trip_id, departed_at) VALUES ($1::uuid, $2::timestamptz)
+  ON CONFLICT (trip_id) DO NOTHING`;
 
 @Injectable()
 export class TripsHandler {
@@ -91,5 +99,20 @@ export class TripsHandler {
     }
     const dropped = await sql.$executeRawUnsafe(DELETE_TRIP, trip.tripId);
     if (dropped === 0) await sql.$executeRawUnsafe(BURY_TRIP, trip.tripId);
+  }
+
+  // Once the bus leaves the sale is over, even before the scheduled hour.
+  @OnEvent('TripDeparted')
+  async departed(payload: unknown, _envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
+    const trip = tripDepartedPayloadSchema.parse(payload);
+    await (tx ?? this.prisma).$executeRawUnsafe(MARK_DEPARTED, trip.tripId, trip.departedAt);
+  }
+
+  // The same mark if TripDeparted was lost on its way.
+  @OnEvent('TripCompleted')
+  async completed(payload: unknown, _envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
+    const trip = tripCompletedPayloadSchema.parse(payload);
+    if (trip.type !== 'REGULAR') return;
+    await (tx ?? this.prisma).$executeRawUnsafe(MARK_DEPARTED, trip.tripId, trip.departedAt);
   }
 }

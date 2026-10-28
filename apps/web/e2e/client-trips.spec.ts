@@ -6,7 +6,7 @@ import {
   mockClientTripsGateway,
   sampleClientTrip,
 } from './support/client-trips-gateway';
-import { expectNoHorizontalScroll, signInAs } from './support/session';
+import { expectDecorationClearOfText, expectNoHorizontalScroll, signInAs } from './support/session';
 
 const xela = sampleClientTrip();
 const flores = sampleClientTrip({
@@ -85,6 +85,19 @@ test.describe('trips and purchases of a client', () => {
     await page.getByRole('button', { name: 'Buscar viajes' }).click();
     await expect(page).toHaveURL(/origen=Flores&destino=Quetzaltenango/);
     await expect(page.getByText(/No hay viajes para ese día/)).toBeVisible();
+    await expectNoHorizontalScroll(page);
+  });
+
+  test('the ticket card keeps its round decoration clear of the hours and the places', async ({
+    page,
+    baseURL,
+  }) => {
+    await open(page, baseURL, `/viajes?fecha=${dayOf(xela)}`);
+
+    await chooseSeatsOfXela(page, []);
+
+    await expect(page.getByText(/^Viaje · /)).toBeVisible();
+    await expectDecorationClearOfText(page);
     await expectNoHorizontalScroll(page);
   });
 

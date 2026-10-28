@@ -3,6 +3,11 @@ export interface CleanupOptions {
   run?: string | null;
   /** Ids of the settings versions that exist in administracion; copies of any other are removed. */
   settingsVersionIds?: readonly string[] | null;
+  /**
+   * Ids of the branches that exist in administracion; the read-model rows of reportes that belong to
+   * any other branch are removed. With null or an empty list nothing is removed.
+   */
+  branchIds?: readonly string[] | null;
 }
 export declare function cleanupStatements(options?: CleanupOptions): string[];
 export declare function keptBranchesQuery(run?: string | null): string;

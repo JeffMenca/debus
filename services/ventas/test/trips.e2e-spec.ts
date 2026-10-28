@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { exampleTripDeparted } from '@debus/contracts';
 import type { AvailableTripPage, SeatMap, TripPlaces } from '@debus/contracts';
+import { InMemoryEventBus } from '@debus/messaging';
 import { identityHeaders } from '@debus/server';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -11,6 +13,7 @@ describe('trips on sale and their seat map', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let trips: TestTrips;
+  let bus: InMemoryEventBus;
   // A word only this run's trips carry, so trips of the local stack never get in the way.
   const token = `ruta${Date.now().toString(36)}`;
   const client = identityHeaders(randomUUID(), 'CLIENT');
@@ -39,6 +42,7 @@ describe('trips on sale and their seat map', () => {
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
+    bus = InMemoryEventBus.attach(app);
     trips = testTrips(prisma);
   });
   afterAll(async () => {
@@ -214,5 +218,47 @@ describe('trips on sale and their seat map', () => {
     expect((await request(server).get('/trips/nope/seats').set(client)).status).toBe(400);
     expect((await request(server).get('/trips')).status).toBe(401);
     expect((await request(server).get('/trips/places')).status).toBe(401);
+  });
+
+  describe('a trip that has left', () => {
+    const departedAt = () => new Date().toISOString();
+
+    it('leaves the list and the places even before its scheduled hour', async () => {
+      const [stays, left] = [`${token}stays`, `${token}left`];
+      const kept = await trips.create({ originLabel: token, destinationLabel: stays });
+      const gone = await trips.create({
+        originLabel: token,
+        destinationLabel: left,
+        departureAt: inHours(2),
+      });
+      await prisma.trip.updateMany({
+        where: { tripId: { in: [kept, gone] } },
+        data: { searchText: `${token}dep` },
+      });
+
+      await bus.deliver('TripDeparted', {
+        ...exampleTripDeparted,
+        tripId: gone,
+        departedAt: departedAt(),
+      });
+
+      const listed = await listTrips({ q: `${token}dep` });
+      expect((listed.body as AvailableTripPage).items.map((trip) => trip.tripId)).toEqual([kept]);
+      const places = await request(app.getHttpServer()).get('/trips/places').set(client);
+      expect((places.body as TripPlaces).destinations).toContain(testLabel(stays));
+      expect((places.body as TripPlaces).destinations).not.toContain(testLabel(left));
+    });
+
+    it('refuses its seat map with a clear message', async () => {
+      const tripId = await trips.create({ departureAt: inHours(2) });
+      await bus.deliver('TripDeparted', { ...exampleTripDeparted, tripId });
+
+      const response = await request(app.getHttpServer())
+        .get(`/trips/${tripId}/seats`)
+        .set(client)
+        .expect(409);
+
+      expect(response.body.message).toBe('Este viaje ya salió. Elige otro horario.');
+    });
   });
 });

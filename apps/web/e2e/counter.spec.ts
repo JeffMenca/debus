@@ -2,7 +2,12 @@ import { expect, test, type Page } from '@playwright/test';
 import { mockAdminGateway, sampleBranch } from './support/admin-gateway';
 import { COUNTER_MESSAGES, mockCounterGateway, sampleTripOnSale } from './support/counter-gateway';
 import { FLEET_BRANCH_ID } from './support/fleet-gateway';
-import { expectNoHorizontalScroll, openMenuOnPhone, signInAs } from './support/session';
+import {
+  expectDecorationClearOfText,
+  expectNoHorizontalScroll,
+  openMenuOnPhone,
+  signInAs,
+} from './support/session';
 
 const xela = sampleTripOnSale();
 const flores = sampleTripOnSale({
@@ -52,6 +57,19 @@ test.describe('counter', () => {
     await page.getByRole('button', { name: 'Vender otro boleto' }).click();
     await expect(page).not.toHaveURL(/viaje=/);
     await expect(page.getByRole('row', { name: /Guatemala/ }).getByText('38')).toBeVisible();
+    await expectNoHorizontalScroll(page);
+  });
+
+  test('the ticket card keeps its round decoration clear of the hours and the places', async ({
+    page,
+    baseURL,
+  }) => {
+    await open(page, baseURL);
+
+    await sellRow(page, 'Guatemala').click();
+
+    await expect(page.getByText(/^Viaje · /)).toBeVisible();
+    await expectDecorationClearOfText(page);
     await expectNoHorizontalScroll(page);
   });
 

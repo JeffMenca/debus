@@ -1,10 +1,12 @@
 import { seatMapSchema } from '@debus/contracts';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { TripsService } from './trips.service';
 
 const tripId = '5b4a3f2e-1d0c-4b9a-8f7e-6d5c4b3a2f1e';
-const departureAt = new Date('2026-10-20T11:30:00.000Z');
+// Always ahead of the clock: a trip in the past is closed for sale.
+const departureAt = new Date(Date.now() + 3 * 86_400_000);
+const arrivalAt = new Date(departureAt.getTime() + 4 * 3_600_000);
 const tripRow = (over: Record<string, unknown> = {}) => ({
   tripId,
   branchId: '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d',
@@ -16,7 +18,7 @@ const tripRow = (over: Record<string, unknown> = {}) => ({
   capacity: 40,
   ticketPrice: new Prisma.Decimal(85.5),
   departureAt,
-  estimatedArrivalAt: new Date('2026-10-20T15:45:00.000Z'),
+  estimatedArrivalAt: arrivalAt,
   searchText: 'quetzaltenango guatemala c482btx',
   createdAt: departureAt,
   ...over,
@@ -43,10 +45,8 @@ function setup() {
       .fn()
       .mockResolvedValueOnce([listedRow()])
       .mockResolvedValueOnce([{ total: 41 }]),
-    trip: {
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-    },
+    trip: { findUnique: jest.fn() },
+    departedTrip: { count: jest.fn().mockResolvedValue(0) },
   };
   return { prisma, service: new TripsService(prisma as never) };
 }
@@ -67,8 +67,8 @@ describe('TripsService', () => {
           branchId: tripRow().branchId,
           originLabel: 'Quetzaltenango',
           destinationLabel: 'Guatemala',
-          departureAt: '2026-10-20T11:30:00.000Z',
-          estimatedArrivalAt: '2026-10-20T15:45:00.000Z',
+          departureAt: departureAt.toISOString(),
+          estimatedArrivalAt: arrivalAt.toISOString(),
           ticketPrice: 85.5,
           busPlate: 'C482BTX',
           capacity: 40,
@@ -114,26 +114,29 @@ describe('TripsService', () => {
 
   it('lists the places of the trips still on sale, each once and in order', async () => {
     const { prisma, service } = setup();
-    prisma.trip.findMany
-      .mockResolvedValueOnce([{ originLabel: 'Cobán' }, { originLabel: 'Quetzaltenango' }])
-      .mockResolvedValueOnce([{ destinationLabel: 'Guatemala' }]);
+    prisma.$queryRaw
+      .mockReset()
+      .mockResolvedValueOnce([{ label: 'Cobán' }, { label: 'Quetzaltenango' }])
+      .mockResolvedValueOnce([{ label: 'Guatemala' }]);
 
     await expect(service.places()).resolves.toEqual({
       origins: ['Cobán', 'Quetzaltenango'],
       destinations: ['Guatemala'],
     });
-    expect(prisma.trip.findMany).toHaveBeenCalledWith({
-      where: { departureAt: { gt: expect.any(Date) } },
-      distinct: ['originLabel'],
-      select: { originLabel: true },
-      orderBy: { originLabel: 'asc' },
-    });
-    expect(prisma.trip.findMany).toHaveBeenCalledWith({
-      where: { departureAt: { gt: expect.any(Date) } },
-      distinct: ['destinationLabel'],
-      select: { destinationLabel: true },
-      orderBy: { destinationLabel: 'asc' },
-    });
+    const [origins, destinations] = prisma.$queryRaw.mock.calls.map(sqlOf) as [
+      Prisma.Sql,
+      Prisma.Sql,
+    ];
+    // The same condition as the list: a trip that left leaves the places too.
+    for (const [sql, column] of [
+      [origins, 'origin_label'],
+      [destinations, 'destination_label'],
+    ] as const) {
+      expect(sql.sql).toContain(`SELECT DISTINCT t.${column} AS label FROM trips t`);
+      expect(sql.sql).toContain('NOT EXISTS (SELECT 1 FROM departed_trips d');
+      expect(sql.sql).toContain(`ORDER BY label`);
+      expect(sql.values).toEqual([expect.any(Date)]);
+    }
   });
 
   it('answers the seat map with the taken seats in order', async () => {
@@ -153,8 +156,8 @@ describe('TripsService', () => {
       busPlate: 'C482BTX',
       capacity: 40,
       ticketPrice: 85.5,
-      departureAt: '2026-10-20T11:30:00.000Z',
-      estimatedArrivalAt: '2026-10-20T15:45:00.000Z',
+      departureAt: departureAt.toISOString(),
+      estimatedArrivalAt: arrivalAt.toISOString(),
       taken: [2, 9],
     });
     expect(seatMapSchema.parse(map)).toEqual(map);
@@ -162,6 +165,31 @@ describe('TripsService', () => {
       where: { tripId },
       include: { seats: { select: { seatNumber: true }, orderBy: { seatNumber: 'asc' } } },
     });
+    expect(prisma.departedTrip.count).toHaveBeenCalledWith({ where: { tripId } });
+  });
+
+  it('answers 409 for a trip whose bus already left, before its scheduled hour', async () => {
+    const { prisma, service } = setup();
+    prisma.trip.findUnique.mockResolvedValue({
+      ...tripRow({ departureAt: new Date(Date.now() + 3_600_000) }),
+      seats: [],
+    });
+    prisma.departedTrip.count.mockResolvedValue(1);
+
+    await expect(service.seatMap(tripId)).rejects.toThrow(ConflictException);
+    await expect(service.seatMap(tripId)).rejects.toThrow(
+      'Este viaje ya salió. Elige otro horario.',
+    );
+  });
+
+  it('answers 409 for a trip whose scheduled hour has passed', async () => {
+    const { prisma, service } = setup();
+    prisma.trip.findUnique.mockResolvedValue({
+      ...tripRow({ departureAt: new Date(Date.now() - 60_000) }),
+      seats: [],
+    });
+
+    await expect(service.seatMap(tripId)).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('answers 404 for a trip it does not know', async () => {

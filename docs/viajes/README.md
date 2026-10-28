@@ -223,8 +223,8 @@ La llamada a `flota` pasa por un **circuit breaker** (el de `ServiceHttpClient`,
 | --- | --- |
 | `TripScheduled` | ventas, reportes, flota |
 | `TripDeleted` | ventas, notificaciones, flota, reportes |
-| `TripDeparted` | flota, reportes |
-| `TripCompleted` | administracion, flota, reportes |
+| `TripDeparted` | flota, reportes, ventas |
+| `TripCompleted` | administracion, flota, reportes, ventas |
 | `RentalCancelled` | clientes, reportes |
 
 **Consume**
