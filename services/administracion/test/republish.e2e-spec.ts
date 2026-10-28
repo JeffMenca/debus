@@ -94,10 +94,15 @@ describe('republishing for the services that keep a copy', () => {
     expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
   });
 
-  it('sends every branch admin again with a higher version, and no other account', async () => {
+  it('sends every account of a branch again with a higher version, and no other branch', async () => {
     const branch = await createTestBranch(prisma);
+    const otherBranch = await createTestBranch(prisma);
     const admin = await activeAccount(app, events, { role: 'BRANCH_ADMIN', branchId: branch.id });
     const cashier = await activeAccount(app, events, { role: 'CASHIER', branchId: branch.id });
+    const stranger = await activeAccount(app, events, {
+      role: 'CASHIER',
+      branchId: otherBranch.id,
+    });
 
     // Limited to the test branch, so no real account changes its version.
     const response = await http()
@@ -105,20 +110,25 @@ describe('republishing for the services that keep a copy', () => {
       .query({ branchId: branch.id })
       .expect(200);
 
-    expect(response.body).toEqual({ republished: 1 });
+    expect(response.body).toEqual({ republished: 2 });
     // Activation announced version 2; the republish sends it again one higher.
-    const sent = await events.next<UserUpdatedPayload>(
-      'UserUpdated',
-      (payload) => payload.userId === admin.id && payload.version === 3,
-    );
-    expect(userUpdatedPayloadSchema.parse(sent)).toMatchObject({
-      role: 'BRANCH_ADMIN',
-      branchId: branch.id,
-      active: true,
-    });
+    for (const [account, role] of [
+      [admin, 'BRANCH_ADMIN'],
+      [cashier, 'CASHIER'],
+    ] as const) {
+      const sent = await events.next<UserUpdatedPayload>(
+        'UserUpdated',
+        (payload) => payload.userId === account.id && payload.version === 3,
+      );
+      expect(userUpdatedPayloadSchema.parse(sent)).toMatchObject({
+        role,
+        branchId: branch.id,
+        active: true,
+      });
+    }
     await events.none<UserUpdatedPayload>(
       'UserUpdated',
-      (payload) => payload.userId === cashier.id,
+      (payload) => payload.userId === stranger.id && payload.version === 3,
     );
   });
 

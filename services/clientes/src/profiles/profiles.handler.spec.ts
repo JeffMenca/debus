@@ -19,6 +19,17 @@ const outbox = () => ({ add: jest.fn().mockResolvedValue({}) });
 const handler = (prisma: unknown = {}, queue = outbox()) =>
   new ProfilesHandler(prisma as never, queue as never);
 
+const account = {
+  userId: payload.userId,
+  email: payload.email,
+  fullName: payload.fullName,
+  role: 'CASHIER',
+  branchId: '3f2e1d0c-9b8a-4c7d-8e6f-5a4b3c2d1e0f',
+  active: true,
+  version: 2,
+};
+const updatedEnvelope = createEnvelope('UserUpdated', account, 'c');
+
 describe('ProfilesHandler', () => {
   it('creates the profile and an empty wallet once, even if the event comes back', async () => {
     const tx = sqlClient();
@@ -27,7 +38,7 @@ describe('ProfilesHandler', () => {
 
     const [[profileSql, ...profileValues]] = tx.$queryRawUnsafe.mock.calls;
     const [[walletSql, walletUser]] = tx.$executeRawUnsafe.mock.calls;
-    expect(profileSql).toContain('ON CONFLICT (user_id) DO NOTHING');
+    expect(profileSql).toContain('ON CONFLICT (user_id) DO UPDATE');
     expect(profileSql).toContain('RETURNING nit, updated_at');
     expect(profileValues).toEqual([
       payload.userId,
@@ -98,5 +109,93 @@ describe('ProfilesHandler', () => {
 
     await expect(handler().registered({ userId: 'x' }, envelope, tx)).rejects.toThrow();
     expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
+  });
+
+  it('fills in the client fields a profile created earlier by a republished account lacks', async () => {
+    const tx = sqlClient();
+
+    await handler().registered(payload, envelope, tx);
+
+    const sql = tx.$queryRawUnsafe.mock.calls[0][0];
+    expect(sql).toMatch(/WHERE client_profiles\.dpi IS NULL AND EXCLUDED\.dpi IS NOT NULL/);
+    expect(sql).toMatch(/COALESCE\(client_profiles\.phone, EXCLUDED\.phone\)/);
+  });
+
+  describe('updated', () => {
+    it('recovers the profile and an empty wallet of an account that has none', async () => {
+      const tx = sqlClient();
+
+      await handler().updated(account, updatedEnvelope, tx);
+
+      const [[profileSql, ...profileValues]] = tx.$queryRawUnsafe.mock.calls;
+      const [[walletSql, walletUser]] = tx.$executeRawUnsafe.mock.calls;
+      expect(profileSql).toContain('ON CONFLICT (user_id) DO NOTHING');
+      expect(profileValues).toEqual([
+        account.userId,
+        account.email,
+        account.fullName,
+        'CASHIER',
+        null,
+        null,
+        null,
+        null,
+      ]);
+      expect(walletSql).toContain('ON CONFLICT (client_id) DO NOTHING');
+      expect(walletUser).toBe(account.userId);
+    });
+
+    it('tells ventas about the recovered profile in the same transaction', async () => {
+      const tx = sqlClient([{ nit: null, updated_at: created.updated_at }]);
+      const queue = outbox();
+
+      await handler({}, queue).updated(account, updatedEnvelope, tx);
+
+      expect(queue.add).toHaveBeenCalledWith(
+        tx,
+        'ProfileUpdated',
+        {
+          clientId: account.userId,
+          nit: null,
+          fullName: 'Ana Méndez',
+          updatedAt: '2026-10-18T15:30:00.000Z',
+        },
+        updatedEnvelope.correlationId,
+      );
+    });
+
+    it('announces nothing when the profile already existed', async () => {
+      const tx = sqlClient([]);
+      const queue = outbox();
+
+      await handler({}, queue).updated(account, updatedEnvelope, tx);
+
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('ignores a deactivated account', async () => {
+      const tx = sqlClient();
+      const queue = outbox();
+
+      await handler({}, queue).updated({ ...account, active: false }, updatedEnvelope, tx);
+
+      expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
+      expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the service client outside the inbox transaction', async () => {
+      const prisma = sqlClient();
+
+      await handler(prisma).updated(account, updatedEnvelope);
+
+      expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a malformed payload before writing', async () => {
+      const tx = sqlClient();
+
+      await expect(handler().updated({ userId: 'x' }, updatedEnvelope, tx)).rejects.toThrow();
+      expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
+    });
   });
 });

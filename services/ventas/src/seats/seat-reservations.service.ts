@@ -9,7 +9,9 @@ import {
 import type { Prisma } from '../generated/prisma/client';
 import { MESSAGES } from '../messages';
 import { PrismaService } from '../prisma/prisma.service';
-import { departed, seatsOutsideBus, ticketTotal } from './seat-rules';
+import { hasDeparted } from '../trips/trip-departures';
+import { closedForSale } from '../trips/trip-rules';
+import { seatsOutsideBus, ticketTotal } from './seat-rules';
 
 export interface SeatReservation {
   ticketId: string;
@@ -55,7 +57,7 @@ export class SeatReservationsService {
   ): Promise<ReservedTicket> {
     const trip = await this.prisma.trip.findUnique({ where: { tripId: request.tripId } });
     if (!trip) throw new NotFoundException(MESSAGES.tripNotFound);
-    if (departed(trip.departureAt, new Date())) {
+    if (closedForSale(trip.departureAt, await hasDeparted(this.prisma, trip.tripId), new Date())) {
       throw new ConflictException(MESSAGES.tripDeparted);
     }
     const outside = seatsOutsideBus(request.seats, trip.capacity);

@@ -81,7 +81,7 @@ describe('event registry', () => {
     expect(publisherOf('WalletCredited')).toBe('clientes');
     expect(consumersOf('WalletCredited')).toEqual(['notificaciones']);
     expect(publisherOf('UserUpdated')).toBe('administracion');
-    expect(consumersOf('UserUpdated')).toEqual(['notificaciones']);
+    expect(consumersOf('UserUpdated')).toContain('notificaciones');
     expect(eventsConsumedBy('notificaciones')).toEqual([
       'UserRegistered',
       'AccountLinkSent',
@@ -95,6 +95,21 @@ describe('event registry', () => {
       'RentalConfirmed',
       'ProbeSent',
     ]);
+  });
+
+  it('closes the sale of a trip in ventas as soon as it leaves, with completion as a backstop', () => {
+    expect(consumersOf('TripDeparted')).toEqual(['flota', 'reportes', 'ventas']);
+    expect(consumersOf('TripCompleted')).toEqual(['administracion', 'flota', 'reportes', 'ventas']);
+    expect(eventsConsumedBy('ventas')).toEqual(
+      expect.arrayContaining(['TripScheduled', 'TripDeleted', 'TripDeparted', 'TripCompleted']),
+    );
+    expect(eventDrivenShare()).toBeCloseTo(26 / 29);
+  });
+
+  it('lets clientes recover a missing profile from a republished account', () => {
+    expect(consumersOf('UserUpdated')).toEqual(['notificaciones', 'clientes']);
+    expect(eventsConsumedBy('clientes')).toContain('UserUpdated');
+    expect(eventDrivenShare()).toBeCloseTo(26 / 29);
   });
 
   it('tells the client the confirmed price, and undoes a paid rental from viajes', () => {

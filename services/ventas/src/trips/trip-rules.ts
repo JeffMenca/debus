@@ -61,9 +61,19 @@ export const toRefundRequested = (
   requestedAt,
 });
 
-// A trip is on sale until its scheduled departure; the filters narrow the day, the places, the
-// text and the free seats. A counter only sells the trips leaving from its own branch. The
-// conditions read the trip as t and its taken seats as s (see TripsService).
+// A trip is on sale until its scheduled departure, or until the bus leaves if that comes first.
+// Reads the trip as t.
+export const onSale = (now: Date): Prisma.Sql =>
+  Prisma.sql`t.departure_at > ${now} AND NOT EXISTS (SELECT 1 FROM departed_trips d WHERE d.trip_id = t.trip_id)`;
+
+// The same rule for one trip already read: the sale closes at the scheduled hour even if the bus is
+// late, and earlier if the bus left before it.
+export const closedForSale = (departureAt: Date, departed: boolean, now: Date): boolean =>
+  departed || departureAt.getTime() <= now.getTime();
+
+// The filters narrow the day, the places, the text and the free seats. A counter only sells the
+// trips leaving from its own branch. The conditions read the trip as t and its taken seats as s (see
+// TripsService).
 export function onSaleConditions(
   query: AvailableTripListQuery,
   now: Date,
@@ -71,7 +81,7 @@ export function onSaleConditions(
 ): Prisma.Sql {
   const { gte, lt } = guatemalaDayRange(query.from, query.to);
   const conditions = [
-    Prisma.sql`t.departure_at > ${now}`,
+    onSale(now),
     gte && Prisma.sql`t.departure_at >= ${gte}`,
     lt && Prisma.sql`t.departure_at < ${lt}`,
     branchId && Prisma.sql`t.branch_id = ${branchId}::uuid`,

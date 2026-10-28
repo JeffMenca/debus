@@ -1,5 +1,5 @@
 import { TEST_BRANCH_PREFIX, TEST_RUN, testEmail } from '@debus/config/test-data';
-import { expect, test } from '@playwright/test';
+import { type Page, expect, request as playwrightRequest, test } from '@playwright/test';
 import { cleanUpTestRun } from './support/clean-up';
 import { dayFromToday } from './support/fleet-gateway';
 import { guatemalaAgo } from './support/guatemala-time';
@@ -7,6 +7,7 @@ import { isLocalStack } from './support/local-stack';
 import { queryLocal } from './support/local-sql';
 import { isReachable, mailpitUrl } from './support/mailpit';
 import { signInAsRealAdmin } from './support/real-admin';
+import { signInClientPage, signUpClient } from './support/real-client';
 import {
   ACTION_TIMEOUT,
   confirmDialog,
@@ -21,6 +22,19 @@ import {
 } from './support/real-fleet';
 
 const CHECK = 'Revisé los datos: no se podrán cambiar';
+const GATEWAY = process.env.E2E_GATEWAY_URL ?? 'http://localhost:4000';
+
+// What a person searching on /viajes sees for the trips from one place to another on a day.
+async function listedTrips(page: Page, day: string, origin: string, destination: string) {
+  await page.goto(`/viajes?fecha=${day}`);
+  await page.getByRole('combobox', { name: 'Origen' }).click();
+  await page.getByRole('option', { name: origin }).click();
+  await page.getByRole('combobox', { name: 'Destino' }).click();
+  await page.getByRole('option', { name: destination }).click();
+  await page.getByRole('button', { name: 'Buscar viajes' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  return page.getByRole('list', { name: 'Viajes a la venta' }).getByRole('listitem');
+}
 
 test.describe('real trip cycle and repair expenses', () => {
   test.skip(
@@ -94,6 +108,25 @@ test.describe('real trip cycle and repair expenses', () => {
       timeout: ACTION_TIMEOUT,
     });
     const tripId = branch.url().split('/').pop()!;
+    // Until the bus leaves, the trip is on sale to everyone.
+    await expect
+      .poll(() => queryLocal('ventas', `SELECT 1 FROM trips WHERE trip_id = '${tripId}'`).length, {
+        timeout: 90_000,
+        intervals: [3_000],
+      })
+      .toBe(1);
+    // A client looks for the trip on the public pages.
+    const clientEmail = testEmail(`cycle-client-${testInfo.project.name}`);
+    const api = await playwrightRequest.newContext({ baseURL: GATEWAY });
+    await signUpClient(api, inbox!, clientEmail, `${origin} Cliente`);
+    await api.dispose();
+    const { page: shop, context: shopContext } = await signInClientPage(
+      browser,
+      baseURL!,
+      clientEmail,
+    );
+    await expect(await listedTrips(shop, soon.day, origin, destination)).toHaveCount(1);
+
     const departure = guatemalaAgo(120);
     await expect(branch.getByLabel('Kilometraje inicial')).toHaveValue('1000');
     await branch.getByLabel('Fecha', { exact: true }).fill(departure.day);
@@ -101,6 +134,19 @@ test.describe('real trip cycle and repair expenses', () => {
     await branch.getByRole('button', { name: 'Registrar salida' }).click();
     await confirmDialog(branch, 'Sí, registrar salida', CHECK);
     await expect(branch.getByText('Registrada, no editable')).toBeVisible();
+
+    // Its scheduled hour is still ahead, but ventas stops selling it as soon as it hears the bus left.
+    await expect
+      .poll(
+        () =>
+          queryLocal('ventas', `SELECT 1 FROM departed_trips WHERE trip_id = '${tripId}'`).length,
+        { timeout: 90_000, intervals: [3_000] },
+      )
+      .toBe(1);
+    await expect(await listedTrips(shop, soon.day, origin, destination)).toHaveCount(0);
+    await shop.goto(`/viajes/${tripId}/asientos`);
+    await expect(shop.getByText('Este viaje ya salió. Elige otro horario.')).toBeVisible();
+    await shopContext.close();
 
     await branch.getByLabel('Kilometraje final').fill('1204');
     await branch.getByLabel('Combustible total (Q)').fill('1180');

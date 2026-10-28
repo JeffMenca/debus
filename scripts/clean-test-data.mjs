@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Removes what tests leave in the local databases: accounts under the test email domain, the
 // settings versions they wrote (and orphaned ones, whose author was already removed), their emails,
-// the test branches that no other account belongs to, and the copies of settings versions that no
-// longer exist in administracion. Event bookkeeping is not test data: see prune-local-events.mjs.
+// the test branches that no other account belongs to, the copies of settings versions that no
+// longer exist in administracion and the report rows of branches that no longer exist there either.
+// Event bookkeeping is not test data: see prune-local-events.mjs.
 // psql runs inside the docker compose Postgres, so this can only ever touch the local stack.
 // The SQL lives in @debus/config/test-data-sql, where integration tests run it too.
 // Usage: node scripts/clean-test-data.mjs [--run <id>]
@@ -41,9 +42,9 @@ async function removePhotos(sql) {
   }
 }
 
-async function clean({ name, run: sql }, settingsVersionIds) {
+async function clean({ name, run: sql }, { settingsVersionIds, branchIds }) {
   if (sql("SELECT to_regclass('public.buses') IS NOT NULL").trim() === 't') await removePhotos(sql);
-  sql(cleanupStatements({ run, settingsVersionIds }).join('\n'));
+  sql(cleanupStatements({ run, settingsVersionIds, branchIds }).join('\n'));
   console.log(`test data removed from ${name}`);
   if (sql("SELECT to_regclass('public.branches') IS NOT NULL").trim() !== 't') return;
   for (const branch of lines(sql(keptBranchesQuery(run)))) {
@@ -56,11 +57,15 @@ async function clean({ name, run: sql }, settingsVersionIds) {
 const databases = localDatabases() ?? [];
 // The source goes first: the copies elsewhere keep only the versions it still has afterwards.
 const source = databases.find(({ name }) => name === SOURCE_OF_SETTINGS);
-let settingsVersionIds = null;
+// Without the source there is nothing to compare against, and nothing that depends on it is removed.
+let kept = { settingsVersionIds: null, branchIds: null };
 if (source) {
-  await clean(source, null);
-  settingsVersionIds = lines(source.run('SELECT id FROM settings_versions ORDER BY id'));
+  await clean(source, kept);
+  kept = {
+    settingsVersionIds: lines(source.run('SELECT id FROM settings_versions ORDER BY id')),
+    branchIds: lines(source.run('SELECT id FROM branches ORDER BY id')),
+  };
 }
 for (const database of databases) {
-  if (database !== source) await clean(database, settingsVersionIds);
+  if (database !== source) await clean(database, kept);
 }

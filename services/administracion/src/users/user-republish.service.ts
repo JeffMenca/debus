@@ -6,8 +6,9 @@ import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { toUserUpdated } from '../accounts/user-snapshot';
 
-// For a deploy that adds a copy of the branch admins (notificaciones warns them about licences):
-// each one goes out again with its version raised, so a copy that already has it takes it too.
+// For a deploy that adds a copy of the accounts (notificaciones warns branch admins about licences,
+// clientes rebuilds the profile of any account that lost it): each one goes out again with its
+// version raised, so a copy that already has it takes it too.
 @Injectable()
 export class UserRepublishService {
   constructor(
@@ -19,7 +20,7 @@ export class UserRepublishService {
     const republished = await republishInPages<Prisma.TransactionClient>({
       findPage: (after) =>
         this.prisma.user.findMany({
-          where: { role: 'BRANCH_ADMIN', branchId },
+          where: { branchId },
           ...republishPageArgs(after),
         }),
       transaction: async (work) => {

@@ -34,6 +34,30 @@ describe('the ventas schema', () => {
     await app.close();
   });
 
+  it('keeps one departure mark per trip, with no link to the trip copy', async () => {
+    const tripId = randomUUID();
+    const departedAt = new Date('2026-10-27T15:00:00.000Z');
+    const insert = () =>
+      prisma.$executeRawUnsafe(
+        'INSERT INTO departed_trips (trip_id, departed_at) VALUES ($1::uuid, $2::timestamptz)',
+        tripId,
+        departedAt,
+      );
+    try {
+      // The mark may arrive before the trip copy does, so it points at nothing.
+      await insert();
+
+      await expect(insert()).rejects.toThrow(/departed_trips_pkey/);
+      const [row] = await prisma.$queryRawUnsafe<{ departed_at: Date }[]>(
+        'SELECT departed_at FROM departed_trips WHERE trip_id = $1::uuid',
+        tripId,
+      );
+      expect(row!.departed_at).toEqual(departedAt);
+    } finally {
+      await prisma.$executeRawUnsafe('DELETE FROM departed_trips WHERE trip_id = $1::uuid', tripId);
+    }
+  });
+
   it('never lets two tickets hold the same seat of a trip', async () => {
     const tripId = await trips.create();
     const first = await ticket(tripId);

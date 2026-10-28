@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { useWallet } from '@/lib/wallet/wallet-api';
 import { PurchaseReceipt } from './purchase-receipt';
 import { TripCancelled } from './trip-cancelled';
+import { TripMissing, isTripGone, tripGoneTitle } from './trip-missing';
 import { TripTicketCard } from './trip-ticket-card';
 
 interface PurchaseScreenProps {
@@ -76,21 +77,6 @@ function Steps() {
   );
 }
 
-function TripMissing({ back, message }: { back: string; message: string }) {
-  return (
-    <section
-      aria-labelledby="trip-missing-title"
-      className="mx-auto flex max-w-lg flex-col items-start gap-4 rounded-[26px] bg-card p-6"
-    >
-      <h1 id="trip-missing-title" className="font-display text-[26px] font-bold">
-        No encontramos ese viaje
-      </h1>
-      <p className="text-muted-foreground">{message}</p>
-      <BackLink href={back} />
-    </section>
-  );
-}
-
 function Waiting({ message, gaveUp }: { message: string; gaveUp: boolean }) {
   return (
     <section
@@ -128,7 +114,9 @@ export function PurchaseScreen({ tripId, today = todayInGuatemala() }: PurchaseS
   const id = readId(tripId);
   if (!id) {
     return (
-      <TripMissing back={back} message="Revisa el enlace o busca el viaje otra vez en Viajes." />
+      <TripMissing message="Revisa el enlace o busca el viaje otra vez en Viajes.">
+        <BackLink href={back} />
+      </TripMissing>
     );
   }
   return <PurchaseFlow tripId={id} back={back} passengers={search.passengers} today={today} />;
@@ -166,13 +154,23 @@ function PurchaseFlow({ tripId, back, passengers, today }: PurchaseFlowProps) {
   const confirmed = [buy.data, followed.data].find((purchase) => purchase?.status === 'CONFIRMED');
   if (confirmed?.ticket) return <PurchaseReceipt ticket={confirmed.ticket} />;
   if (cancelled) return <TripCancelled message={cancelled.message ?? ''} back={back} />;
-  if (gone) return <TripMissing back={back} message={gone.message} />;
+  if (gone) {
+    return (
+      <TripMissing message={gone.message}>
+        <BackLink href={back} />
+      </TripMissing>
+    );
+  }
   if (pending && followed.data?.status === 'PENDING') {
     return <Waiting message={followed.data.message ?? ''} gaveUp={gaveUp} />;
   }
 
-  if (map.error instanceof ApiError && map.error.status === 404) {
-    return <TripMissing back={back} message={map.error.message} />;
+  if (isTripGone(map.error)) {
+    return (
+      <TripMissing message={map.error.message} title={tripGoneTitle(map.error)}>
+        <BackLink href={back} />
+      </TripMissing>
+    );
   }
 
   // A seat sold by someone else in the meantime leaves the choice when the map comes back.

@@ -519,6 +519,161 @@ test.describe('system reports', () => {
       );
     });
 
+    test('keeps the tags of two branches that fall close together apart, also after zooming in', async ({
+      page,
+      baseURL,
+    }) => {
+      const capital = sampleMapBranch({
+        name: 'Ciudad de Guatemala',
+        latitude: 14.6349,
+        longitude: -90.5069,
+        routes: 1,
+      });
+      const antigua = sampleMapBranch({
+        name: 'Antigua Guatemala',
+        latitude: 14.5586,
+        longitude: -90.7295,
+        routes: 0,
+      });
+      await open(page, baseURL, `mapa-rutas?sucursal=${capital.id}`, {
+        map: {
+          branches: [capital, antigua],
+          routes: {
+            [capital.id]: [
+              sampleMapRoute({
+                destinationBranchId: antigua.id,
+                destinationName: antigua.name,
+                latitude: antigua.latitude,
+                longitude: antigua.longitude,
+                distanceKm: 45,
+                ticketPrice: 25,
+                tickets: 4,
+              }),
+            ],
+          },
+        },
+      });
+      const map = page.getByRole('region', { name: 'Mapa de Guatemala' });
+      await expect(
+        map.getByRole('img', { name: 'Sucursal de origen: Ciudad de Guatemala' }),
+      ).toBeVisible();
+      await expect(
+        map.getByRole('img', { name: 'Destino con ruta: Antigua Guatemala' }),
+      ).toBeVisible();
+
+      // Nothing the map draws on a branch may hide another tag or another pin.
+      async function expectTagsApart() {
+        const tags = await map.locator('[data-part="tag"]').all();
+        const pins = await map.locator('[data-part="pin"]').all();
+        expect(tags).toHaveLength(2);
+        const [first, second] = await Promise.all(tags.map((tag) => tag.boundingBox()));
+        const pinBoxes = await Promise.all(pins.map((pin) => pin.boundingBox()));
+        const touch = (a: typeof first, b: typeof first) =>
+          a!.x < b!.x + b!.width &&
+          a!.x + a!.width > b!.x &&
+          a!.y < b!.y + b!.height &&
+          a!.y + a!.height > b!.y;
+        expect(touch(first, second)).toBe(false);
+        for (const pin of pinBoxes) {
+          expect(touch(first, pin)).toBe(false);
+          expect(touch(second, pin)).toBe(false);
+        }
+      }
+      await expect(async () => expectTagsApart()).toPass({ timeout: 5_000 });
+
+      await map.getByRole('button', { name: 'Zoom in' }).click();
+      await expect(async () => expectTagsApart()).toPass({ timeout: 5_000 });
+      await expectNoHorizontalScroll(page);
+    });
+
+    test('keeps the tags apart with the branches of the country on the map, on a phone too', async ({
+      page,
+      baseURL,
+    }) => {
+      const capital = sampleMapBranch({
+        name: 'Ciudad de Guatemala',
+        latitude: 14.6349,
+        longitude: -90.5069,
+        routes: 1,
+      });
+      const antigua = sampleMapBranch({
+        name: 'Antigua Guatemala',
+        latitude: 14.5586,
+        longitude: -90.7295,
+        routes: 0,
+      });
+      const quetzaltenango = sampleMapBranch({
+        name: 'Quetzaltenango',
+        latitude: 14.8347,
+        longitude: -91.5181,
+        routes: 1,
+      });
+      const huehuetenango = sampleMapBranch({
+        name: 'Huehuetenango',
+        latitude: 15.3197,
+        longitude: -91.47,
+        routes: 0,
+      });
+      await open(page, baseURL, `mapa-rutas?sucursal=${capital.id}`, {
+        map: {
+          branches: [capital, antigua, quetzaltenango, huehuetenango],
+          routes: {
+            [capital.id]: [
+              sampleMapRoute({
+                destinationBranchId: antigua.id,
+                destinationName: antigua.name,
+                latitude: antigua.latitude,
+                longitude: antigua.longitude,
+                distanceKm: 45,
+                ticketPrice: 25,
+                tickets: 4,
+              }),
+              sampleMapRoute({
+                destinationBranchId: quetzaltenango.id,
+                destinationName: quetzaltenango.name,
+                latitude: quetzaltenango.latitude,
+                longitude: quetzaltenango.longitude,
+                distanceKm: 204,
+                ticketPrice: 85,
+                tickets: 6,
+              }),
+            ],
+          },
+        },
+      });
+      const map = page.getByRole('region', { name: 'Mapa de Guatemala' });
+      await expect(
+        map.getByRole('img', { name: 'Destino con ruta: Antigua Guatemala' }),
+      ).toBeVisible();
+
+      // The two names never cover each other, and neither covers the pin of the other one.
+      type Box = { x: number; y: number; width: number; height: number };
+      const touch = (a: Box, b: Box) =>
+        a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+      const marker = (name: string) => map.getByRole('img', { name });
+      const boxOf = async (name: string, part: 'tag' | 'pin') =>
+        (await marker(name).locator(`[data-part="${part}"]`).boundingBox())!;
+      const ORIGIN = 'Sucursal de origen: Ciudad de Guatemala';
+      const DESTINATION = 'Destino con ruta: Antigua Guatemala';
+      const FAR = 'Destino con ruta: Quetzaltenango';
+      async function expectNamesApart() {
+        const farTag = await boxOf(FAR, 'tag');
+        const [originTag, destinationTag, originPin, destinationPin] = await Promise.all([
+          boxOf(ORIGIN, 'tag'),
+          boxOf(DESTINATION, 'tag'),
+          boxOf(ORIGIN, 'pin'),
+          boxOf(DESTINATION, 'pin'),
+        ]);
+        expect(touch(originTag, destinationTag)).toBe(false);
+        expect(touch(originTag, farTag)).toBe(false);
+        expect(touch(destinationTag, farTag)).toBe(false);
+        expect(touch(originTag, destinationPin)).toBe(false);
+        expect(touch(destinationTag, originPin)).toBe(false);
+      }
+      await expect(async () => expectNamesApart()).toPass({ timeout: 5_000 });
+      await expectNoHorizontalScroll(page);
+    });
+
     test('opens a branch without routes with a message instead of an empty map', async ({
       page,
       baseURL,

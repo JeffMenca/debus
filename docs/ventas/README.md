@@ -4,14 +4,14 @@
 
 ## 1. Para qué sirve y qué reglas cumple
 
-- **Viajes a la venta.** Guarda una copia de cada viaje (`TripScheduled`) con su ruta, su bus, su precio y su capacidad. Un viaje está a la venta hasta su salida programada y mientras no se elimine; antes de cobrar, `ventas` le pregunta a `viajes` si sigue abierto (llamada síncrona con circuit breaker). Las búsquedas filtran por origen, destino, día y asientos libres, siempre en el servidor y paginadas.
+- **Viajes a la venta.** Guarda una copia de cada viaje (`TripScheduled`) con su ruta, su bus, su precio y su capacidad. Un viaje está a la venta hasta su salida programada, o hasta que el bus sale si eso ocurre antes (`TripDeparted`, con `TripCompleted` como respaldo, deja una marca en `departed_trips`), y mientras no se elimine; un viaje que salió ya no aparece en las búsquedas ni en los lugares, y su mapa de asientos, la reserva en línea y la venta en ventanilla responden `409` "Este viaje ya salió"; antes de cobrar, `ventas` le pregunta a `viajes` si sigue abierto (llamada síncrona con circuit breaker). Las búsquedas filtran por origen, destino, día y asientos libres, siempre en el servidor y paginadas.
 - **Un asiento se vende una sola vez.** La clave primaria `(trip_id, seat_number)` de `ticket_seats` lo garantiza aunque lleguen muchas compras a la vez: una prueba lanza 20 compras del mismo asiento y exige exactamente un éxito, sin depender del tiempo. Un boleto lleva de 1 a 10 asientos y los asientos de un boleto se guardan o se pierden juntos.
 - **Comprar en línea.** `POST /purchases` con la `Idempotency-Key` igual al id del boleto: es una **saga orquestada** (reservar, cobrar a `clientes`, confirmar) con compensación y recuperación. Los pasos están en [Saga de compra](#saga-de-compra).
 - **Vender en ventanilla.** `POST /counter/tickets` lo usan el cajero y el admin de la sucursal, solo para viajes que salen de su sucursal. El dinero ya está en el mostrador, así que aparta los asientos y confirma en la misma petición; la clave es también el id del boleto, y repetirla responde el mismo boleto. Si el comprador da un NIT que es de un cliente, la venta queda en el historial de esa persona (copia `client_nits`, de `ProfileUpdated`); sin NIT, es consumidor final (`CF`).
 - **Historial.** `GET /tickets` lista los boletos del cliente (en línea y los de ventanilla con su NIT), con el próximo viaje, paginado en el servidor.
 - **Fechas.** Todo pago lleva `paidOn`, la fecha de pago que la persona puede elegir (hoy por defecto); los reportes de ingresos se fechan con ella. Por eso los datos de demostración pueden llevar un pago fechado días antes de la compra (se reparten en los 14 días anteriores a la carga): es una decisión de esos datos, no una regla del producto.
 - **Viaje eliminado.** Al recibir `TripDeleted` cierra las compras, devuelve el dinero por eventos y borra los boletos y asientos del viaje: [Viaje eliminado y reembolso](#viaje-eliminado-y-reembolso).
-- **Copias por eventos.** Guarda la copia de los viajes (`trips`, más `deleted_trips` para los que se eliminaron antes de llegar) y la de los NIT de los clientes (`client_nits`), siempre por versión.
+- **Copias por eventos.** Guarda la copia de los viajes (`trips`, más `deleted_trips` para los que se eliminaron antes de llegar y `departed_trips` para los que ya salieron) y la de los NIT de los clientes (`client_nits`), siempre por versión.
 
 ## 2. Diagrama de componentes
 
@@ -26,7 +26,7 @@ flowchart LR
   svc --> outbox[Outbox<br/>TicketSold, RefundRequested]
   outbox --> pubsub[(Pub/Sub)]
   recovery[Job purchase-recovery<br/>POST /internal/purchases/recover] --> svc
-  pubsub --> handlers[Handlers de eventos<br/>TripScheduled, TripDeleted, ProfileUpdated]
+  pubsub --> handlers[Handlers de eventos<br/>TripScheduled, TripDeleted, TripDeparted, TripCompleted, ProfileUpdated]
   handlers --> prisma
   handlers --> processed[processed_events<br/>inbox idempotente]
   handlers --> outbox
@@ -73,6 +73,10 @@ erDiagram
   deleted_trips {
     uuid trip_id PK
     timestamptz deleted_at
+  }
+  departed_trips {
+    uuid trip_id PK
+    timestamptz departed_at
   }
   tickets {
     uuid id PK
@@ -325,6 +329,8 @@ Cuenta como falla que no haya respuesta (red, timeout), un `429` o un `5xx`. Un 
 | `BranchUpdated` | administracion |
 | `TripScheduled` | viajes |
 | `TripDeleted` | viajes |
+| `TripDeparted` | viajes |
+| `TripCompleted` | viajes |
 | `ProfileUpdated` | clientes |
 | `ProbeSent` | gateway |
 <!-- /generado:eventos -->
