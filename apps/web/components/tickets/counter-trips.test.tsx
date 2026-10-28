@@ -79,9 +79,10 @@ describe('CounterTrips', () => {
   it('keeps the chosen day in the address', async () => {
     setup();
 
-    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-10-25' } });
+    // A day that is never today, since choosing the day already shown changes nothing.
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2030-01-15' } });
 
-    expect(replace).toHaveBeenCalledWith('/sucursal/ventanilla?desde=2026-10-25', {
+    expect(replace).toHaveBeenCalledWith('/sucursal/ventanilla?desde=2030-01-15', {
       scroll: false,
     });
   });
