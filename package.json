@@ -28,6 +28,8 @@
     "pubsub:provision": "turbo run build --filter=@debus/messaging && node scripts/provision-pubsub.mjs",
     "db:prune": "node scripts/prune-local-events.mjs",
     "new-service": "node scripts/new-service.mjs",
+    "mirror": "node scripts/mirror-repos.mjs",
+    "test:scripts": "node --test scripts/lib/mirror.test.mjs",
     "seed": "turbo run build --filter=@debus/tools && node packages/tools/dist/seed/cli.js",
     "docs": "turbo run build --filter=@debus/tools && node packages/tools/dist/docs/cli.js",
     "postman": "turbo run build --filter=@debus/tools && node packages/tools/dist/postman/cli.js",
