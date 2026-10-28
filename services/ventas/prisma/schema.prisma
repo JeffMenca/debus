@@ -69,6 +69,14 @@ model DeletedTrip {
   @@map("deleted_trips")
 }
 
+// A trip that left. Kept apart from the trip copy because the event may arrive before the copy does.
+model DepartedTrip {
+  tripId     String   @id @map("trip_id") @db.Uuid
+  departedAt DateTime @map("departed_at") @db.Timestamptz(3)
+
+  @@map("departed_trips")
+}
+
 model Ticket {
   id        String       @id @db.Uuid
   tripId    String       @map("trip_id") @db.Uuid

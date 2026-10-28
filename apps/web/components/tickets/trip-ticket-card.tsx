@@ -10,9 +10,10 @@ export function TripTicketCard({ trip }: { trip: SeatMap }) {
     <div className="relative flex flex-col gap-4 overflow-hidden rounded-[28px] bg-primary p-6 text-primary-foreground">
       <span
         aria-hidden
-        className="absolute -top-10 -right-10 size-36 rounded-full bg-mango-300 opacity-90"
+        data-decoration
+        className="absolute -top-12 -right-12 size-24 rounded-full bg-mango-300 opacity-90"
       />
-      <span className="relative text-[13px] font-semibold text-secondary">
+      <span className="relative pr-10 text-[13px] font-semibold text-secondary">
         Viaje · {formatLongDate(departure.day)} · {formatPlate(trip.busPlate)}
       </span>
       <div className="relative flex items-center gap-3.5">

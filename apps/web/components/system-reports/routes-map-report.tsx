@@ -34,9 +34,11 @@ const RoutesMapCanvas = dynamic(() => import('./routes-map-canvas'), {
   loading: MapLoading,
 });
 
+// On a phone the legend is one short row over the north, which has no branches, so it never hides
+// the southern ones; beside the zoom buttons it leaves room for them.
 function Legend() {
   return (
-    <ul className="absolute bottom-4 left-4 z-900 flex flex-col gap-1.5 rounded-2xl bg-card px-3 py-2.5 text-xs shadow-float md:gap-2 md:px-3.5 md:py-3 md:text-[13px]">
+    <ul className="absolute top-3 left-3 z-900 flex max-w-[calc(100%-4.5rem)] flex-row flex-wrap gap-x-3 gap-y-1 rounded-2xl bg-card px-3 py-2 text-xs shadow-float md:top-auto md:bottom-4 md:left-4 md:max-w-none md:flex-col md:gap-2 md:px-3.5 md:py-3 md:text-[13px]">
       <li className="flex items-center gap-2.5">
         <span aria-hidden className="size-3.5 rounded-full bg-primary" />
         Sucursal de origen

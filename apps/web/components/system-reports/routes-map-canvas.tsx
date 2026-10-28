@@ -3,7 +3,8 @@
 import 'leaflet/dist/leaflet.css';
 import type { SystemMapBranch, SystemMapRoute } from '@debus/contracts';
 import type { ComponentProps } from 'react';
-import { Fragment, useEffect, useMemo } from 'react';
+import type { Map as LeafletMap } from 'leaflet';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AttributionControl,
   GeoJSON,
@@ -17,6 +18,12 @@ import { MAP_BOUNDS } from '@/lib/geo/guatemala-map';
 import guatemala from '@/lib/geo/guatemala.json';
 import { type BranchMarkerKind, NEIGHBOUR_LABELS } from '@/lib/system-reports/map-markers';
 import { curvePoints } from '@/lib/system-reports/route-curve';
+import {
+  type TagAnchor,
+  type TagSide,
+  placeTags,
+  tagWidth,
+} from '@/lib/system-reports/tag-placement';
 import { ExampleBus } from './example-bus';
 import { branchIcon, neighbourIcon } from './map-icons';
 
@@ -55,8 +62,16 @@ function KeepSize() {
   return null;
 }
 
-function BranchMarker({ branch, kind }: { branch: SystemMapBranch; kind: BranchMarkerKind }) {
-  const icon = useMemo(() => branchIcon(branch.name, kind), [branch.name, kind]);
+function BranchMarker({
+  branch,
+  kind,
+  side,
+}: {
+  branch: SystemMapBranch;
+  kind: BranchMarkerKind;
+  side: TagSide;
+}) {
+  const icon = useMemo(() => branchIcon(branch.name, kind, side), [branch.name, kind, side]);
   return (
     <Marker
       position={[branch.latitude, branch.longitude]}
@@ -65,6 +80,66 @@ function BranchMarker({ branch, kind }: { branch: SystemMapBranch; kind: BranchM
       zIndexOffset={kind === 'origin' ? 1000 : 500}
     />
   );
+}
+
+type Sides = Record<string, TagSide>;
+
+// Where each tag goes depends on how far apart the branches fall on the screen, which changes with
+// the zoom and the size of the map. The origin comes first, so it keeps the best side.
+function sidesOf(map: LeafletMap, tagged: SystemMapBranch[], all: SystemMapBranch[]): Sides {
+  const pointOf = (branch: SystemMapBranch) =>
+    map.latLngToContainerPoint([branch.latitude, branch.longitude]);
+  const anchors = tagged.map<TagAnchor>((branch) => ({
+    id: branch.id,
+    ...pointOf(branch),
+    width: tagWidth(branch.name),
+  }));
+  // Every pin is an obstacle, the ones without a tag too.
+  return placeTags(anchors, all.map(pointOf));
+}
+
+const sameSides = (a: Sides, b: Sides) =>
+  Object.keys(b).length === Object.keys(a).length && Object.keys(b).every((id) => a[id] === b[id]);
+
+function BranchMarkers({
+  branches,
+  origin,
+  kindOf,
+}: {
+  branches: SystemMapBranch[];
+  origin: SystemMapBranch | undefined;
+  kindOf: (branch: SystemMapBranch) => BranchMarkerKind;
+}) {
+  const map = useMap();
+  const tagged = useMemo(
+    () =>
+      [...branches]
+        .filter((branch) => kindOf(branch) !== 'idle')
+        .sort((a, b) => Number(b.id === origin?.id) - Number(a.id === origin?.id)),
+    [branches, origin, kindOf],
+  );
+  const [sides, setSides] = useState<Sides>(() => sidesOf(map, tagged, branches));
+
+  useEffect(() => {
+    const update = () => {
+      const next = sidesOf(map, tagged, branches);
+      setSides((current) => (sameSides(current, next) ? current : next));
+    };
+    update();
+    map.on('zoomend resize', update);
+    return () => {
+      map.off('zoomend resize', update);
+    };
+  }, [map, tagged, branches]);
+
+  return branches.map((branch) => (
+    <BranchMarker
+      key={branch.id}
+      branch={branch}
+      kind={kindOf(branch)}
+      side={sides[branch.id] ?? 'below'}
+    />
+  ));
 }
 
 function NeighbourLabel({ name, position }: { name: string; position: readonly [number, number] }) {
@@ -103,10 +178,13 @@ export default function RoutesMapCanvas({
     () => new Set(curves.map(({ route }) => route.destinationBranchId)),
     [curves],
   );
-  const kindOf = (branch: SystemMapBranch): BranchMarkerKind => {
-    if (branch.id === origin?.id) return 'origin';
-    return destinations.has(branch.id) ? 'destination' : 'idle';
-  };
+  const kindOf = useCallback(
+    (branch: SystemMapBranch): BranchMarkerKind => {
+      if (branch.id === origin?.id) return 'origin';
+      return destinations.has(branch.id) ? 'destination' : 'idle';
+    },
+    [origin, destinations],
+  );
 
   return (
     <MapContainer
@@ -140,9 +218,7 @@ export default function RoutesMapCanvas({
           <ExampleBus points={points} offset={index * 0.23} speed={0.06 + 0.02 * (index % 2)} />
         </Fragment>
       ))}
-      {branches.map((branch) => (
-        <BranchMarker key={branch.id} branch={branch} kind={kindOf(branch)} />
-      ))}
+      <BranchMarkers branches={branches} origin={origin} kindOf={kindOf} />
     </MapContainer>
   );
 }

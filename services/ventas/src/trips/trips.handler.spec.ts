@@ -1,4 +1,10 @@
-import { createEnvelope, exampleTripDeleted, exampleTripScheduled } from '@debus/contracts';
+import {
+  createEnvelope,
+  exampleTripCompleted,
+  exampleTripDeleted,
+  exampleTripDeparted,
+  exampleTripScheduled,
+} from '@debus/contracts';
 import { TripsHandler } from './trips.handler';
 
 const envelope = createEnvelope('TripScheduled', exampleTripScheduled, 'c');
@@ -150,5 +156,73 @@ describe('TripsHandler.deleted', () => {
 
     await expect(handler.deleted({ tripId: 'x' }, deletedEnvelope, tx)).rejects.toThrow();
     expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
+  });
+});
+
+describe('TripsHandler.departed and completed', () => {
+  const handler = new TripsHandler({} as never, {} as never);
+
+  describe('when the trip leaves', () => {
+    it('marks it as departed at the time the driver recorded, once however many times it arrives', async () => {
+      const tx = sqlClient();
+
+      await handler.departed(exampleTripDeparted, envelope, tx);
+
+      const [[sql, tripId, departedAt]] = tx.$executeRawUnsafe.mock.calls;
+      expect(sql).toContain('INSERT INTO departed_trips');
+      expect(sql).toContain('ON CONFLICT (trip_id) DO NOTHING');
+      expect(tripId).toBe(exampleTripDeparted.tripId);
+      expect(departedAt).toBe(exampleTripDeparted.departedAt);
+    });
+
+    it('does not fail when the mark is already there', async () => {
+      const tx = sqlClient();
+      tx.$executeRawUnsafe.mockResolvedValue(0);
+
+      await expect(handler.departed(exampleTripDeparted, envelope, tx)).resolves.toBeUndefined();
+    });
+
+    it('uses the service client when the inbox gives no transaction', async () => {
+      const prisma = sqlClient();
+
+      await new TripsHandler(prisma as never, {} as never).departed(exampleTripDeparted, envelope);
+
+      expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a malformed payload before writing', async () => {
+      const tx = sqlClient();
+
+      await expect(handler.departed({ tripId: 'x' }, envelope, tx)).rejects.toThrow();
+      expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('when the trip completes', () => {
+    it('marks it with its departure, in case TripDeparted never arrived', async () => {
+      const tx = sqlClient();
+
+      await handler.completed(exampleTripCompleted, envelope, tx);
+
+      const [[sql, tripId, departedAt]] = tx.$executeRawUnsafe.mock.calls;
+      expect(sql).toContain('ON CONFLICT (trip_id) DO NOTHING');
+      expect(tripId).toBe(exampleTripCompleted.tripId);
+      expect(departedAt).toBe(exampleTripCompleted.departedAt);
+    });
+
+    it('ignores a rental, which has no seats on sale', async () => {
+      const tx = sqlClient();
+
+      await handler.completed({ ...exampleTripCompleted, type: 'RENTAL' }, envelope, tx);
+
+      expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+
+    it('rejects a malformed payload before writing', async () => {
+      const tx = sqlClient();
+
+      await expect(handler.completed({ tripId: 'x' }, envelope, tx)).rejects.toThrow();
+      expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
   });
 });

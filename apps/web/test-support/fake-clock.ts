@@ -18,3 +18,24 @@ export function startFakeClock() {
       }),
   };
 }
+
+// Fixes only the date, so fixtures written for a given day keep meaning the same day later on.
+// Timers stay real, so queries and user events run as usual. Pair it with `jest.useRealTimers()`.
+export function pinDate(now: string) {
+  jest.useFakeTimers({
+    now: new Date(now),
+    doNotFake: [
+      'setTimeout',
+      'clearTimeout',
+      'setInterval',
+      'clearInterval',
+      'setImmediate',
+      'clearImmediate',
+      'nextTick',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'cancelAnimationFrame',
+      'performance',
+    ],
+  });
+}

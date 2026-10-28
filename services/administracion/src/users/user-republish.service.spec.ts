@@ -28,13 +28,13 @@ function setup(pages: string[][]) {
 }
 
 describe('UserRepublishService', () => {
-  it('publishes every branch admin again with the version raised, so the copies take it', async () => {
+  it('publishes every account again with the version raised, so the copies take it', async () => {
     const { tx, prisma, events, service } = setup([['a1', 'a2']]);
 
     await expect(service.republish(undefined, 'c-1')).resolves.toEqual({ republished: 2 });
 
     expect(prisma.user.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { role: 'BRANCH_ADMIN', branchId: undefined } }),
+      expect.objectContaining({ where: { branchId: undefined } }),
     );
     expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: 'a1' },
@@ -48,17 +48,26 @@ describe('UserRepublishService', () => {
     expect(events.flush).toHaveBeenCalledTimes(1);
   });
 
+  it('does not filter by role, so a cashier or a client is republished too', async () => {
+    const { prisma, service } = setup([]);
+
+    await service.republish();
+
+    const [[args]] = prisma.user.findMany.mock.calls;
+    expect(args.where).not.toHaveProperty('role');
+  });
+
   it('can limit the republish to one branch', async () => {
     const { prisma, service } = setup([]);
 
     await service.republish(branch);
 
     expect(prisma.user.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { role: 'BRANCH_ADMIN', branchId: branch } }),
+      expect.objectContaining({ where: { branchId: branch } }),
     );
   });
 
-  it('flushes nothing when there is no branch admin', async () => {
+  it('flushes nothing when there is no account', async () => {
     const { events, service } = setup([]);
 
     await expect(service.republish()).resolves.toEqual({ republished: 0 });

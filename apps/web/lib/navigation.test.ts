@@ -20,6 +20,7 @@ describe('navigation', () => {
       ['Taller por categoría', '/admin/reportes/taller'],
       ['Mapa de rutas', '/admin/reportes/mapa-rutas'],
       ['Estado del sistema', '/admin/estado'],
+      ['Mi perfil', '/perfil'],
     ]);
   });
 
@@ -28,6 +29,7 @@ describe('navigation', () => {
       'Administración',
       'Reportes',
       'Sistema',
+      'Cuenta',
     ]);
   });
 
@@ -75,6 +77,7 @@ describe('navigation', () => {
           ['Gastos de taller por bus', '/sucursal/reportes/taller'],
         ],
       ],
+      ['Cuenta', [['Mi perfil', '/perfil']]],
     ]);
   });
 
@@ -88,7 +91,7 @@ describe('navigation', () => {
   it('shows the cashier only the screens that exist', () => {
     expect(
       navigationFor('CASHIER').flatMap((group) => group.items.map((item) => item.href)),
-    ).toEqual(['/sucursal', '/sucursal/ventanilla']);
+    ).toEqual(['/sucursal', '/sucursal/ventanilla', '/perfil']);
     expect(navigationFor('CLIENT')).toEqual([]);
   });
 
@@ -98,7 +101,10 @@ describe('navigation', () => {
         group.label,
         group.items.map((item) => [item.label, item.href]),
       ]),
-    ).toEqual([['Mi trabajo', [['Mis viajes', '/chofer']]]]);
+    ).toEqual([
+      ['Mi trabajo', [['Mis viajes', '/chofer']]],
+      ['Cuenta', [['Mi perfil', '/perfil']]],
+    ]);
   });
 
   it('keeps Mis viajes active on the trip of the driver', () => {

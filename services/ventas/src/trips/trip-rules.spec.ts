@@ -3,7 +3,14 @@ import {
   exampleTripScheduled,
   refundRequestedPayloadSchema,
 } from '@debus/contracts';
-import { isOnSale, onSaleConditions, toRefundRequested, toTripRow } from './trip-rules';
+import {
+  closedForSale,
+  isOnSale,
+  onSale,
+  onSaleConditions,
+  toRefundRequested,
+  toTripRow,
+} from './trip-rules';
 
 const now = new Date('2026-10-16T12:00:00.000Z');
 const query = { page: 1, pageSize: 20 };
@@ -52,14 +59,40 @@ describe('toTripRow', () => {
   });
 });
 
+describe('onSale', () => {
+  it('keeps the trips whose hour is ahead and that have no departure mark', () => {
+    const sql = onSale(now);
+
+    expect(sql.sql).toBe(
+      't.departure_at > ? AND NOT EXISTS (SELECT 1 FROM departed_trips d WHERE d.trip_id = t.trip_id)',
+    );
+    expect(sql.values).toEqual([now]);
+  });
+});
+
+describe('closedForSale', () => {
+  it('closes the sale at the scheduled departure, even if the bus is late', () => {
+    expect(closedForSale(new Date('2026-10-16T12:00:00.000Z'), false, now)).toBe(true);
+    expect(closedForSale(new Date('2026-10-16T11:59:00.000Z'), false, now)).toBe(true);
+  });
+
+  it('closes the sale as soon as the bus leaves, before its scheduled hour', () => {
+    expect(closedForSale(new Date('2026-10-16T14:00:00.000Z'), true, now)).toBe(true);
+  });
+
+  it('keeps the sale open for a trip that has not left and is not due', () => {
+    expect(closedForSale(new Date('2026-10-16T12:01:00.000Z'), false, now)).toBe(false);
+  });
+});
+
 describe('onSaleConditions', () => {
   const conditions = (overrides: Partial<AvailableTripListQuery> = {}, branchId?: string) =>
     onSaleConditions({ ...query, ...overrides }, now, branchId);
 
-  it('only lists trips that have not left yet', () => {
+  it('only lists trips that have not left yet, by the clock or by the bus', () => {
     const sql = conditions();
 
-    expect(sql.sql).toBe('t.departure_at > ?');
+    expect(sql.sql).toBe(onSale(now).sql);
     expect(sql.values).toEqual([now]);
   });
 
@@ -108,7 +141,7 @@ describe('onSaleConditions', () => {
   it('joins every filter with AND', () => {
     const sql = conditions({ origin: 'Xela', seats: 2 });
 
-    expect(sql.sql.split(' AND ')).toHaveLength(3);
+    expect(sql.sql.split(' AND ')).toHaveLength(4);
   });
 });
 

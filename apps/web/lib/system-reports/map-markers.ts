@@ -1,18 +1,31 @@
+import type { TagSide } from './tag-placement';
+
 export type BranchMarkerKind = 'origin' | 'destination' | 'idle';
 
 // Leaflet writes these into its own layer, outside React, so they are built as DOM nodes (a branch
 // name is text typed by a person and never goes through `innerHTML`) and with the classes of the
 // design: Tailwind sees these strings because they live in source.
+// The marker is a 24 px box (the biggest pin) centered on the coordinate, with the pin centered in
+// it: the tag sits against one of its sides, so it moves around the pin without moving the pin.
+const MARKER = 'relative size-6 -translate-x-1/2 -translate-y-1/2';
+const PIN_BASE = 'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
 const PINS: Record<BranchMarkerKind, string> = {
-  origin: 'size-6 rounded-full bg-primary animate-pulse-live motion-reduce:animate-none',
-  destination: 'size-4 rounded-full bg-card ring-4 ring-inset ring-primary',
-  idle: 'size-4 rounded-full bg-card ring-4 ring-inset ring-muted-foreground/60',
+  origin: `${PIN_BASE} size-6 rounded-full bg-primary animate-pulse-live motion-reduce:animate-none`,
+  destination: `${PIN_BASE} size-4 rounded-full bg-card ring-4 ring-inset ring-primary`,
+  idle: `${PIN_BASE} size-4 rounded-full bg-card ring-4 ring-inset ring-muted-foreground/60`,
+};
+// 18 px from the coordinate: the radius of the box and a gap, as tag-placement assumes.
+const SIDES: Record<TagSide, string> = {
+  below: 'top-full left-1/2 mt-1.5 -translate-x-1/2',
+  above: 'bottom-full left-1/2 mb-1.5 -translate-x-1/2',
+  right: 'left-full top-1/2 ml-1.5 -translate-y-1/2',
+  left: 'right-full top-1/2 mr-1.5 -translate-y-1/2',
 };
 const TAGS: Record<Exclude<BranchMarkerKind, 'idle'>, string> = {
   origin:
-    'rounded-[9px] bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow-lift',
+    'absolute w-max rounded-[9px] bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow-lift',
   destination:
-    'rounded-[9px] bg-card px-2.5 py-1 text-xs font-semibold text-foreground shadow-lift',
+    'absolute w-max rounded-[9px] bg-card px-2.5 py-1 text-xs font-semibold text-foreground shadow-lift',
 };
 const LABELS: Record<BranchMarkerKind, string> = {
   origin: 'Sucursal de origen',
@@ -27,17 +40,17 @@ function part(tag: 'div' | 'span', name: string, className: string): HTMLElement
   return element;
 }
 
-export function branchMarkerElement(name: string, kind: BranchMarkerKind): HTMLElement {
-  const marker = part(
-    'div',
-    'city',
-    'flex w-max -translate-x-1/2 -translate-y-[11px] flex-col items-center gap-1.5',
-  );
+export function branchMarkerElement(
+  name: string,
+  kind: BranchMarkerKind,
+  side: TagSide = 'below',
+): HTMLElement {
+  const marker = part('div', 'city', MARKER);
   marker.setAttribute('role', 'img');
   marker.setAttribute('aria-label', `${LABELS[kind]}: ${name}`);
   marker.append(part('span', 'pin', PINS[kind]));
   if (kind !== 'idle') {
-    const tag = part('span', 'tag', TAGS[kind]);
+    const tag = part('span', 'tag', `${TAGS[kind]} ${SIDES[side]}`);
     tag.textContent = name;
     marker.append(tag);
   }

@@ -17,10 +17,11 @@ interface ReportBarsProps {
   format: (value: number) => string;
 }
 
-// Horizontal bars measured against the biggest one.
+// Horizontal bars measured against the biggest one. A negative value, such as a loss, is drawn by its
+// size in the warning tone, so a period where every branch lost money still shows its bars.
 export function ReportBars({ title, items, format }: ReportBarsProps) {
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)');
-  const biggest = Math.max(0, ...items.map((item) => item.value));
+  const biggest = Math.max(0, ...items.map((item) => Math.abs(item.value)));
   return (
     <section className="flex flex-col gap-4 rounded-[26px] bg-card p-6">
       <h2 className="font-display text-[22px] font-bold">{title}</h2>
@@ -39,11 +40,11 @@ export function ReportBars({ title, items, format }: ReportBarsProps) {
                 data-testid={`bar-${item.key}`}
                 className={cn(
                   'h-full origin-left rounded-[10px]',
-                  COLORS[index % COLORS.length],
+                  item.value < 0 ? 'bg-destructive' : COLORS[index % COLORS.length],
                   !reduced && 'animate-grow-x',
                 )}
                 style={{
-                  width: `${biggest === 0 ? 0 : (Math.max(0, item.value) / biggest) * 100}%`,
+                  width: `${biggest === 0 ? 0 : (Math.abs(item.value) / biggest) * 100}%`,
                 }}
               />
             </div>

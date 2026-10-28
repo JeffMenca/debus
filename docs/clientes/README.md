@@ -4,7 +4,7 @@
 
 ## 1. Para qué sirve y qué reglas cumple
 
-- **Perfil.** Una fila por cuenta, creada cuando `administracion` publica `UserRegistered` (el personal también tiene una, con los datos de cliente vacíos). La persona puede cambiar su DPI, teléfono, NIT y dirección (`PUT /profile`); eso publica `ProfileUpdated`, que `ventas` copia para vincular las ventas de ventanilla por NIT. El NIT es único entre los perfiles que lo tienen (`409` "ya está en otra cuenta").
+- **Perfil.** Una fila por cuenta, creada cuando `administracion` publica `UserRegistered` (el personal también tiene una, con los datos de cliente vacíos) o, si ese evento se perdió, cuando llega `UserUpdated` de una cuenta activa que no tiene perfil (ver [Recuperar perfiles](#recuperar-perfiles)). La persona puede cambiar su DPI, teléfono, NIT y dirección (`PUT /profile`); eso publica `ProfileUpdated`, que `ventas` copia para vincular las ventas de ventanilla por NIT. El NIT es único entre los perfiles que lo tienen (`409` "ya está en otra cuenta").
 - **Cartera.** Una por perfil, creada junto con él. El saldo **nunca es negativo** (restricción `wallets_balance_non_negative`) y cada movimiento (`TOP_UP`, `TICKET`, `RENTAL`, `REFUND`) guarda el saldo que dejó. Cada operación de dinero lleva un `Idempotency-Key` y su combinación con la cartera es única: repetirla responde lo mismo y **nunca mueve el dinero dos veces**; la misma clave con otros datos responde 409.
 - **Recargar.** `POST /wallet/top-ups` con la clave y `paidOn` (la fecha de pago, que se puede elegir; hasta Q100,000). Publica `WalletCredited` y `notificaciones` manda el correo.
 - **Cobrar.** `POST /internal/wallet/debits` es solo entre servicios (`ventas` lo llama con la clave igual al id del boleto). Bloquea la cartera, revisa si ese cobro ya se aplicó (y entonces responde lo mismo), si el viaje se canceló y se devolvió el boleto (`422`), si ya pasó el plazo `payBy` (`422`) y si alcanza el saldo (`422`).
@@ -251,10 +251,24 @@ No hay llamadas síncronas nuevas: todo lo que cruza servicios va por eventos, a
 | `UserRegistered` | administracion |
 | `TicketSold` | ventas |
 | `RefundRequested` | ventas |
+| `UserUpdated` | administracion |
 | `RentalCancelled` | viajes |
 | `ProbeSent` | gateway |
 <!-- /generado:eventos -->
 <!-- prettier-ignore-end -->
+
+### Recuperar perfiles
+
+El perfil solo nacía con `UserRegistered`; si ese evento no llegaba (una cuenta anterior al servicio, una base nueva), `/perfil` quedaba en "Estamos preparando tu cuenta" para siempre. Ahora `clientes` también escucha `UserUpdated`: con una cuenta **activa** sin perfil crea el perfil (con los datos de cliente vacíos), su cartera y publica `ProfileUpdated`, todo con `ON CONFLICT DO NOTHING` y el inbox por `eventId`, así que repetirlo no duplica ni vuelve a anunciar nada. Una cuenta desactivada no recibe perfil.
+
+Si `UserUpdated` llega antes que `UserRegistered` de un cliente, el registro **completa** el perfil vacío (DPI, teléfono, dirección y NIT, solo los que siguen en blanco) y nunca pisa uno que ya tiene datos. Un cliente que perdió su `UserRegistered` del todo recupera perfil y cartera, pero sin DPI ni teléfono: los escribe de nuevo en su perfil.
+
+Para reenviar todas las cuentas:
+
+- Después de un despliegue: correr el workflow `republish` con el objetivo `administracion/users`.
+- En local: `curl -X POST localhost:4001/internal/users/republish` (acepta `?branchId=` para limitarlo a una sucursal). Cada cuenta sale con la versión subida; al terminar, `SELECT count(*) FROM client_profiles` en `clientes` es igual a las cuentas activas de `administracion` (las pendientes y las desactivadas no tienen perfil).
+
+No hay llamadas síncronas nuevas ni estado en más de un servicio que haya que deshacer (cada copia se actualiza sola por evento), así que no aplican la saga ni el circuit breaker.
 
 ## 6. Endpoints
 

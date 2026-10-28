@@ -354,6 +354,20 @@ describe('PurchaseScreen', () => {
     expect(screen.getByRole('link', { name: 'Volver a viajes' })).toBeVisible();
   });
 
+  it('says the trip already left when its map answers 409, without offering to retry', async () => {
+    mockGatewayApi({
+      [`GET /ventas/trips/${TRIP_ID}/seats`]: () =>
+        apiError(409, 'Este viaje ya salió. Elige otro horario.'),
+      'GET /clientes/wallet': () => Response.json(wallet()),
+    });
+    renderScreen();
+
+    expect(await screen.findByRole('heading', { name: 'Este viaje ya salió' })).toBeVisible();
+    expect(screen.getByText('Este viaje ya salió. Elige otro horario.')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Volver a viajes' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+  });
+
   it('lets the person retry when the map could not load', async () => {
     mockGatewayApi({
       [`GET /ventas/trips/${TRIP_ID}/seats`]: () => apiError(503, 'El servicio no respondió.'),

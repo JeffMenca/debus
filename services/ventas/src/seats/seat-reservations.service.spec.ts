@@ -41,6 +41,7 @@ const prismaError = (code: string) => Object.assign(new Error(code), { code });
 function setup() {
   const prisma = {
     trip: { findUnique: jest.fn().mockResolvedValue(trip()) },
+    departedTrip: { count: jest.fn().mockResolvedValue(0) },
     // A batch of writes is built lazily and run together: the stand-ins are plain markers.
     ticket: { create: jest.fn((args: unknown) => ({ write: 'ticket', args })) },
     $transaction: jest.fn().mockResolvedValue([]),
@@ -131,6 +132,17 @@ describe('SeatReservationsService', () => {
     await expect(service.reserve(reservation)).rejects.toThrow(
       new ConflictException(MESSAGES.tripDeparted),
     );
+  });
+
+  it('refuses a trip whose bus left before its scheduled hour, and writes nothing', async () => {
+    const { prisma, service } = setup();
+    prisma.departedTrip.count.mockResolvedValue(1);
+
+    await expect(service.reserve(reservation)).rejects.toThrow(
+      new ConflictException(MESSAGES.tripDeparted),
+    );
+    expect(prisma.departedTrip.count).toHaveBeenCalledWith({ where: { tripId } });
+    expect(prisma.ticket.create).not.toHaveBeenCalled();
   });
 
   it('refuses seats the bus does not have', async () => {

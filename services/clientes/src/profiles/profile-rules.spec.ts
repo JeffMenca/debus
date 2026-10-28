@@ -1,5 +1,5 @@
 import { profileUpdatedPayloadSchema } from '@debus/contracts';
-import { toProfileRow, toProfileUpdated } from './profile-rules';
+import { toProfileRow, toProfileUpdated, toRecoveredProfileRow } from './profile-rules';
 
 const base = {
   userId: '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a',
@@ -29,6 +29,33 @@ describe('toProfileRow', () => {
       nit: null,
       address: null,
     });
+  });
+});
+
+describe('toRecoveredProfileRow', () => {
+  const account = {
+    ...base,
+    role: 'CASHIER' as const,
+    branchId: '3f2e1d0c-9b8a-4c7d-8e6f-5a4b3c2d1e0f',
+    active: true,
+    version: 3,
+  };
+
+  it('rebuilds the profile of an active account without the client fields', () => {
+    expect(toRecoveredProfileRow(account)).toEqual({
+      userId: base.userId,
+      email: base.email,
+      fullName: base.fullName,
+      role: 'CASHIER',
+      dpi: null,
+      phone: null,
+      nit: null,
+      address: null,
+    });
+  });
+
+  it('recovers nothing for an account that was deactivated', () => {
+    expect(toRecoveredProfileRow({ ...account, active: false })).toBeNull();
   });
 });
 

@@ -7,11 +7,12 @@ import {
   pageArgs,
   toPage,
 } from '@debus/contracts';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { MESSAGES } from '../messages';
 import { PrismaService } from '../prisma/prisma.service';
-import { onSaleConditions } from './trip-rules';
+import { hasDeparted } from './trip-departures';
+import { closedForSale, onSale, onSaleConditions } from './trip-rules';
 
 interface TripOnSaleRow {
   tripId: string;
@@ -65,24 +66,17 @@ export class TripsService {
   }
 
   async places(): Promise<TripPlaces> {
-    const where = { departureAt: { gt: new Date() } };
+    const places = (column: 'origin_label' | 'destination_label') =>
+      this.prisma.$queryRaw<{ label: string }[]>(Prisma.sql`
+        SELECT DISTINCT t.${Prisma.raw(column)} AS label FROM trips t
+        WHERE ${onSale(new Date())} ORDER BY label`);
     const [origins, destinations] = await Promise.all([
-      this.prisma.trip.findMany({
-        where,
-        distinct: ['originLabel'],
-        select: { originLabel: true },
-        orderBy: { originLabel: 'asc' },
-      }),
-      this.prisma.trip.findMany({
-        where,
-        distinct: ['destinationLabel'],
-        select: { destinationLabel: true },
-        orderBy: { destinationLabel: 'asc' },
-      }),
+      places('origin_label'),
+      places('destination_label'),
     ]);
     return {
-      origins: origins.map((trip) => trip.originLabel),
-      destinations: destinations.map((trip) => trip.destinationLabel),
+      origins: origins.map((place) => place.label),
+      destinations: destinations.map((place) => place.label),
     };
   }
 
@@ -92,6 +86,9 @@ export class TripsService {
       include: { seats: { select: { seatNumber: true }, orderBy: { seatNumber: 'asc' } } },
     });
     if (!trip) throw new NotFoundException(MESSAGES.tripNotFound);
+    if (closedForSale(trip.departureAt, await hasDeparted(this.prisma, tripId), new Date())) {
+      throw new ConflictException(MESSAGES.tripDeparted);
+    }
     return {
       tripId: trip.tripId,
       originLabel: trip.originLabel,

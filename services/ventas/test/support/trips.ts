@@ -78,6 +78,7 @@ export function testTrips(prisma: PrismaService) {
       created.push(tripId);
     },
     async cleanUp(): Promise<void> {
+      await prisma.departedTrip.deleteMany({ where: { tripId: { in: created } } });
       await prisma.trip.deleteMany({ where: { tripId: { in: created } } });
     },
   };

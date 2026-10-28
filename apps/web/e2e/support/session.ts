@@ -55,3 +55,38 @@ export async function openMenuOnPhone(page: Page) {
   const width = page.viewportSize()?.width ?? Infinity;
   if (width < 768) await page.getByRole('button', { name: 'Abrir menú' }).click();
 }
+
+// The round decoration of the trip ticket card may sit in a corner, never under a word. It is
+// compared with the lines of text it could touch, and only the part inside the card counts.
+export async function expectDecorationClearOfText(page: Page) {
+  const decoration = page.locator('[data-decoration]');
+  await expect(decoration).toHaveCount(1);
+  const touched = await decoration.evaluate((circle) => {
+    const card = circle.parentElement!;
+    const cardBox = card.getBoundingClientRect();
+    const box = circle.getBoundingClientRect();
+    const seen = {
+      left: Math.max(box.left, cardBox.left),
+      right: Math.min(box.right, cardBox.right),
+      top: Math.max(box.top, cardBox.top),
+      bottom: Math.min(box.bottom, cardBox.bottom),
+    };
+    const hits: string[] = [];
+    const words = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+    for (let node = words.nextNode(); node; node = words.nextNode()) {
+      if (!node.textContent?.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const line of range.getClientRects()) {
+        const crosses =
+          line.left < seen.right &&
+          line.right > seen.left &&
+          line.top < seen.bottom &&
+          line.bottom > seen.top;
+        if (crosses) hits.push(node.textContent.trim());
+      }
+    }
+    return hits;
+  });
+  expect(touched).toEqual([]);
+}

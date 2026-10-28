@@ -98,6 +98,26 @@ describe('the SQL of pnpm test:clean in ventas', () => {
     ).rejects.toBeInstanceOf(Rollback);
   });
 
+  it('removes the departure marks of the test trips, and only those', async () => {
+    await expect(
+      prisma.$transaction(async (tx) => {
+        const mine = await trip(tx, testLabel('Quetzaltenango'), testLabel('Guatemala'));
+        const foreign = await trip(tx, 'Quetzaltenango', 'Guatemala');
+        for (const { tripId } of [mine, foreign]) {
+          await tx.departedTrip.create({ data: { tripId, departedAt: new Date() } });
+        }
+
+        for (const statement of cleanupStatements({ run: TEST_RUN })) {
+          await tx.$executeRawUnsafe(statement);
+        }
+
+        expect(await tx.departedTrip.count({ where: { tripId: mine.tripId } })).toBe(0);
+        expect(await tx.departedTrip.count({ where: { tripId: foreign.tripId } })).toBe(1);
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+  });
+
   it('removes the purchases of test trips that were deleted, and only those', async () => {
     await expect(
       prisma.$transaction(async (tx) => {

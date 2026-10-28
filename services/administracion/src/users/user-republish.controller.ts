@@ -9,7 +9,7 @@ import { Controller, Headers, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { UserRepublishService } from './user-republish.service';
 
-// For a deploy that adds a copy of the branch admins: called once with the identity token of the
+// For a deploy that adds a copy of the accounts: called once with the identity token of the
 // deploy, never by a user, and the gateway never publishes this path.
 @ApiTags('internal')
 @Controller('internal/users')

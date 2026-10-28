@@ -38,7 +38,7 @@ export class TripsController {
 
   @Get(':tripId/seats')
   @apiSuccess(200)
-  @apiErrors(400, 404)
+  @apiErrors(400, 404, 409)
   seatMap(@Param('tripId', new ParseUUIDPipe()) tripId: string): Promise<SeatMap> {
     return this.trips.seatMap(tripId);
   }

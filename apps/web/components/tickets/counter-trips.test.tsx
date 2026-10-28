@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { pinDate } from '../../test-support/fake-clock';
 import { queryWrapper } from '../../test-support/query-wrapper';
 import { availableTrip, availableTripPage } from '../../test-support/tickets';
 import { CounterTrips } from './counter-trips';
@@ -12,7 +13,11 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(search),
 }));
 
+// The fixtures and the chosen day are written for this date.
+beforeEach(() => pinDate('2026-10-20T18:00:00.000Z'));
+
 afterEach(() => {
+  jest.useRealTimers();
   jest.restoreAllMocks();
   replace.mockClear();
   search = '';

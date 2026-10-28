@@ -228,7 +228,7 @@ Los eventos se escriben en la tabla `outbox` en la **misma transacción** que el
 | `UserRegistered` | clientes, notificaciones |
 | `AccountLinkSent` | notificaciones |
 | `RepairExpenseAdded` | reportes |
-| `UserUpdated` | notificaciones |
+| `UserUpdated` | notificaciones, clientes |
 
 **Consume**
 
