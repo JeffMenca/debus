@@ -40,6 +40,8 @@ export type Step =
       envVarsFile?: Record<string, string>;
     }
   | { kind: 'scheduler'; label: string; job: SchedulerJob; url: string; settings: ReleaseSettings }
+  // Marks as delivered every message published so far to every subscription of the project.
+  | { kind: 'seek'; label: string; project: string }
   | {
       kind: 'health';
       label: string;
@@ -174,6 +176,17 @@ export function schedulerArgs(job: SchedulerJob, url: string, settings: ReleaseS
   ];
 }
 
+export function healthStep(unit: DeployUnit, settings: ReleaseSettings): Step {
+  const publicUnit = unit === 'gateway' || unit === 'web';
+  return {
+    kind: 'health',
+    label: `Check ${unit} health`,
+    url: serviceUrl(unit, 'production', settings),
+    path: unit === 'web' ? '/api/health' : '/health',
+    privateService: !publicUnit,
+  };
+}
+
 export function deploySteps(unit: DeployUnit, sha: string, settings: ReleaseSettings): Step[] {
   const { projectId, region, cloudSqlPrefix } = settings;
   const url = serviceUrl(unit, 'production', settings);
@@ -241,13 +254,7 @@ export function deploySteps(unit: DeployUnit, sha: string, settings: ReleaseSett
     envVarsFile: cloudRunEnv(unit, 'production', settings),
   });
 
-  steps.push({
-    kind: 'health',
-    label: `Check ${unit} health`,
-    url,
-    path: unit === 'web' ? '/api/health' : '/health',
-    privateService: !publicUnit,
-  });
+  steps.push(healthStep(unit, settings));
 
   for (const job of schedulerJobs(unit)) {
     steps.push({ kind: 'scheduler', label: `Schedule ${job.name}`, job, url, settings });

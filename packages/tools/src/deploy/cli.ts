@@ -2,9 +2,17 @@
 // Releases production from this machine when GitHub Actions is not available: the same steps as
 // deploy.yml and release.yml, one unit at a time, and a dry run unless --apply --confirm production.
 import { spawn, spawnSync } from 'node:child_process';
-import { DEPLOY_UNITS, missingAppValues, readAppSecrets, type DeployUnit } from '@debus/contracts';
+import {
+  BACKEND_SERVICES,
+  DEPLOY_UNITS,
+  missingAppValues,
+  readAppSecrets,
+  type BackendService,
+  type DeployUnit,
+} from '@debus/contracts';
 import { appValuesFromLive, imageOf, mediaBucketOf } from './live-env';
 import { parseReleaseArgs, releaseSettings, type ReleaseOptions } from './options';
+import { planReset } from './reset-plan';
 import { planRelease, selectUnits, tagOfImage, type DeployedTags, type Step } from './release-plan';
 import { executeSteps, type RunOptions, type RunResult, type StepDeps } from './run-steps';
 
@@ -50,6 +58,7 @@ const deps: StepDeps = {
   fetchStatus: async (url, headers) =>
     (await fetch(url, { headers, signal: AbortSignal.timeout(15_000) })).status,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  now: () => new Date(),
   log: (line) => console.log(line),
 };
 
@@ -115,8 +124,59 @@ function printDeployed(deployed: DeployedTags, head: string): void {
   }
 }
 
+async function reset(options: ReleaseOptions): Promise<void> {
+  const region = process.env.GCP_REGION || 'us-central1';
+  const projectId =
+    process.env.GCP_PROJECT_ID ||
+    capture(['gcloud', 'config', 'get-value', 'project']).stdout.trim();
+  if (!projectId) fail('No Google Cloud project: run gcloud config set project <id>.');
+  const projectNumber =
+    process.env.GCP_PROJECT_NUMBER ||
+    capture([
+      'gcloud',
+      'projects',
+      'describe',
+      projectId,
+      '--format=value(projectNumber)',
+    ]).stdout.trim();
+  const settings = releaseSettings(
+    process.env,
+    { projectId, projectNumber, mediaBucket: '' },
+    readAppSecrets({}),
+  );
+  const migrationImages = Object.fromEntries(
+    BACKEND_SERVICES.map((service) => {
+      const image = capture([
+        'gcloud',
+        'run',
+        'jobs',
+        'describe',
+        `${service}-migrate`,
+        '--region',
+        region,
+        '--format=value(spec.template.spec.template.spec.containers[0].image)',
+      ]).stdout.trim();
+      if (!image) fail(`Could not find the ${service}-migrate job: release ${service} first.`);
+      return [service, image];
+    }),
+  ) as Record<BackendService, string>;
+  const steps = planReset({
+    settings,
+    migrationImages,
+    restartedAt: String(Math.floor(Date.now() / 1000)),
+  });
+  console.log(
+    options.apply
+      ? `\nEMPTYING THE PRODUCTION DATABASES of ${projectId}:\n`
+      : '\nDry run (nothing changes):\n',
+  );
+  await executeSteps(steps, deps, { apply: options.apply });
+  if (options.apply) console.log('\nDone. Now run the seed.');
+}
+
 async function main(): Promise<void> {
   const options = parseReleaseArgs(process.argv.slice(2));
+  if (options.command === 'reset') return reset(options);
   const head = checkMachine(options);
   const region = process.env.GCP_REGION || 'us-central1';
   const projectId =

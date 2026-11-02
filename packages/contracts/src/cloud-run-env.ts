@@ -14,6 +14,7 @@ export interface AppSecrets {
   jwtPrivateKey: string;
   jwtPublicKey: string;
   bootstrapAdminEmail: string;
+  docsPassword: string;
 }
 
 const APP_SECRET_VARIABLES: Readonly<Record<keyof AppSecrets, string>> = {
@@ -22,13 +23,14 @@ const APP_SECRET_VARIABLES: Readonly<Record<keyof AppSecrets, string>> = {
   jwtPrivateKey: 'JWT_PRIVATE_KEY',
   jwtPublicKey: 'JWT_PUBLIC_KEY',
   bootstrapAdminEmail: 'BOOTSTRAP_ADMIN_EMAIL',
+  docsPassword: 'DOCS_PASSWORD',
 };
 
 // What each unit refuses to start without.
 const REQUIRED_APP_SECRETS: Readonly<Partial<Record<DeployUnit, readonly (keyof AppSecrets)[]>>> = {
   notificaciones: ['smtpUser', 'smtpPassword'],
   administracion: ['jwtPrivateKey', 'bootstrapAdminEmail'],
-  gateway: ['jwtPublicKey'],
+  gateway: ['jwtPublicKey', 'docsPassword'],
 };
 
 export function readAppSecrets(env: Record<string, string | undefined>): AppSecrets {
@@ -39,6 +41,7 @@ export function readAppSecrets(env: Record<string, string | undefined>): AppSecr
     jwtPrivateKey: read('jwtPrivateKey'),
     jwtPublicKey: read('jwtPublicKey'),
     bootstrapAdminEmail: read('bootstrapAdminEmail'),
+    docsPassword: read('docsPassword'),
   };
 }
 
@@ -94,6 +97,7 @@ export function cloudRunEnv(
       SERVICE_AUTH: 'google',
       CORS_ORIGINS: url('web'),
       JWT_PUBLIC_KEY: escapeNewlines(appSecrets.jwtPublicKey),
+      DOCS_PASSWORD: appSecrets.docsPassword,
       ...serviceUrls,
     };
   }

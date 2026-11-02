@@ -2,10 +2,11 @@ import { DEPLOY_UNITS, type AppSecrets, type DeployUnit } from '@debus/contracts
 import type { ReleaseSettings } from './release-plan';
 
 export type Phase = 'build' | 'provision' | 'deploy';
+export const RESET_CONFIRMATION = 'wipe-production';
 export const PHASES: readonly Phase[] = ['build', 'provision', 'deploy'];
 
 export interface ReleaseOptions {
-  command: 'plan' | 'release';
+  command: 'plan' | 'release' | 'reset';
   // Empty means every unit the commits since its last release affect.
   units: DeployUnit[];
   phases: Phase[];
@@ -38,8 +39,10 @@ function split(value: string): string[] {
 // Changing production takes three separate decisions: the command, --apply and --confirm production.
 export function parseReleaseArgs(argv: readonly string[]): ReleaseOptions {
   const [command, ...rest] = argv;
-  if (command !== 'plan' && command !== 'release') {
-    throw new Error('Usage: deploy <plan|release> [--units a,b] [--phase build,provision,deploy]');
+  if (command !== 'plan' && command !== 'release' && command !== 'reset') {
+    throw new Error(
+      'Usage: deploy <plan|release|reset> [--units a,b] [--phase build,provision,deploy]',
+    );
   }
   const options: ReleaseOptions = {
     command,
@@ -64,8 +67,10 @@ export function parseReleaseArgs(argv: readonly string[]): ReleaseOptions {
     else if (flag === '--phase') options.phases = split(value).map(phaseFrom);
     else confirmation = value;
   }
-  if (options.apply && confirmation !== 'production') {
-    throw new Error('Changing production needs --apply --confirm production');
+  // Emptying the databases has a phrase of its own, so a release confirmation never wipes anything.
+  const phrase = options.command === 'reset' ? RESET_CONFIRMATION : 'production';
+  if (options.apply && confirmation !== phrase) {
+    throw new Error(`This changes production: it needs --apply --confirm ${phrase}`);
   }
   if (options.command === 'plan' && options.apply) {
     throw new Error('plan never changes anything, use release --apply');

@@ -19,6 +19,7 @@ export interface StepDeps {
   run(argv: string[], options?: RunOptions): Promise<RunResult>;
   fetchStatus(url: string, headers: Record<string, string>): Promise<number>;
   sleep(ms: number): Promise<void>;
+  now(): Date;
   log(line: string): void;
 }
 
@@ -28,6 +29,7 @@ const HEALTH_DELAY_MS = 5_000;
 // Variable names only: the values include the signing key and the mail password.
 export function describeStep(step: Step): string {
   if (step.kind === 'health') return `${step.label}: GET ${step.url}${step.path}`;
+  if (step.kind === 'seek') return `${step.label}: every subscription of ${step.project}, to now`;
   if (step.kind === 'scheduler') {
     return `${step.label}: ${step.job.schedule} POST ${step.url}${step.job.path}`;
   }
@@ -81,6 +83,36 @@ async function runScheduler(step: Extract<Step, { kind: 'scheduler' }>, deps: St
   ]);
 }
 
+async function runSeek(step: Extract<Step, { kind: 'seek' }>, deps: StepDeps): Promise<void> {
+  const listed = await runChecked(
+    deps,
+    `List the subscriptions of ${step.project}`,
+    [
+      'gcloud',
+      'pubsub',
+      'subscriptions',
+      'list',
+      '--project',
+      step.project,
+      '--format=value(name.basename())',
+    ],
+    { capture: true },
+  );
+  const time = deps.now().toISOString();
+  for (const subscription of listed.stdout.split('\n').filter((line) => line.trim() !== '')) {
+    await runChecked(deps, `Seek ${subscription}`, [
+      'gcloud',
+      'pubsub',
+      'subscriptions',
+      'seek',
+      subscription.trim(),
+      '--project',
+      step.project,
+      `--time=${time}`,
+    ]);
+  }
+}
+
 async function runHealth(step: Extract<Step, { kind: 'health' }>, deps: StepDeps): Promise<void> {
   const headers: Record<string, string> = {};
   if (step.privateService) {
@@ -111,6 +143,7 @@ export async function executeSteps(
     if (!options.apply) continue;
     if (step.kind === 'command') await runCommand(step, deps);
     else if (step.kind === 'scheduler') await runScheduler(step, deps);
+    else if (step.kind === 'seek') await runSeek(step, deps);
     else await runHealth(step, deps);
   }
 }

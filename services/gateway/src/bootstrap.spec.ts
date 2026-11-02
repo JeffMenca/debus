@@ -33,7 +33,10 @@ describe('configureDocs', () => {
     const create = jest.spyOn(SwaggerModule, 'createDocument').mockReturnValue(document as never);
     const setup = jest.spyOn(SwaggerModule, 'setup').mockImplementation(() => undefined);
     const docs = { useGatewayDocument: jest.fn() };
-    const app = { get: jest.fn().mockReturnValue(docs) };
+    const app = {
+      get: jest.fn((token: unknown) => (token === GatewayConfig ? { docsPassword: null } : docs)),
+      use: jest.fn(),
+    };
 
     configureDocs(app as unknown as INestApplication);
 
@@ -44,5 +47,20 @@ describe('configureDocs', () => {
       jsonDocumentUrl: 'docs/gateway-json',
       swaggerOptions: { url: '/docs-json', spec: {} },
     });
+    expect(app.use).not.toHaveBeenCalled();
+  });
+
+  it('asks for the password before serving the UI, the combined JSON and the gateway JSON', () => {
+    jest.spyOn(SwaggerModule, 'createDocument').mockReturnValue({} as never);
+    jest.spyOn(SwaggerModule, 'setup').mockImplementation(() => undefined);
+    const docs = { useGatewayDocument: jest.fn() };
+    const app = {
+      get: jest.fn((token: unknown) => (token === GatewayConfig ? { docsPassword: 's' } : docs)),
+      use: jest.fn(),
+    };
+
+    configureDocs(app as unknown as INestApplication);
+
+    expect(app.use).toHaveBeenCalledWith(['/docs', '/docs-json'], expect.any(Function));
   });
 });
