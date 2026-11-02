@@ -59,5 +59,7 @@ describe('gateway documentation', () => {
 
     expect(page.text.toLowerCase()).toContain('swagger');
     expect(init.text).toContain('/docs-json');
+    // An embedded spec wins over the url, so the UI would only list the gateway's own routes.
+    expect(init.text).toMatch(/"customOptions": \{[^}]*"spec": \{\}/);
   });
 });

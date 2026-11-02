@@ -1,5 +1,7 @@
 # Manual técnico · Clientes
 
+**Repositorio:** [rrobertobt/sa-debus-clientes](https://github.com/rrobertobt/sa-debus-clientes) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
 **Clientes** guarda el perfil de cada persona, su **cartera digital** y los **alquileres de buses**. Es el único servicio que mueve dinero de la cartera: `ventas` le pide cobrar un boleto y `clientes` decide, con la cartera bloqueada, si se puede.
 
 ## 1. Para qué sirve y qué reglas cumple

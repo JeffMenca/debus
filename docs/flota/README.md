@@ -1,5 +1,7 @@
 # Manual técnico · Flota
 
+**Repositorio:** [rrobertobt/sa-debus-flota](https://github.com/rrobertobt/sa-debus-flota) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
 **Flota** es dueña de los buses, los choferes y las rutas de cada sucursal, y responde si un bus y un chofer pueden hacer un viaje.
 
 ## 1. Para qué sirve y qué reglas cumple

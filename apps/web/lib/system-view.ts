@@ -1,4 +1,5 @@
 import {
+  ARCHITECTURE_UNIT_LABELS,
   type CircuitState,
   type DeployUnit,
   GUATEMALA_TIME_ZONE,
@@ -10,14 +11,7 @@ import type { StatusTone } from '@/components/brand/status-dot';
 export const PROBE_TIMEOUT_MS = 30_000;
 
 export const UNIT_LABELS: Record<DeployUnit, string> = {
-  gateway: 'Entrada principal',
-  administracion: 'Administración',
-  flota: 'Flota',
-  viajes: 'Viajes',
-  ventas: 'Ventas',
-  clientes: 'Clientes',
-  reportes: 'Reportes',
-  notificaciones: 'Notificaciones',
+  ...ARCHITECTURE_UNIT_LABELS,
   web: 'Sitio web',
 };
 

@@ -1,5 +1,7 @@
 # Manual técnico · Gateway
 
+**Repositorio:** [rrobertobt/sa-debus-gateway](https://github.com/rrobertobt/sa-debus-gateway) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
 El **gateway** es la única puerta pública del backend: el frontend solo habla con él. No tiene base de datos.
 
 ## 1. Para qué sirve y qué reglas cumple

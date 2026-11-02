@@ -1,5 +1,7 @@
 # Manual técnico · Ventas
 
+**Repositorio:** [rrobertobt/sa-debus-ventas](https://github.com/rrobertobt/sa-debus-ventas) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
 **Ventas** vende los boletos: muestra los viajes a la venta, aparta los asientos y cobra, ya sea con la cartera del cliente (compra en línea) o en efectivo en la ventanilla de la sucursal. Cada boleto vendido se anuncia con `TicketSold`.
 
 ## 1. Para qué sirve y qué reglas cumple

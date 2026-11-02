@@ -1,5 +1,7 @@
 # Manual técnico · Administración
 
+**Repositorio:** [rrobertobt/sa-debus-administracion](https://github.com/rrobertobt/sa-debus-administracion) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
 **Administración** es dueña de las cuentas y de la configuración de la empresa: usuarios y sesiones, sucursales, la configuración vigente (depreciación y tarifa de alquiler), el catálogo de categorías de gasto y los gastos de taller.
 
 ## 1. Para qué sirve y qué reglas cumple

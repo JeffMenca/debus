@@ -31,6 +31,8 @@ const ROUTES: [method: Method, path: string, codes: string[]][] = [
   ['get', '/reports/system-bus-options', ['200', '400', '401', '403']],
   ['get', '/reports/system-routes-map', ['200', '400', '401', '403']],
   ['get', '/reports/system-routes-map/pdf', ['200', '400', '401', '403']],
+  ['get', '/reports/system-architecture', ['200', '400', '401', '403']],
+  ['get', '/reports/system-architecture/pdf', ['200', '400', '401', '403']],
   // Every consumer mounts the dead-letter review of @debus/messaging.
   ['get', '/dead-letters', ['200', '400', '401', '403', '503']],
   ['post', '/dead-letters/{messageId}/replay', ['200', '401', '403', '404', '502', '503']],

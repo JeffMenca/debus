@@ -2,6 +2,7 @@ import {
   ChartColumn,
   type LucideIcon,
   Map,
+  Network,
   Route,
   TrendingDown,
   TrendingUp,
@@ -22,4 +23,5 @@ export const SYSTEM_REPORT_LINKS: SystemReportLink[] = [
   { title: 'Rutas más demandadas', href: '/admin/reportes/rutas-demandadas', icon: Route },
   { title: 'Taller por categoría', href: '/admin/reportes/taller', icon: Wrench },
   { title: 'Mapa de rutas', href: '/admin/reportes/mapa-rutas', icon: Map },
+  { title: 'Arquitectura', href: '/admin/reportes/arquitectura', icon: Network },
 ];

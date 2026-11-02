@@ -41,7 +41,7 @@ describe('mergeOpenApi', () => {
 
     expect(operation?.tags).toEqual(['administracion · branches']);
     expect(operation?.operationId).toBe('administracion_BranchesController_create');
-    expect(merged.paths['/api/system/status']).toBeDefined();
+    expect(merged.paths['/api/system/status']?.get?.tags).toEqual(['gateway · system']);
   });
 
   it('tags operations without tags and maps the root path to the service prefix', () => {
@@ -63,6 +63,50 @@ describe('mergeOpenApi', () => {
           path.includes('/events') || path.includes('/outbox') || path.includes('/internal'),
       ),
     ).toBe(false);
+  });
+
+  it('groups the gateway and then each service, health first, its features and dead letters last', () => {
+    const doc = (paths: Record<string, string>): OpenAPIObject => ({
+      openapi: '3.0.0',
+      info: { title: 'svc', version: '1.0' },
+      paths: Object.fromEntries(
+        Object.entries(paths).map(([path, tag]) => [path, { get: { tags: [tag], responses: {} } }]),
+      ),
+    });
+    const ordered = mergeOpenApi(
+      {
+        ...gateway,
+        paths: {
+          '/api/system/status': { get: { tags: ['system'], responses: {} } },
+          '/health': { get: { tags: ['health'], responses: {} } },
+        },
+      },
+      [
+        {
+          service: 'ventas',
+          document: doc({
+            '/counter': 'counter',
+            '/dead-letters': 'dead-letters',
+            '/health': 'health',
+            '/purchases': 'purchases',
+          }),
+        },
+        { service: 'flota', document: doc({ '/routes': 'routes', '/buses': 'buses' }) },
+      ],
+    );
+
+    const tags = [
+      'gateway · health',
+      'gateway · system',
+      'flota · buses',
+      'flota · routes',
+      'ventas · health',
+      'ventas · counter',
+      'ventas · purchases',
+      'ventas · dead-letters',
+    ];
+    expect(ordered.tags?.map((tag) => tag.name)).toEqual(tags);
+    expect(Object.values(ordered.paths).map((item) => item.get?.tags?.[0])).toEqual(tags);
   });
 
   it('says which services could not be read', () => {

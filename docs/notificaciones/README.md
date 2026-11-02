@@ -1,5 +1,7 @@
 # Manual técnico · Notificaciones
 
+**Repositorio:** [rrobertobt/sa-debus-notificaciones](https://github.com/rrobertobt/sa-debus-notificaciones) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
 **Notificaciones** manda todos los correos de debus: los de las cuentas, los de los clientes (boleto, viaje cancelado, devolución, recarga y alquiler) y las alertas de licencia de los choferes. No tiene pantallas ni rutas públicas: todo le llega por eventos y guarda copias locales de lo que necesita.
 
 ## 1. Para qué sirve y qué reglas cumple

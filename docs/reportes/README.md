@@ -1,6 +1,8 @@
 # Manual técnico · Reportes
 
-**Reportes** responde los 12 reportes del enunciado (6 de sucursal y 6 del administrador del sistema) y los exporta a PDF. No escribe en ningún otro servicio: guarda sus propias copias de lo que le interesa, llenadas por eventos, y las consulta con SQL.
+**Repositorio:** [rrobertobt/sa-debus-reportes](https://github.com/rrobertobt/sa-debus-reportes) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
+**Reportes** responde los 12 reportes del enunciado (6 de sucursal y 6 del administrador del sistema) y los exporta a PDF; además, para el administrador del sistema, la vista **Arquitectura**, que no es uno de los 12. No escribe en ningún otro servicio: guarda sus propias copias de lo que le interesa, llenadas por eventos, y las consulta con SQL.
 
 ## 1. Para qué sirve y qué reglas cumple
 
@@ -18,10 +20,12 @@
 | Admin del sistema | Rutas más demandadas           | `/admin/reportes/rutas-demandadas`       | `GET /reports/system-top-routes`      |
 | Admin del sistema | Gastos de taller por categoría | `/admin/reportes/taller`                 | `GET /reports/system-repair-expenses` |
 | Admin del sistema | Mapa de rutas                  | `/admin/reportes/mapa-rutas`             | `GET /reports/system-routes-map`      |
+| Admin del sistema | Arquitectura                   | `/admin/reportes/arquitectura`           | `GET /reports/system-architecture`    |
 
 El filtro de bus del reporte de taller del sistema se alimenta de `GET /reports/system-bus-options`, porque `flota` solo atiende a los admins de sucursal.
 
-- **Filtros, tabla y PDF.** Todos aceptan un intervalo de fechas (`from` y `to`; sin ellos, **todos los registros**), se paginan en el servidor (`page`, `pageSize` hasta 100, orden estable con desempate por `id`) y exportan a PDF con **todas** las filas filtradas, nunca solo la página. Pasadas `REPORT_PDF_MAX_ROWS` (5 000) filas el PDF responde 409 y pide acotar los filtros. Los totales y los grupos (por sucursal o por categoría) cubren el conjunto filtrado completo, no la página.
+- **Arquitectura.** `GET /reports/system-architecture` no lee la base: arma la lista desde el registro de eventos de `@debus/contracts` (tópico, suscripciones y qué provoca cada evento), filtra por `service` y `event`, pagina en el servidor y exporta a PDF todas las filas filtradas junto con las tres llamadas directas. No lleva fechas porque describe el sistema, no un periodo.
+- **Filtros, tabla y PDF.** Todos los demás aceptan un intervalo de fechas (`from` y `to`; sin ellos, **todos los registros**), se paginan en el servidor (`page`, `pageSize` hasta 100, orden estable con desempate por `id`) y exportan a PDF con **todas** las filas filtradas, nunca solo la página. Pasadas `REPORT_PDF_MAX_ROWS` (5 000) filas el PDF responde 409 y pide acotar los filtros. Los totales y los grupos (por sucursal o por categoría) cubren el conjunto filtrado completo, no la página.
 - **Quién entra.** Los de sucursal son del rol `BRANCH_ADMIN` y solo ven su sucursal (el gateway pone la sucursal del token); los del sistema son de `SYSTEM_ADMIN`.
 - **De dónde sale cada número.**
   - **Ingresos** se fechan por el día de pago (`paid_on`): boletos en línea, boletos de ventanilla y alquileres pagados. Un boleto de un viaje eliminado y un alquiler cancelado **no cuentan**, aunque el evento que los anula llegue antes o después del pago.
@@ -310,6 +314,8 @@ Todas las rutas pasan por el gateway con el prefijo `/api/reportes` (aquí apare
 | `GET` | `/reports/branch-repair-expenses/pdf` | Exporta a PDF los gastos de taller de la sucursal | BRANCH_ADMIN |
 | `GET` | `/reports/branch-ticket-income` | Reporte de la sucursal: ingresos por boletos | BRANCH_ADMIN |
 | `GET` | `/reports/branch-ticket-income/pdf` | Exporta a PDF los ingresos por boletos | BRANCH_ADMIN |
+| `GET` | `/reports/system-architecture` | Reporte del sistema: eventos entre servicios | SYSTEM_ADMIN |
+| `GET` | `/reports/system-architecture/pdf` | Exporta a PDF la arquitectura y sus eventos | SYSTEM_ADMIN |
 | `GET` | `/reports/system-bus-options` | Lista los buses de todas las sucursales, para elegir uno | SYSTEM_ADMIN |
 | `GET` | `/reports/system-expenses` | Reporte del sistema: gastos por sucursal, con subtotales y total | SYSTEM_ADMIN |
 | `GET` | `/reports/system-expenses/pdf` | Exporta a PDF los gastos por sucursal | SYSTEM_ADMIN |

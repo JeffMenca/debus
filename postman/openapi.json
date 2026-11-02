@@ -11,7 +11,7 @@
           }
         },
         "tags": [
-          "health"
+          "gateway · health"
         ]
       }
     },
@@ -47,7 +47,7 @@
         ],
         "summary": "",
         "tags": [
-          "system"
+          "gateway · system"
         ]
       }
     },
@@ -83,7 +83,7 @@
         ],
         "summary": "",
         "tags": [
-          "system"
+          "gateway · system"
         ]
       }
     },
@@ -130,7 +130,7 @@
         ],
         "summary": "",
         "tags": [
-          "system"
+          "gateway · system"
         ]
       }
     },
@@ -3583,6 +3583,206 @@
         ]
       }
     },
+    "/api/viajes/rental-requests": {
+      "get": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "viajes_RentalRequestsController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "viajes · rental-requests"
+        ]
+      }
+    },
+    "/api/viajes/rental-requests/{id}/assignment": {
+      "post": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "viajes_RentalRequestsController_assign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "busId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "driverId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "estimatedArrivalAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
+                },
+                "required": [
+                  "busId",
+                  "driverId",
+                  "estimatedArrivalAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          },
+          "502": {
+            "description": "Another service answered with an error."
+          },
+          "503": {
+            "description": "Another service did not answer in time. Try again."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "viajes · rental-requests"
+        ]
+      }
+    },
+    "/api/viajes/rental-requests/{id}/cancel": {
+      "post": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "viajes_RentalRequestsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "viajes · rental-requests"
+        ]
+      }
+    },
     "/api/viajes/trips": {
       "get": {
         "description": "Allowed roles: BRANCH_ADMIN, DRIVER.",
@@ -4000,206 +4200,6 @@
         ]
       }
     },
-    "/api/viajes/rental-requests": {
-      "get": {
-        "description": "Allowed roles: BRANCH_ADMIN.",
-        "operationId": "viajes_RentalRequestsController_list",
-        "parameters": [
-          {
-            "name": "status",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "q",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "page",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "pageSize",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Done."
-          },
-          "400": {
-            "description": "Invalid data or invalid link."
-          },
-          "401": {
-            "description": "Missing session or wrong credentials."
-          },
-          "403": {
-            "description": "The role does not allow this action."
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "viajes · rental-requests"
-        ]
-      }
-    },
-    "/api/viajes/rental-requests/{id}/assignment": {
-      "post": {
-        "description": "Allowed roles: BRANCH_ADMIN.",
-        "operationId": "viajes_RentalRequestsController_assign",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-correlation-id",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {
-                  "busId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "driverId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "estimatedArrivalAt": {
-                    "type": "string",
-                    "format": "date-time",
-                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                  }
-                },
-                "required": [
-                  "busId",
-                  "driverId",
-                  "estimatedArrivalAt"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created."
-          },
-          "400": {
-            "description": "Invalid data or invalid link."
-          },
-          "401": {
-            "description": "Missing session or wrong credentials."
-          },
-          "403": {
-            "description": "The role does not allow this action."
-          },
-          "404": {
-            "description": "The requested resource does not exist."
-          },
-          "409": {
-            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
-          },
-          "502": {
-            "description": "Another service answered with an error."
-          },
-          "503": {
-            "description": "Another service did not answer in time. Try again."
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "viajes · rental-requests"
-        ]
-      }
-    },
-    "/api/viajes/rental-requests/{id}/cancel": {
-      "post": {
-        "description": "Allowed roles: BRANCH_ADMIN.",
-        "operationId": "viajes_RentalRequestsController_cancel",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-correlation-id",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Created."
-          },
-          "400": {
-            "description": "Invalid data or invalid link."
-          },
-          "401": {
-            "description": "Missing session or wrong credentials."
-          },
-          "403": {
-            "description": "The role does not allow this action."
-          },
-          "404": {
-            "description": "The requested resource does not exist."
-          },
-          "409": {
-            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "viajes · rental-requests"
-        ]
-      }
-    },
     "/api/viajes/dead-letters": {
       "get": {
         "description": "Allowed roles: SYSTEM_ADMIN.",
@@ -4324,6 +4324,20 @@
         "summary": "",
         "tags": [
           "viajes · dead-letters"
+        ]
+      }
+    },
+    "/api/ventas/health": {
+      "get": {
+        "operationId": "ventas_HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Service is up, with the state of its connections to other services"
+          }
+        },
+        "tags": [
+          "ventas · health"
         ]
       }
     },
@@ -4506,195 +4520,6 @@
         "summary": "",
         "tags": [
           "ventas · counter"
-        ]
-      }
-    },
-    "/api/ventas/trips": {
-      "get": {
-        "description": "Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.",
-        "operationId": "ventas_TripsController_list",
-        "parameters": [
-          {
-            "name": "from",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "to",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "q",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "origin",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "destination",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "seats",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "page",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "pageSize",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Done."
-          },
-          "400": {
-            "description": "Invalid data or invalid link."
-          },
-          "401": {
-            "description": "Missing session or wrong credentials."
-          },
-          "403": {
-            "description": "The role does not allow this action."
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "ventas · trips"
-        ]
-      }
-    },
-    "/api/ventas/trips/places": {
-      "get": {
-        "description": "Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.",
-        "operationId": "ventas_TripsController_places",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Done.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "origins": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "destinations": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "required": [
-                    "origins",
-                    "destinations"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing session or wrong credentials."
-          },
-          "403": {
-            "description": "The role does not allow this action."
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "ventas · trips"
-        ]
-      }
-    },
-    "/api/ventas/trips/{tripId}/seats": {
-      "get": {
-        "description": "Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.",
-        "operationId": "ventas_TripsController_seatMap",
-        "parameters": [
-          {
-            "name": "tripId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Done."
-          },
-          "400": {
-            "description": "Invalid data or invalid link."
-          },
-          "401": {
-            "description": "Missing session or wrong credentials."
-          },
-          "403": {
-            "description": "The role does not allow this action."
-          },
-          "404": {
-            "description": "The requested resource does not exist."
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "ventas · trips"
-        ]
-      }
-    },
-    "/api/ventas/health": {
-      "get": {
-        "operationId": "ventas_HealthController_check",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Service is up, with the state of its connections to other services"
-          }
-        },
-        "tags": [
-          "ventas · health"
         ]
       }
     },
@@ -5673,6 +5498,184 @@
         ]
       }
     },
+    "/api/ventas/trips": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.",
+        "operationId": "ventas_TripsController_list",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "origin",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "destination",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "seats",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "ventas · trips"
+        ]
+      }
+    },
+    "/api/ventas/trips/places": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.",
+        "operationId": "ventas_TripsController_places",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "origins": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "destinations": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "origins",
+                    "destinations"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "ventas · trips"
+        ]
+      }
+    },
+    "/api/ventas/trips/{tripId}/seats": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN, BRANCH_ADMIN, CASHIER, DRIVER, CLIENT.",
+        "operationId": "ventas_TripsController_seatMap",
+        "parameters": [
+          {
+            "name": "tripId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "ventas · trips"
+        ]
+      }
+    },
     "/api/ventas/dead-letters": {
       "get": {
         "description": "Allowed roles: SYSTEM_ADMIN.",
@@ -5811,6 +5814,270 @@
         },
         "tags": [
           "clientes · health"
+        ]
+      }
+    },
+    "/api/clientes/branch-rentals": {
+      "get": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "clientes_BranchRentalsController_list",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · branch-rentals"
+        ]
+      },
+      "post": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "clientes_BranchRentalsController_registerCounter",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "branchId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "originLabel": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "destinationLabel": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "departureAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "returnAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "passengers": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 200
+                  },
+                  "distanceKm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 2000
+                  },
+                  "nit": {
+                    "type": "string"
+                  },
+                  "clientName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "email": {
+                    "default": null,
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "price": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100000
+                  }
+                },
+                "required": [
+                  "branchId",
+                  "originLabel",
+                  "destinationLabel",
+                  "departureAt",
+                  "returnAt",
+                  "passengers",
+                  "distanceKm",
+                  "nit",
+                  "clientName",
+                  "price"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "422": {
+            "description": "The request was understood but cannot be carried out in the current state."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · branch-rentals"
+        ]
+      }
+    },
+    "/api/clientes/branch-rentals/{id}/confirm": {
+      "post": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "clientes_BranchRentalsController_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-correlation-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "price": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100000
+                  },
+                  "distanceKm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 2000
+                  }
+                },
+                "required": [
+                  "price"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
+          },
+          "409": {
+            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · branch-rentals"
         ]
       }
     },
@@ -6245,270 +6512,6 @@
         "summary": "",
         "tags": [
           "clientes · rentals"
-        ]
-      }
-    },
-    "/api/clientes/branch-rentals": {
-      "get": {
-        "description": "Allowed roles: BRANCH_ADMIN.",
-        "operationId": "clientes_BranchRentalsController_list",
-        "parameters": [
-          {
-            "name": "from",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "to",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "status",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "q",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "page",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "pageSize",
-            "required": false,
-            "in": "query",
-            "schema": {}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Done."
-          },
-          "400": {
-            "description": "Invalid data or invalid link."
-          },
-          "401": {
-            "description": "Missing session or wrong credentials."
-          },
-          "403": {
-            "description": "The role does not allow this action."
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "clientes · branch-rentals"
-        ]
-      },
-      "post": {
-        "description": "Allowed roles: BRANCH_ADMIN.",
-        "operationId": "clientes_BranchRentalsController_registerCounter",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {
-                  "branchId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                  },
-                  "originLabel": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 120
-                  },
-                  "destinationLabel": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 120
-                  },
-                  "departureAt": {
-                    "type": "string",
-                    "format": "date-time",
-                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                  },
-                  "returnAt": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "format": "date-time",
-                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "passengers": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0,
-                    "maximum": 200
-                  },
-                  "distanceKm": {
-                    "type": "number",
-                    "exclusiveMinimum": 0,
-                    "maximum": 2000
-                  },
-                  "nit": {
-                    "type": "string"
-                  },
-                  "clientName": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 120
-                  },
-                  "email": {
-                    "default": null,
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "price": {
-                    "type": "number",
-                    "exclusiveMinimum": 0,
-                    "maximum": 100000
-                  }
-                },
-                "required": [
-                  "branchId",
-                  "originLabel",
-                  "destinationLabel",
-                  "departureAt",
-                  "returnAt",
-                  "passengers",
-                  "distanceKm",
-                  "nit",
-                  "clientName",
-                  "price"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created."
-          },
-          "400": {
-            "description": "Invalid data or invalid link."
-          },
-          "401": {
-            "description": "Missing session or wrong credentials."
-          },
-          "403": {
-            "description": "The role does not allow this action."
-          },
-          "422": {
-            "description": "The request was understood but cannot be carried out in the current state."
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "clientes · branch-rentals"
-        ]
-      }
-    },
-    "/api/clientes/branch-rentals/{id}/confirm": {
-      "post": {
-        "description": "Allowed roles: BRANCH_ADMIN.",
-        "operationId": "clientes_BranchRentalsController_confirm",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "x-correlation-id",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {
-                  "price": {
-                    "type": "number",
-                    "exclusiveMinimum": 0,
-                    "maximum": 100000
-                  },
-                  "distanceKm": {
-                    "type": "number",
-                    "exclusiveMinimum": 0,
-                    "maximum": 2000
-                  }
-                },
-                "required": [
-                  "price"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created."
-          },
-          "400": {
-            "description": "Invalid data or invalid link."
-          },
-          "401": {
-            "description": "Missing session or wrong credentials."
-          },
-          "403": {
-            "description": "The role does not allow this action."
-          },
-          "404": {
-            "description": "The requested resource does not exist."
-          },
-          "409": {
-            "description": "Conflict with the current state: it already exists, was already used or cannot be changed."
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "",
-        "tags": [
-          "clientes · branch-rentals"
         ]
       }
     },
@@ -7578,6 +7581,124 @@
         "parameters": [
           {
             "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-architecture": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemArchitectureController_page",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "service",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "event",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "reportes · reports"
+        ]
+      }
+    },
+    "/api/reportes/reports/system-architecture/pdf": {
+      "get": {
+        "description": "Allowed roles: SYSTEM_ADMIN.",
+        "operationId": "reportes_SystemArchitectureController_pdf",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "service",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "event",
             "required": false,
             "in": "query",
             "schema": {}
@@ -8689,7 +8810,119 @@
     "version": "1.0",
     "contact": {}
   },
-  "tags": [],
+  "tags": [
+    {
+      "name": "gateway · health"
+    },
+    {
+      "name": "gateway · system"
+    },
+    {
+      "name": "administracion · health"
+    },
+    {
+      "name": "administracion · accounts"
+    },
+    {
+      "name": "administracion · branches"
+    },
+    {
+      "name": "administracion · expense-categories"
+    },
+    {
+      "name": "administracion · repair-expenses"
+    },
+    {
+      "name": "administracion · sessions"
+    },
+    {
+      "name": "administracion · settings"
+    },
+    {
+      "name": "administracion · users"
+    },
+    {
+      "name": "administracion · dead-letters"
+    },
+    {
+      "name": "flota · health"
+    },
+    {
+      "name": "flota · buses"
+    },
+    {
+      "name": "flota · drivers"
+    },
+    {
+      "name": "flota · routes"
+    },
+    {
+      "name": "flota · dead-letters"
+    },
+    {
+      "name": "viajes · health"
+    },
+    {
+      "name": "viajes · rental-requests"
+    },
+    {
+      "name": "viajes · trips"
+    },
+    {
+      "name": "viajes · dead-letters"
+    },
+    {
+      "name": "ventas · health"
+    },
+    {
+      "name": "ventas · counter"
+    },
+    {
+      "name": "ventas · purchases"
+    },
+    {
+      "name": "ventas · tickets"
+    },
+    {
+      "name": "ventas · trips"
+    },
+    {
+      "name": "ventas · dead-letters"
+    },
+    {
+      "name": "clientes · health"
+    },
+    {
+      "name": "clientes · branch-rentals"
+    },
+    {
+      "name": "clientes · profile"
+    },
+    {
+      "name": "clientes · rentals"
+    },
+    {
+      "name": "clientes · wallet"
+    },
+    {
+      "name": "clientes · dead-letters"
+    },
+    {
+      "name": "reportes · health"
+    },
+    {
+      "name": "reportes · reports"
+    },
+    {
+      "name": "reportes · dead-letters"
+    },
+    {
+      "name": "notificaciones · health"
+    },
+    {
+      "name": "notificaciones · dead-letters"
+    }
+  ],
   "servers": [],
   "components": {
     "securitySchemes": {

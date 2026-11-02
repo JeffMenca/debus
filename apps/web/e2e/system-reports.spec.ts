@@ -136,6 +136,7 @@ const MENU_LINKS = [
   'Rutas más demandadas',
   'Taller por categoría',
   'Mapa de rutas',
+  'Arquitectura',
 ];
 
 test.describe('system reports', () => {

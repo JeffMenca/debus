@@ -121,6 +121,8 @@ export const ACTIONS: Readonly<Record<string, string>> = {
   SystemProfitController_pdf: 'Exporta a PDF las ganancias',
   SystemTopRoutesController_page: 'Reporte del sistema: rutas más demandadas',
   SystemTopRoutesController_pdf: 'Exporta a PDF las rutas más demandadas',
+  SystemArchitectureController_page: 'Reporte del sistema: eventos entre servicios',
+  SystemArchitectureController_pdf: 'Exporta a PDF la arquitectura y sus eventos',
   SystemRepairExpensesController_page: 'Reporte del sistema: gastos de taller por categoría',
   SystemRepairExpensesController_pdf: 'Exporta a PDF los gastos de taller por categoría',
   SystemBusOptionsController_page: 'Lista los buses de todas las sucursales, para elegir uno',

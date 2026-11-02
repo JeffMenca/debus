@@ -97,4 +97,16 @@ flowchart LR
 
 ## Repositorios por unidad
 
-Además del monorepo, cada unidad (`gateway`, los siete servicios y `web`) tiene un repositorio privado de solo lectura, `rrobertobt/sa-debus-<unidad>`, con el historial de sus archivos y de los paquetes compartidos que usa. El monorepo sigue siendo la fuente de verdad: los espejos se regeneran con `pnpm mirror` (prueba local en un directorio temporal) y `pnpm mirror --push` (crea los repositorios si faltan y los actualiza). Cada espejo compila y prueba por sí solo (`pnpm install --frozen-lockfile && pnpm build && pnpm test`); el despliegue y las pruebas de integración se quedan en el monorepo.
+Además del monorepo, cada unidad (`gateway`, los siete servicios y `web`) tiene su propio repositorio, `rrobertobt/sa-debus-<unidad>`, con el historial de sus archivos y los paquetes compartidos que usa. Cada repositorio compila y corre sus pruebas por sí solo (`pnpm install --frozen-lockfile && pnpm build && pnpm test`); el despliegue y las pruebas de integración se hacen desde el monorepo.
+
+| Unidad         | Repositorio                                                                                 | Manual                                     |
+| -------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| gateway        | [rrobertobt/sa-debus-gateway](https://github.com/rrobertobt/sa-debus-gateway)               | [gateway](gateway/README.md)               |
+| administracion | [rrobertobt/sa-debus-administracion](https://github.com/rrobertobt/sa-debus-administracion) | [administracion](administracion/README.md) |
+| flota          | [rrobertobt/sa-debus-flota](https://github.com/rrobertobt/sa-debus-flota)                   | [flota](flota/README.md)                   |
+| viajes         | [rrobertobt/sa-debus-viajes](https://github.com/rrobertobt/sa-debus-viajes)                 | [viajes](viajes/README.md)                 |
+| ventas         | [rrobertobt/sa-debus-ventas](https://github.com/rrobertobt/sa-debus-ventas)                 | [ventas](ventas/README.md)                 |
+| clientes       | [rrobertobt/sa-debus-clientes](https://github.com/rrobertobt/sa-debus-clientes)             | [clientes](clientes/README.md)             |
+| reportes       | [rrobertobt/sa-debus-reportes](https://github.com/rrobertobt/sa-debus-reportes)             | [reportes](reportes/README.md)             |
+| notificaciones | [rrobertobt/sa-debus-notificaciones](https://github.com/rrobertobt/sa-debus-notificaciones) | [notificaciones](notificaciones/README.md) |
+| web            | [rrobertobt/sa-debus-web](https://github.com/rrobertobt/sa-debus-web)                       | —                                          |

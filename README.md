@@ -18,6 +18,22 @@ Monorepo con pnpm y Turborepo:
 | `infra/`             | Dockerfiles e inicialización de PostgreSQL                                                                                                                              |
 | `docs/`, `postman/`  | Manuales técnicos y colección de pruebas                                                                                                                                |
 
+## Repositorios por microservicio
+
+El código completo vive en [JeffMenca/debus](https://github.com/JeffMenca/debus). Cada unidad tiene además su propio repositorio, con el historial de sus archivos y los paquetes compartidos que usa; cada uno compila y corre sus pruebas por sí solo.
+
+| Unidad         | Repositorio                                                                                 | Manual                                               |
+| -------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| gateway        | [rrobertobt/sa-debus-gateway](https://github.com/rrobertobt/sa-debus-gateway)               | [docs/gateway](docs/gateway/README.md)               |
+| administracion | [rrobertobt/sa-debus-administracion](https://github.com/rrobertobt/sa-debus-administracion) | [docs/administracion](docs/administracion/README.md) |
+| flota          | [rrobertobt/sa-debus-flota](https://github.com/rrobertobt/sa-debus-flota)                   | [docs/flota](docs/flota/README.md)                   |
+| viajes         | [rrobertobt/sa-debus-viajes](https://github.com/rrobertobt/sa-debus-viajes)                 | [docs/viajes](docs/viajes/README.md)                 |
+| ventas         | [rrobertobt/sa-debus-ventas](https://github.com/rrobertobt/sa-debus-ventas)                 | [docs/ventas](docs/ventas/README.md)                 |
+| clientes       | [rrobertobt/sa-debus-clientes](https://github.com/rrobertobt/sa-debus-clientes)             | [docs/clientes](docs/clientes/README.md)             |
+| reportes       | [rrobertobt/sa-debus-reportes](https://github.com/rrobertobt/sa-debus-reportes)             | [docs/reportes](docs/reportes/README.md)             |
+| notificaciones | [rrobertobt/sa-debus-notificaciones](https://github.com/rrobertobt/sa-debus-notificaciones) | [docs/notificaciones](docs/notificaciones/README.md) |
+| web            | [rrobertobt/sa-debus-web](https://github.com/rrobertobt/sa-debus-web)                       | —                                                    |
+
 ## Requisitos
 
 Node 22 o superior, pnpm 10 y Docker.
