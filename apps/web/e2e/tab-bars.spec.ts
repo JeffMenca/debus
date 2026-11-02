@@ -98,6 +98,23 @@ test.describe('tab bars', () => {
     });
   }
 
+  for (const path of ['/admin/categorias', '/admin/sucursales']) {
+    test(`${path} has no false vertical scroll in its tabs`, async ({ page, baseURL }) => {
+      await mockAdminGateway(page, { branches: [sampleBranch()] });
+      await mockExpensesGateway(page, {});
+      await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+      await page.goto(path);
+      const frame = page.locator('[data-tabs-frame]').first();
+      await expect(frame.getByRole('tab').first()).toBeVisible();
+
+      const { scrollHeight, clientHeight } = await frame.evaluate((el) => ({
+        scrollHeight: el.scrollHeight,
+        clientHeight: el.clientHeight,
+      }));
+      expect(scrollHeight).toBeLessThanOrEqual(clientHeight);
+    });
+  }
+
   test('the buses indicator follows each tab and the active one is in view', async ({
     page,
     baseURL,

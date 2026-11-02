@@ -30,6 +30,7 @@ import { useUrlSearch } from '@/hooks/use-url-search';
 import { useResendInvitation, useSetUserActive, useUsersPage } from '@/hooks/use-users';
 import { readUserListParams, writeUserListParams } from '@/lib/admin/user-list-params';
 import { messageOf } from '@/lib/api/client';
+import { inputRules } from '@/lib/forms/input-rules';
 import { ROLE_LABELS, STAFF_ROLES } from '@/lib/roles';
 import { EditUserDialog } from './edit-user-dialog';
 import { InviteUserDialog } from './invite-user-dialog';
@@ -147,7 +148,7 @@ export function UsersScreen() {
           <Input
             icon={Search}
             aria-label="Buscar usuario"
-            maxLength={SEARCH_MAX_LENGTH}
+            rule={inputRules.text(SEARCH_MAX_LENGTH)}
             placeholder="Buscar nombre o correo"
             value={search}
             onChange={(event) => setSearch(event.target.value)}

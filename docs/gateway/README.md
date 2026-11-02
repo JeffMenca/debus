@@ -1,5 +1,9 @@
 # Manual técnico · Gateway
 
+En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · [Swagger](https://gateway-avqapfieaa-uc.a.run.app/docs) (datos para los endpoints protegidos: pedirlos a un administrador).
+
+**Repositorio:** [rrobertobt/sa-debus-gateway](https://github.com/rrobertobt/sa-debus-gateway) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
 El **gateway** es la única puerta pública del backend: el frontend solo habla con él. No tiene base de datos.
 
 ## 1. Para qué sirve y qué reglas cumple
@@ -7,7 +11,7 @@ El **gateway** es la única puerta pública del backend: el frontend solo habla 
 - **Autenticación y roles.** Verifica el JWT de acceso (firma RS256, emisor `debus-administracion`, audiencia `debus`) y rechaza con 401 lo que no tenga sesión; las rutas de `/api/system` exigen el rol `SYSTEM_ADMIN`. Solo son públicas las rutas de acceso (`signup`, `login`, `refresh`, `logout`, `password`, `password/forgot`, `links/status`, `links/renew`) y `GET /api/administracion/branches/locations`, que alimenta el mapa de la página de inicio.
 - **Identidad hacia los servicios.** Borra del pedido cualquier encabezado de identidad que mande el cliente y escribe los suyos (`x-user-id`, `x-user-role`, `x-branch-id`) a partir del token: los servicios confían solo en ellos.
 - **Enrutamiento.** `/api/<servicio>/*` se reenvía al servicio correspondiente (`ventas`, `flota`, etc.) con el token de identidad de Google en producción; las rutas internas (`/internal/*`, `/events/*` y `/outbox/*`) nunca se publican. Canonicaliza la ruta (mayúsculas, barras repetidas, barra final) y una ruta con `%`, `\` o `..` nunca se trata como pública, para que una variante no salte la regla de acceso.
-- **Swagger unido.** `/docs-json` junta los documentos de los siete servicios (con las etiquetas `<servicio> · <etiqueta>`) y `/docs` lo muestra; un servicio caído no rompe la documentación de los demás. En producción piden usuario y contraseña (Basic Auth, usuario `debus`, contraseña `DOCS_PASSWORD`); en local quedan abiertos.
+- **Swagger unido.** `/docs-json` junta los documentos de los siete servicios (con las etiquetas `<servicio> · <etiqueta>`) y `/docs` lo muestra ([producción](https://gateway-avqapfieaa-uc.a.run.app/docs)); un servicio caído no rompe la documentación de los demás. En producción piden usuario y contraseña (Basic Auth, usuario `debus`, contraseña `DOCS_PASSWORD`); en local quedan abiertos.
 - **Diagnóstico.** `GET /api/system/status` mide a los 7 servicios (el gateway se reporta arriba porque es quien responde) y `POST /api/system/probes` publica el evento de prueba `ProbeSent`, que llega por Pub/Sub a los siete servicios; `GET /api/system/probes/:id` dice cuáles lo recibieron.
 
 ## 2. Diagrama de componentes
@@ -26,6 +30,78 @@ flowchart LR
   publisher --> pubsub[(Pub/Sub)]
   health[HealthController] -.-> web
 ```
+
+## 2.1 Diagrama de clases
+
+Controladores, servicios y sus dependencias, agrupados por carpeta. Se genera del código con `pnpm run docs`.
+
+<!-- prettier-ignore-start -->
+<!-- generado:clases -->
+```mermaid
+classDiagram
+  namespace auth {
+    class AccessTokenVerifier {
+      +verify()
+    }
+    class AuthMiddleware {
+      +use()
+    }
+  }
+  namespace config {
+    class GatewayConfig
+  }
+  namespace docs {
+    class DocsController {
+      +document()
+    }
+    class DocsService {
+      +document()
+      +useGatewayDocument()
+    }
+  }
+  namespace health {
+    class HealthController {
+      +check()
+    }
+  }
+  namespace proxy {
+    class ProxyMiddleware {
+      +use()
+    }
+  }
+  namespace system {
+    class ProbeService {
+      +emit()
+      +status()
+    }
+    class SystemController {
+      +check()
+      +emit()
+      +probe()
+    }
+    class SystemStatusService {
+      +check()
+    }
+  }
+  namespace upstream {
+    class ServiceClient {
+      +get()
+    }
+  }
+  AccessTokenVerifier --> GatewayConfig
+  AuthMiddleware --> AccessTokenVerifier
+  DocsController --> DocsService
+  DocsService --> ServiceClient
+  ProbeService --> ServiceClient
+  ProxyMiddleware --> GatewayConfig
+  ServiceClient --> GatewayConfig
+  SystemController --> ProbeService
+  SystemController --> SystemStatusService
+  SystemStatusService --> GatewayConfig
+  SystemStatusService --> ServiceClient
+```
+<!-- /generado:clases -->
+<!-- prettier-ignore-end -->
 
 ## 3. Diagrama de tablas
 
@@ -119,6 +195,6 @@ pnpm --filter @debus/gateway test              # pruebas unitarias con cobertura
 pnpm --filter @debus/gateway test:integration  # el gateway real con servicios de destino simulados, sin base de datos (mínimo 65 %)
 ```
 
-El gateway local escucha en `http://localhost:4000`; el Swagger unido está en `/docs`.
+El gateway local escucha en `http://localhost:4000`; el Swagger unido está en `/docs`. En producción: <https://gateway-avqapfieaa-uc.a.run.app/docs>.
 
 Las pruebas que escriben datos usan correos `@debus.test` y el prefijo `Prueba ` y los borran al terminar; `pnpm test:clean` quita lo que haya quedado.

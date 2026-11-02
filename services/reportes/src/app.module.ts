@@ -13,6 +13,7 @@ import { BranchRentalIncomeModule } from './reports/branch-rental-income/branch-
 import { BranchReadModelModule } from './reports/branch-read-model/branch-read-model.module';
 import { BranchRepairExpensesModule } from './reports/branch-repair-expenses/branch-repair-expenses.module';
 import { BranchTicketIncomeModule } from './reports/branch-ticket-income/branch-ticket-income.module';
+import { SystemArchitectureModule } from './reports/system-architecture/system-architecture.module';
 import { SystemBusOptionsModule } from './reports/system-bus-options/system-bus-options.module';
 import { SystemExpensesModule } from './reports/system-expenses/system-expenses.module';
 import { SystemIncomeModule } from './reports/system-income/system-income.module';
@@ -40,6 +41,7 @@ import { PrismaService } from './prisma/prisma.service';
     SystemRepairExpensesModule,
     SystemBusOptionsModule,
     SystemRoutesMapModule,
+    SystemArchitectureModule,
     BranchBusesModule,
     BranchDriversModule,
     BranchDepreciationModule,

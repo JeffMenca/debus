@@ -3,6 +3,7 @@
 import { CalendarDays } from 'lucide-react';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { inputRules } from '@/lib/forms/input-rules';
 
 interface DateFieldProps {
   id: string;
@@ -37,6 +38,7 @@ export function DateField({
         <Input
           id={id}
           type="date"
+          rule={inputRules.native}
           value={value}
           min={min}
           max={max}

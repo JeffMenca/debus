@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { useCreateSettings } from '@/hooks/use-settings';
 import { messageOf } from '@/lib/api/client';
 import { formatLongDate } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 
 // "Today" is read when the form is checked, so a page left open overnight still validates.
 const formSchema = createSettingsRequestSchema.refine(
@@ -23,8 +24,6 @@ const formSchema = createSettingsRequestSchema.refine(
 type FormInput = z.input<typeof formSchema>;
 
 type AmountName = 'depreciationPerKm' | 'rentalRatePerKm';
-
-const TWO_DECIMALS = 'at most two decimals';
 
 export function SettingsForm() {
   const create = useCreateSettings();
@@ -56,15 +55,11 @@ export function SettingsForm() {
     }
   });
   function amountError(name: AmountName): string | undefined {
-    const error = errors[name];
-    if (!error) return undefined;
-    return error.message === TWO_DECIMALS
-      ? 'Usa como máximo dos decimales.'
-      : 'Escribe un monto mayor que cero.';
+    return errors[name] ? 'Escribe un monto mayor que cero.' : undefined;
   }
   const amount = (name: AmountName, id: string) => ({
     id,
-    inputMode: 'decimal' as const,
+    rule: inputRules.decimal(6, 2),
     autoComplete: 'off',
     className: 'font-mono tabular-nums',
     ...invalidProps(id, amountError(name)),

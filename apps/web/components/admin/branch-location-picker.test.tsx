@@ -21,6 +21,9 @@ jest.mock(
           <button type="button" onClick={() => onPick(19.43, -99.13)}>
             Tocar México
           </button>
+          <button type="button" onClick={() => onPick(13.75, -91.5)}>
+            Tocar el mar
+          </button>
         </div>
       );
     },
@@ -33,7 +36,11 @@ describe('BranchLocationPicker', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Tocar Xela' }));
 
-    expect(onChange).toHaveBeenCalledWith({ latitude: 14.8347, longitude: -91.5181 });
+    expect(onChange).toHaveBeenCalledWith({
+      latitude: 14.8347,
+      longitude: -91.5181,
+      department: 'Quetzaltenango',
+    });
   });
 
   it('refuses a point outside Guatemala and says so', async () => {
@@ -41,6 +48,16 @@ describe('BranchLocationPicker', () => {
     render(<BranchLocationPicker value={null} onChange={onChange} />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Tocar México' }));
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveTextContent('Ese punto está fuera de Guatemala.');
+  });
+
+  it('refuses the ocean, inside the frame of the map, and says so', async () => {
+    const onChange = jest.fn();
+    render(<BranchLocationPicker value={null} onChange={onChange} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tocar el mar' }));
 
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByRole('status')).toHaveTextContent('Ese punto está fuera de Guatemala.');
@@ -57,9 +74,17 @@ describe('BranchLocationPicker', () => {
 
   it('shows the pin it is given and the help text or the error', () => {
     const { rerender } = render(
-      <BranchLocationPicker value={{ latitude: 14.8, longitude: -91.5 }} onChange={jest.fn()} />,
+      <BranchLocationPicker
+        value={{ latitude: 14.8347, longitude: -91.5181 }}
+        onChange={jest.fn()}
+      />,
     );
-    expect(screen.getByText('pin 14.8,-91.5')).toBeInTheDocument();
+    expect(screen.getByText('pin 14.8347,-91.5181')).toBeInTheDocument();
+    expect(
+      screen.getByText('Ubicación en Quetzaltenango. Puedes tocar otro punto para cambiarla.'),
+    ).toBeInTheDocument();
+
+    rerender(<BranchLocationPicker value={null} onChange={jest.fn()} />);
     expect(
       screen.getByText('Toca el mapa para marcar dónde está la sucursal.'),
     ).toBeInTheDocument();

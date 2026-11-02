@@ -40,3 +40,4 @@ export * from './api/reports';
 export * from './api/branch-reports';
 export * from './api/system-reports';
 export * from './events/admin-examples';
+export * from './api/architecture';

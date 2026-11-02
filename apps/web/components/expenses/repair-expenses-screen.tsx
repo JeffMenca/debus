@@ -22,6 +22,7 @@ import { useUrlQuery } from '@/hooks/use-url-query';
 import { useUrlSearch } from '@/hooks/use-url-search';
 import { readExpenseListParams, writeExpenseListParams } from '@/lib/expenses/expense-list-params';
 import { formatPlate, formatQuetzales } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import { ExpenseDetailDialog } from './expense-detail-dialog';
 import { useExpenseColumns } from './expense-columns';
 
@@ -123,7 +124,7 @@ export function RepairExpensesScreen() {
           <Input
             icon={Search}
             aria-label="Buscar gasto"
-            maxLength={SEARCH_MAX_LENGTH}
+            rule={inputRules.text(SEARCH_MAX_LENGTH)}
             placeholder="Buscar placa, categoría o descripción"
             value={search}
             onChange={(event) => setSearch(event.target.value)}

@@ -1,5 +1,6 @@
 'use client';
 
+import { SEARCH_MAX_LENGTH } from '@debus/contracts';
 import { useState } from 'react';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { inputRules } from '@/lib/forms/input-rules';
 
 export interface Option {
   value: string;
@@ -78,6 +80,7 @@ export function OptionSelect({
       {showSearch && (
         <Input
           type="search"
+          rule={inputRules.text(SEARCH_MAX_LENGTH)}
           aria-label={searchLabel}
           placeholder={searchLabel}
           value={search}

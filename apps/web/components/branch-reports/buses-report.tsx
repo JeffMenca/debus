@@ -27,6 +27,7 @@ import {
   readBusReportParams,
   writeBusReportParams,
 } from '@/lib/branch-reports/bus-report-params';
+import { inputRules } from '@/lib/forms/input-rules';
 import { busReportColumns } from './bus-report-columns';
 
 export const BUSES_REPORT_PATH = '/api/reportes/reports/branch-buses';
@@ -91,7 +92,7 @@ export function BusesReport() {
             <Input
               id="buses-report-search"
               icon={Search}
-              maxLength={SEARCH_MAX_LENGTH}
+              rule={inputRules.text(SEARCH_MAX_LENGTH)}
               placeholder="Placa, marca o modelo"
               value={typed}
               onChange={(event) => setTyped(event.target.value)}

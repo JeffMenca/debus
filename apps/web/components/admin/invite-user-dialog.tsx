@@ -6,6 +6,7 @@ import {
   type UserRole,
   createUserRequestSchema,
   isBranchRole,
+  FULL_NAME_MAX,
 } from '@debus/contracts';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -25,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { useInviteUser } from '@/hooks/use-users';
 import { type BranchOption, branchesFor } from '@/lib/admin/branch-options';
 import { messageOf } from '@/lib/api/client';
+import { inputRules } from '@/lib/forms/input-rules';
 import { UserRoleFields } from './user-role-fields';
 
 type FormInput = z.input<typeof createUserRequestSchema>;
@@ -58,6 +60,7 @@ function InviteForm({
     setValue,
     formState: { errors, isSubmitting, isSubmitted },
   } = useForm<FormInput, unknown, CreateUserRequest>({
+    mode: 'onTouched',
     resolver: zodResolver(createUserRequestSchema),
   });
   const role = useWatch({ control, name: 'role' }) as UserRole | undefined;
@@ -81,6 +84,7 @@ function InviteForm({
       <Field id="invite-fullName" label="Nombre completo" error={error('fullName')}>
         <Input
           id="invite-fullName"
+          rule={inputRules.text(FULL_NAME_MAX)}
           autoComplete="off"
           {...invalidProps('invite-fullName', error('fullName'))}
           {...register('fullName')}
@@ -90,6 +94,7 @@ function InviteForm({
         <Input
           id="invite-email"
           type="email"
+          rule={inputRules.email}
           autoComplete="off"
           placeholder="persona@correo.com"
           {...invalidProps('invite-email', error('email'))}

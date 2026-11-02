@@ -1,21 +1,26 @@
 'use client';
 
-import { isInsideGuatemala } from '@debus/contracts';
+import { type GuatemalaDepartment, isInsideGuatemala } from '@debus/contracts';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { roundCoordinate } from '@/lib/geo/coordinates';
+import { departmentAt } from '@/lib/geo/departments';
 import type { MapPoint } from './branch-location-map';
 
 // Leaflet needs the browser, so the map is loaded only there.
 const BranchLocationMap = dynamic(() => import('./branch-location-map'), {
   ssr: false,
-  loading: () => <Skeleton className="h-80 rounded-2xl" />,
+  loading: () => <Skeleton className="h-[26rem] rounded-2xl" />,
 });
+
+export interface PickedLocation extends MapPoint {
+  department: GuatemalaDepartment;
+}
 
 interface BranchLocationPickerProps {
   value: MapPoint | null;
-  onChange: (value: MapPoint) => void;
+  onChange: (value: PickedLocation) => void;
   error?: string;
 }
 
@@ -23,11 +28,19 @@ export function BranchLocationPicker({ value, onChange, error }: BranchLocationP
   const [outside, setOutside] = useState(false);
 
   function pick(latitude: number, longitude: number) {
-    const inside = isInsideGuatemala(latitude, longitude);
-    setOutside(!inside);
-    if (inside)
-      onChange({ latitude: roundCoordinate(latitude), longitude: roundCoordinate(longitude) });
+    const department = isInsideGuatemala(latitude, longitude)
+      ? departmentAt(latitude, longitude)
+      : null;
+    setOutside(!department);
+    if (!department) return;
+    onChange({
+      latitude: roundCoordinate(latitude),
+      longitude: roundCoordinate(longitude),
+      department,
+    });
   }
+
+  const pinned = value && departmentAt(value.latitude, value.longitude);
 
   return (
     <div className="flex flex-col gap-2">
@@ -43,7 +56,9 @@ export function BranchLocationPicker({ value, onChange, error }: BranchLocationP
         </p>
       ) : (
         <p className="text-[13px] text-muted-foreground">
-          Toca el mapa para marcar dónde está la sucursal.
+          {pinned
+            ? `Ubicación en ${pinned}. Puedes tocar otro punto para cambiarla.`
+            : 'Toca el mapa para marcar dónde está la sucursal.'}
         </p>
       )}
     </div>

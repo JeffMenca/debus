@@ -27,6 +27,7 @@ import { busToFields } from '@/lib/fleet/bus-fields';
 import { readBusListParams, writeBusListParams } from '@/lib/fleet/bus-list-params';
 import { BUS_ART_TONES, BUS_STATUS_LABELS } from '@/lib/fleet/bus-status';
 import { formatPlate } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import { useBusColumns } from './bus-columns';
 import { BusSheet } from './bus-sheet';
 
@@ -133,7 +134,7 @@ export function BusesScreen() {
           <Input
             icon={Search}
             aria-label="Buscar bus"
-            maxLength={SEARCH_MAX_LENGTH}
+            rule={inputRules.text(SEARCH_MAX_LENGTH)}
             placeholder="Buscar placa, marca o modelo"
             value={search}
             onChange={(event) => setSearch(event.target.value)}

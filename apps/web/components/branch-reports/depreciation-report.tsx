@@ -26,6 +26,7 @@ import {
   writeDepreciationReportParams,
 } from '@/lib/branch-reports/depreciation-report-params';
 import { formatKm, formatQuetzales } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import { depreciationReportColumns } from './depreciation-report-columns';
 
 export const DEPRECIATION_REPORT_PATH = '/api/reportes/reports/branch-depreciation';
@@ -92,7 +93,7 @@ export function DepreciationReport() {
             <Input
               id="depreciation-report-search"
               icon={Search}
-              maxLength={SEARCH_MAX_LENGTH}
+              rule={inputRules.text(SEARCH_MAX_LENGTH)}
               placeholder="Placa, marca o modelo"
               value={typed}
               onChange={(event) => setTyped(event.target.value)}

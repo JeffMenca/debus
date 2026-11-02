@@ -91,6 +91,14 @@ test.describe('home page', () => {
     await expectNoHorizontalScroll(page);
   });
 
+  test('names the departments on the map of the country', async ({ page }) => {
+    await page.goto('/');
+
+    const map = page.getByRole('img', { name: /^Mapa de Guatemala/ });
+    await expect(map.getByText('Quet', { exact: true })).toBeAttached();
+    await expect(map.locator('[data-city]').first()).toBeVisible();
+  });
+
   test('takes a visitor to the login', async ({ page }) => {
     await noSession(page);
     await page.goto('/');
@@ -328,19 +336,22 @@ test.describe('rest of the home page', () => {
       const measured = await map.evaluate((svg: SVGSVGElement) => {
         const scale = svg.getScreenCTM()!.a;
         const frame = svg.getBoundingClientRect();
-        const labels = Array.from(svg.querySelectorAll('text')).map((text) => {
-          const { left, right, top, bottom } = text.getBoundingClientRect();
-          const city = text.closest('[data-city]');
-          // The glyph box is taller than the letters, so it is trimmed to avoid false overlaps.
-          const trim = (bottom - top) * 0.2;
-          return {
-            name: text.textContent!,
-            isCity: Boolean(city),
-            size: parseFloat(getComputedStyle(text).fontSize) * scale,
-            rect: { left, right, top: top + trim, bottom: bottom - trim },
-            inside: left >= frame.left && right <= frame.right,
-          };
-        });
+        // The departments are a background the branches are read on top of; they have their own check.
+        const labels = Array.from(svg.querySelectorAll('text:not([data-department])')).map(
+          (text) => {
+            const { left, right, top, bottom } = text.getBoundingClientRect();
+            const city = text.closest('[data-city]');
+            // The glyph box is taller than the letters, so it is trimmed to avoid false overlaps.
+            const trim = (bottom - top) * 0.2;
+            return {
+              name: text.textContent!,
+              isCity: Boolean(city),
+              size: parseFloat(getComputedStyle(text).fontSize) * scale,
+              rect: { left, right, top: top + trim, bottom: bottom - trim },
+              inside: left >= frame.left && right <= frame.right,
+            };
+          },
+        );
         const pins = Array.from(svg.querySelectorAll('[data-city] circle')).map((circle) => {
           const { left, right, top, bottom } = circle.getBoundingClientRect();
           return { left, right, top, bottom };
@@ -359,6 +370,29 @@ test.describe('rest of the home page', () => {
       });
 
       const where = `at ${width}px`;
+      const departments = await map.evaluate((svg: SVGSVGElement) =>
+        Array.from(svg.querySelectorAll('text[data-department]')).map((text) => {
+          const { left, right, top, bottom } = text.getBoundingClientRect();
+          const trim = (bottom - top) * 0.2;
+          return {
+            name: text.textContent!,
+            size: parseFloat(getComputedStyle(text).fontSize) * svg.getScreenCTM()!.a,
+            rect: { left, right, top: top + trim, bottom: bottom - trim },
+          };
+        }),
+      );
+      expect(departments).toHaveLength(22);
+      departments.forEach((a, i) => {
+        expect(a.size, `${a.name} ${where}`).toBeGreaterThanOrEqual(9);
+        for (const b of departments.slice(i + 1)) {
+          const apart =
+            a.rect.right <= b.rect.left ||
+            b.rect.right <= a.rect.left ||
+            a.rect.bottom <= b.rect.top ||
+            b.rect.bottom <= a.rect.top;
+          expect(apart, `${a.name} and ${b.name} ${where}`).toBe(true);
+        }
+      });
       for (const label of measured.labels) {
         expect(label.size, `${label.name} ${where}`).toBeGreaterThanOrEqual(label.isCity ? 12 : 11);
       }

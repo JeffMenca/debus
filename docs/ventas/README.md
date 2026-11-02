@@ -1,5 +1,9 @@
 # Manual técnico · Ventas
 
+En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · [Swagger](https://gateway-avqapfieaa-uc.a.run.app/docs) (datos para los endpoints protegidos: pedirlos a un administrador).
+
+**Repositorio:** [rrobertobt/sa-debus-ventas](https://github.com/rrobertobt/sa-debus-ventas) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
 **Ventas** vende los boletos: muestra los viajes a la venta, aparta los asientos y cobra, ya sea con la cartera del cliente (compra en línea) o en efectivo en la ventanilla de la sucursal. Cada boleto vendido se anuncia con `TicketSold`.
 
 ## 1. Para qué sirve y qué reglas cumple
@@ -31,6 +35,105 @@ flowchart LR
   handlers --> processed[processed_events<br/>inbox idempotente]
   handlers --> outbox
 ```
+
+## 2.1 Diagrama de clases
+
+Controladores, servicios y sus dependencias, agrupados por carpeta. Se genera del código con `pnpm run docs`.
+
+<!-- prettier-ignore-start -->
+<!-- generado:clases -->
+```mermaid
+classDiagram
+  namespace clients {
+    class ClientsHandler {
+      +profileUpdated()
+    }
+  }
+  namespace counter {
+    class CounterController {
+      +sell()
+      +trips()
+    }
+    class CounterSalesService {
+      +sell()
+    }
+  }
+  namespace health {
+    class HealthController {
+      +check()
+    }
+  }
+  namespace prisma {
+    class PrismaService
+  }
+  namespace purchases {
+    class InternalPurchasesController {
+      +recover()
+    }
+    class PurchaseRecoveryService {
+      +recover()
+    }
+    class PurchasesController {
+      +buy()
+      +get()
+    }
+    class PurchasesService {
+      +get()
+      +purchase()
+      +resume()
+    }
+  }
+  namespace seats {
+    class SeatReservationsService {
+      +reserve()
+    }
+  }
+  namespace tickets {
+    class TicketsController {
+      +history()
+    }
+    class TicketsService {
+      +history()
+    }
+  }
+  namespace trips {
+    class TripsController {
+      +list()
+      +places()
+      +seatMap()
+    }
+    class TripsHandler {
+      +completed()
+      +deleted()
+      +departed()
+      +scheduled()
+    }
+    class TripsService {
+      +list()
+      +places()
+      +seatMap()
+    }
+  }
+  ClientsHandler --> PrismaService
+  CounterController --> CounterSalesService
+  CounterController --> TripsService
+  CounterSalesService --> PrismaService
+  CounterSalesService --> SeatReservationsService
+  InternalPurchasesController --> PurchaseRecoveryService
+  PurchaseRecoveryService --> PrismaService
+  PurchaseRecoveryService --> PurchasesService
+  PurchasesController --> PurchasesService
+  PurchasesService --> PrismaService
+  PurchasesService --> SeatReservationsService
+  SeatReservationsService --> PrismaService
+  TicketsController --> TicketsService
+  TicketsService --> PrismaService
+  TripsController --> TripsService
+  TripsHandler --> PrismaService
+  TripsService --> PrismaService
+```
+<!-- /generado:clases -->
+<!-- prettier-ignore-end -->
 
 ## 3. Diagrama de tablas
 

@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { inputRules } from '@/lib/forms/input-rules';
 import { type TripSearch, readPassengerCount } from '@/lib/tickets/trip-search-params';
 
 export type SearchPatch = Pick<TripSearch, 'origin' | 'destination' | 'date' | 'passengers'>;
@@ -140,10 +141,7 @@ export function TripSearchForm({ search, places, onSearch }: TripSearchFormProps
         <Input
           id="search-passengers"
           icon={Users}
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={SEAT_SELECTION_MAX}
+          rule={inputRules.integer(2)}
           value={passengers}
           onChange={(event) => setPassengers(event.target.value)}
           {...invalidProps('search-passengers', problem)}

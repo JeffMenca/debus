@@ -5,6 +5,9 @@ import BranchLocationMap from './branch-location-map';
 let clickHandler: ((event: { latlng: { lat: number; lng: number } }) => void) | undefined;
 
 jest.mock('leaflet/dist/leaflet.css', () => ({}));
+jest.mock('../maps/department-labels', () => ({
+  DepartmentLabels: () => <div data-testid="department-labels" />,
+}));
 jest.mock('react-leaflet', () => ({
   MapContainer: ({ children }: { children: ReactNode }) => <div data-testid="map">{children}</div>,
   GeoJSON: () => <div data-testid="outline" />,
@@ -23,6 +26,12 @@ describe('BranchLocationMap', () => {
     expect(screen.getByTestId('outline')).toBeInTheDocument();
     expect(screen.queryByTestId('tiles')).not.toBeInTheDocument();
     expect(screen.queryByTestId('pin')).not.toBeInTheDocument();
+  });
+
+  it('names the departments on the map', () => {
+    render(<BranchLocationMap value={null} onPick={jest.fn()} />);
+
+    expect(screen.getByTestId('department-labels')).toBeInTheDocument();
   });
 
   it('shows the pin only once there is a point', () => {

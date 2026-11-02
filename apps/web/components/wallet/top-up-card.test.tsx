@@ -66,7 +66,7 @@ describe('TopUpCard', () => {
     renderCard();
 
     await userEvent.clear(screen.getByLabelText('Monto'));
-    await userEvent.type(screen.getByLabelText('Monto'), '10.555');
+    await userEvent.type(screen.getByLabelText('Monto'), '0');
     await userEvent.click(screen.getByRole('button', { name: 'Recargar' }));
 
     expect(screen.getByText(/Escribe un monto/)).toBeInTheDocument();

@@ -95,18 +95,11 @@ describe('creating a route', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it('refuses a distance with two decimals', async () => {
-    const { save } = setup();
-    await chooseDestination('Guatemala');
+  it('stops the distance at one decimal while typing', async () => {
+    setup();
     await userEvent.type(screen.getByLabelText('Distancia (km)'), '206.55');
-    await userEvent.type(screen.getByLabelText('Precio del boleto (Q)'), '85');
 
-    await submit('Crear ruta');
-
-    expect(
-      await screen.findByText('Escribe la distancia en kilómetros, con un decimal como máximo.'),
-    ).toBeInTheDocument();
-    expect(save).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Distancia (km)')).toHaveValue('206.5');
   });
 
   it('shows a repeated pair next to the destination', async () => {
@@ -175,8 +168,8 @@ describe('editing a route', () => {
     setup({ existing: route() });
 
     expect(screen.getByRole('dialog', { name: 'Editar ruta a Guatemala' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Distancia (km)')).toHaveValue(206.5);
-    expect(screen.getByLabelText('Precio del boleto (Q)')).toHaveValue(85);
+    expect(screen.getByLabelText('Distancia (km)')).toHaveValue('206.5');
+    expect(screen.getByLabelText('Precio del boleto (Q)')).toHaveValue('85');
     expect(screen.getByRole('checkbox', { name: 'Aceptar viajes nuevos' })).toBeChecked();
     expect(screen.queryByRole('combobox', { name: 'Destino' })).not.toBeInTheDocument();
   });

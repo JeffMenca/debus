@@ -17,6 +17,7 @@ import { useUrlQuery } from '@/hooks/use-url-query';
 import { useUrlSearch } from '@/hooks/use-url-search';
 import { messageOf } from '@/lib/api/client';
 import { readRouteListParams, writeRouteListParams } from '@/lib/fleet/route-list-params';
+import { inputRules } from '@/lib/forms/input-rules';
 import { RouteDialog } from './route-dialog';
 import { useRouteColumns } from './route-columns';
 
@@ -87,7 +88,7 @@ export function RoutesScreen() {
           <Input
             icon={Search}
             aria-label="Buscar destino"
-            maxLength={SEARCH_MAX_LENGTH}
+            rule={inputRules.text(SEARCH_MAX_LENGTH)}
             placeholder="Buscar destino"
             value={search}
             onChange={(event) => setSearch(event.target.value)}

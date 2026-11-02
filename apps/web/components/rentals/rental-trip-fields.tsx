@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { inputRules } from '@/lib/forms/input-rules';
 import type { RentalDraft, RentalProblems } from '@/lib/rentals/rental-form';
 
 interface RentalTripFieldsProps {
@@ -33,7 +34,7 @@ export function RentalTripFields({
           <Input
             id={id('origin')}
             icon={MapPin}
-            maxLength={120}
+            rule={inputRules.text(120)}
             placeholder="Quetzaltenango"
             value={draft.origin}
             onChange={(event) => onChange({ origin: event.target.value })}
@@ -44,7 +45,7 @@ export function RentalTripFields({
           <Input
             id={id('destination')}
             icon={MapPin}
-            maxLength={120}
+            rule={inputRules.text(120)}
             placeholder="Panajachel"
             value={draft.destination}
             onChange={(event) => onChange({ destination: event.target.value })}
@@ -102,7 +103,7 @@ export function RentalTripFields({
           <Input
             id={id('passengers')}
             icon={Users}
-            inputMode="numeric"
+            rule={inputRules.integer(3)}
             placeholder="35"
             value={draft.passengers}
             onChange={(event) => onChange({ passengers: event.target.value })}
@@ -114,7 +115,7 @@ export function RentalTripFields({
           <Input
             id={id('distance')}
             icon={Route}
-            inputMode="decimal"
+            rule={inputRules.decimal(4, 1)}
             placeholder="92"
             value={draft.distance}
             onChange={(event) => onChange({ distance: event.target.value })}

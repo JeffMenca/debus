@@ -90,7 +90,7 @@ describe('CounterRentalScreen', () => {
     render(<CounterRentalScreen today="2026-10-21" />, { wrapper: queryWrapper().wrapper });
     const user = await fillTrip();
 
-    await user.type(screen.getByLabelText(/NIT/), '12-A');
+    await user.type(screen.getByLabelText(/NIT/), 'k');
     await user.clear(screen.getByLabelText('Precio acordado'));
     await user.type(screen.getByLabelText('Precio acordado'), '2500');
     await user.click(screen.getByRole('button', { name: 'Registrar alquiler' }));

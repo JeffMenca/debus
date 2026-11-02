@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import type { BackendService } from '@debus/contracts';
 import type { OpenApiDocument } from '../postman/openapi-types';
+import { type ClassSource, classDiagram } from './class-diagram';
 import { deploymentDiagram } from './deployment';
 import { endpointsTable } from './endpoints';
 import { eventsTable } from './events-table';
@@ -25,15 +26,16 @@ export const DOC_SERVICES: readonly DocService[] = [
 export interface ManualInputs {
   service: DocService;
   schemaText: string | null;
+  sources: readonly ClassSource[];
   openapi: OpenApiDocument;
 }
 
 const fenced = (language: string, body: string): string => `\`\`\`${language}\n${body}\n\`\`\``;
 
-// Rewrites the four generated blocks of a manual: the rest of the page is written by hand.
+// Rewrites the five generated blocks of a manual: the rest of the page is written by hand.
 export function renderManual(
   markdown: string,
-  { service, schemaText, openapi }: ManualInputs,
+  { service, schemaText, sources, openapi }: ManualInputs,
 ): string {
   if (service !== 'gateway' && schemaText === null) {
     throw new Error(`The service ${service} has no Prisma schema to draw its tables from`);
@@ -44,6 +46,7 @@ export function renderManual(
       : fenced('mermaid', erdFromPrisma(schemaText));
   const blocks: [string, string][] = [
     ['tablas', tables],
+    ['clases', fenced('mermaid', classDiagram(sources))],
     ['despliegue', fenced('mermaid', deploymentDiagram(service))],
     ['eventos', eventsTable(service)],
     ['endpoints', endpointsTable(openapi, service)],
@@ -71,6 +74,19 @@ export function readSchemaText(root: string, service: DocService): string | null
   return readFileSync(single, 'utf8');
 }
 
+// The code of a service, for its class diagram: neither its tests nor what Prisma generates.
+export function readClassSources(root: string, service: DocService): ClassSource[] {
+  const src = join(root, 'services', service, 'src');
+  return readdirSync(src, { recursive: true, encoding: 'utf8' })
+    .map((file) => file.split(sep).join('/'))
+    .filter(
+      (file) =>
+        file.endsWith('.ts') && !file.endsWith('.spec.ts') && !file.startsWith('generated/'),
+    )
+    .sort()
+    .map((path) => ({ path, text: readFileSync(join(src, path), 'utf8') }));
+}
+
 // Brings every manual up to date and returns the ones that were out of date. In check mode it
 // writes nothing, so the CI can fail when somebody changed the code and forgot the manual.
 export function syncManuals(root: string, { check }: { check: boolean }): string[] {
@@ -86,6 +102,7 @@ export function syncManuals(root: string, { check }: { check: boolean }): string
     const next = renderManual(current, {
       service,
       schemaText: readSchemaText(root, service),
+      sources: readClassSources(root, service),
       openapi,
     });
     if (next === current) continue;

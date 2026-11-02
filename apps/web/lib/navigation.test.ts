@@ -19,6 +19,7 @@ describe('navigation', () => {
       ['Rutas más demandadas', '/admin/reportes/rutas-demandadas'],
       ['Taller por categoría', '/admin/reportes/taller'],
       ['Mapa de rutas', '/admin/reportes/mapa-rutas'],
+      ['Arquitectura', '/admin/reportes/arquitectura'],
       ['Estado del sistema', '/admin/estado'],
       ['Mi perfil', '/perfil'],
     ]);

@@ -4,8 +4,9 @@ import { Eye, EyeOff, Lock } from 'lucide-react';
 import { type ComponentProps, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { inputRules } from '@/lib/forms/input-rules';
 
-type PasswordInputProps = Omit<ComponentProps<typeof Input>, 'type' | 'icon' | 'trailing'>;
+type PasswordInputProps = Omit<ComponentProps<typeof Input>, 'type' | 'icon' | 'trailing' | 'rule'>;
 
 export function PasswordInput(props: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
@@ -14,6 +15,7 @@ export function PasswordInput(props: PasswordInputProps) {
     <Input
       {...props}
       type={visible ? 'text' : 'password'}
+      rule={inputRules.password}
       icon={Lock}
       trailing={
         <Button

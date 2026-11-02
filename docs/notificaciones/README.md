@@ -1,5 +1,9 @@
 # Manual técnico · Notificaciones
 
+En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · [Swagger](https://gateway-avqapfieaa-uc.a.run.app/docs) (datos para los endpoints protegidos: pedirlos a un administrador).
+
+**Repositorio:** [rrobertobt/sa-debus-notificaciones](https://github.com/rrobertobt/sa-debus-notificaciones) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
 **Notificaciones** manda todos los correos de debus: los de las cuentas, los de los clientes (boleto, viaje cancelado, devolución, recarga y alquiler) y las alertas de licencia de los choferes. No tiene pantallas ni rutas públicas: todo le llega por eventos y guarda copias locales de lo que necesita.
 
 ## 1. Para qué sirve y qué reglas cumple
@@ -67,6 +71,96 @@ flowchart LR
   flush --> queue
   flush --> smtp[Mailer<br/>Gmail / Mailpit]
 ```
+
+## 2.1 Diagrama de clases
+
+Controladores, servicios y sus dependencias, agrupados por carpeta. Se genera del código con `pnpm run docs`.
+
+<!-- prettier-ignore-start -->
+<!-- generado:clases -->
+```mermaid
+classDiagram
+  namespace account_links {
+    class AccountLinkHandler {
+      +handle()
+    }
+  }
+  namespace health {
+    class HealthController {
+      +check()
+    }
+  }
+  namespace license_alerts {
+    class DriversHandler {
+      +added()
+      +updated()
+    }
+    class InternalLicenseAlertsController {
+      +run()
+    }
+    class LicenseAlerts {
+      +run()
+      +scheduleFor()
+    }
+  }
+  namespace mail {
+    class EmailQueue {
+      +cancelPending()
+      +enqueue()
+      +flush()
+    }
+    class InternalEmailsController {
+      +flush()
+    }
+    class Mailer {
+      +send()
+    }
+  }
+  namespace prisma {
+    class PrismaService
+  }
+  namespace rentals {
+    class RentalsHandler {
+      +confirmed()
+      +paid()
+    }
+  }
+  namespace staff {
+    class StaffHandler {
+      +registered()
+      +updated()
+    }
+  }
+  namespace tickets {
+    class TicketsHandler {
+      +sold()
+      +tripDeleted()
+    }
+  }
+  namespace wallet {
+    class WalletHandler {
+      +credited()
+    }
+  }
+  AccountLinkHandler --> Mailer
+  AccountLinkHandler --> PrismaService
+  DriversHandler --> EmailQueue
+  DriversHandler --> LicenseAlerts
+  DriversHandler --> PrismaService
+  EmailQueue --> Mailer
+  EmailQueue --> PrismaService
+  InternalEmailsController --> EmailQueue
+  InternalLicenseAlertsController --> LicenseAlerts
+  LicenseAlerts --> EmailQueue
+  LicenseAlerts --> PrismaService
+  RentalsHandler --> EmailQueue
+  StaffHandler --> PrismaService
+  TicketsHandler --> EmailQueue
+  TicketsHandler --> PrismaService
+  WalletHandler --> EmailQueue
+```
+<!-- /generado:clases -->
+<!-- prettier-ignore-end -->
 
 ## 3. Diagrama de tablas
 

@@ -26,6 +26,7 @@ import { useUpdateProfile } from '@/lib/account/profile-api';
 import { ApiError, messageOf } from '@/lib/api/client';
 import { FIELD_MESSAGES } from '@/lib/auth/form-messages';
 import { formatPhone } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 
 type FormInput = z.input<typeof updateProfileRequestSchema>;
 type FieldName = keyof FormInput;
@@ -45,6 +46,7 @@ function ProfileForm({ profile, onDone }: { profile: ClientProfile; onDone: () =
     setFocus,
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, UpdateProfileRequest>({
+    mode: 'onTouched',
     resolver: zodResolver(updateProfileRequestSchema),
     defaultValues: {
       // Written as the card shows them; the schema drops the separators again when saving.
@@ -86,18 +88,23 @@ function ProfileForm({ profile, onDone }: { profile: ClientProfile; onDone: () =
         <FormAlert tone="error">{serverError.message}</FormAlert>
       )}
       <Field id="profile-nit" label="NIT" optional error={error('nit')}>
-        <Input {...props('nit')} autoComplete="off" className="font-mono" />
+        <Input {...props('nit')} rule={inputRules.nit} autoComplete="off" className="font-mono" />
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field id="profile-dpi" label="DPI" error={error('dpi')}>
-          <Input {...props('dpi')} inputMode="numeric" autoComplete="off" className="font-mono" />
+          <Input {...props('dpi')} rule={inputRules.dpi} autoComplete="off" className="font-mono" />
         </Field>
         <Field id="profile-phone" label="Teléfono" error={error('phone')}>
-          <Input {...props('phone')} inputMode="numeric" autoComplete="tel" className="font-mono" />
+          <Input
+            {...props('phone')}
+            rule={inputRules.phone}
+            autoComplete="tel"
+            className="font-mono"
+          />
         </Field>
       </div>
       <Field id="profile-address" label="Dirección" optional error={error('address')}>
-        <Input {...props('address')} autoComplete="street-address" />
+        <Input {...props('address')} rule={inputRules.address} autoComplete="street-address" />
       </Field>
       <Button type="submit" disabled={isSubmitting} className="mt-1">
         {isSubmitting ? 'Guardando...' : 'Guardar cambios'}

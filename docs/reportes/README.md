@@ -1,6 +1,10 @@
 # Manual técnico · Reportes
 
-**Reportes** responde los 12 reportes del enunciado (6 de sucursal y 6 del administrador del sistema) y los exporta a PDF. No escribe en ningún otro servicio: guarda sus propias copias de lo que le interesa, llenadas por eventos, y las consulta con SQL.
+En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · [Swagger](https://gateway-avqapfieaa-uc.a.run.app/docs) (datos para los endpoints protegidos: pedirlos a un administrador).
+
+**Repositorio:** [rrobertobt/sa-debus-reportes](https://github.com/rrobertobt/sa-debus-reportes) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
+**Reportes** responde los 12 reportes del enunciado (6 de sucursal y 6 del administrador del sistema) y los exporta a PDF; además, para el administrador del sistema, la vista **Arquitectura**, que no es uno de los 12. No escribe en ningún otro servicio: guarda sus propias copias de lo que le interesa, llenadas por eventos, y las consulta con SQL.
 
 ## 1. Para qué sirve y qué reglas cumple
 
@@ -18,10 +22,12 @@
 | Admin del sistema | Rutas más demandadas           | `/admin/reportes/rutas-demandadas`       | `GET /reports/system-top-routes`      |
 | Admin del sistema | Gastos de taller por categoría | `/admin/reportes/taller`                 | `GET /reports/system-repair-expenses` |
 | Admin del sistema | Mapa de rutas                  | `/admin/reportes/mapa-rutas`             | `GET /reports/system-routes-map`      |
+| Admin del sistema | Arquitectura                   | `/admin/reportes/arquitectura`           | `GET /reports/system-architecture`    |
 
 El filtro de bus del reporte de taller del sistema se alimenta de `GET /reports/system-bus-options`, porque `flota` solo atiende a los admins de sucursal.
 
-- **Filtros, tabla y PDF.** Todos aceptan un intervalo de fechas (`from` y `to`; sin ellos, **todos los registros**), se paginan en el servidor (`page`, `pageSize` hasta 100, orden estable con desempate por `id`) y exportan a PDF con **todas** las filas filtradas, nunca solo la página. Pasadas `REPORT_PDF_MAX_ROWS` (5 000) filas el PDF responde 409 y pide acotar los filtros. Los totales y los grupos (por sucursal o por categoría) cubren el conjunto filtrado completo, no la página.
+- **Arquitectura.** `GET /reports/system-architecture` no lee la base: arma la lista desde el registro de eventos de `@debus/contracts` (tópico, suscripciones y qué provoca cada evento), filtra por `service` y `event`, pagina en el servidor y exporta a PDF todas las filas filtradas junto con las tres llamadas directas. No lleva fechas porque describe el sistema, no un periodo.
+- **Filtros, tabla y PDF.** Todos los demás aceptan un intervalo de fechas (`from` y `to`; sin ellos, **todos los registros**), se paginan en el servidor (`page`, `pageSize` hasta 100, orden estable con desempate por `id`) y exportan a PDF con **todas** las filas filtradas, nunca solo la página. Pasadas `REPORT_PDF_MAX_ROWS` (5 000) filas el PDF responde 409 y pide acotar los filtros. Los totales y los grupos (por sucursal o por categoría) cubren el conjunto filtrado completo, no la página.
 - **Quién entra.** Los de sucursal son del rol `BRANCH_ADMIN` y solo ven su sucursal (el gateway pone la sucursal del token); los del sistema son de `SYSTEM_ADMIN`.
 - **De dónde sale cada número.**
   - **Ingresos** se fechan por el día de pago (`paid_on`): boletos en línea, boletos de ventanilla y alquileres pagados. Un boleto de un viaje eliminado y un alquiler cancelado **no cuentan**, aunque el evento que los anula llegue antes o después del pago.
@@ -48,6 +54,241 @@ flowchart LR
 ```
 
 Cada reporte vive en su carpeta (`src/reports/<branch|system>-<nombre>`) con su controlador, su servicio, su SQL, sus filas, su PDF y su módulo. Lo que comparten está en `src/common` (renderizador de PDF, formato de dinero y fechas, nombres de sucursal) y en `src/reports/system-finance` (los fragmentos SQL de ingresos y gastos que usan tres reportes del sistema).
+
+## 2.1 Diagrama de clases
+
+Controladores, servicios y sus dependencias, agrupados por carpeta. Se genera del código con `pnpm run docs`.
+
+<!-- prettier-ignore-start -->
+<!-- generado:clases -->
+```mermaid
+classDiagram
+  namespace common {
+    class BranchesHandler {
+      +created()
+      +updated()
+    }
+    class BranchNames {
+      +nameOf()
+    }
+    class PdfRenderer {
+      +render()
+    }
+  }
+  namespace health {
+    class HealthController {
+      +check()
+    }
+  }
+  namespace prisma {
+    class PrismaService
+  }
+  namespace reports {
+    class BranchBusesController {
+      +page()
+      +pdf()
+    }
+    class BranchBusesService {
+      +page()
+      +pdf()
+    }
+    class BranchDepreciationController {
+      +page()
+      +pdf()
+    }
+    class BranchDepreciationService {
+      +page()
+      +pdf()
+    }
+    class BranchDriversController {
+      +page()
+      +pdf()
+    }
+    class BranchDriversService {
+      +page()
+      +pdf()
+    }
+    class BranchRentalIncomeController {
+      +page()
+      +pdf()
+    }
+    class BranchRentalIncomeService {
+      +page()
+      +pdf()
+    }
+    class BranchRepairExpensesController {
+      +page()
+      +pdf()
+    }
+    class BranchRepairExpensesService {
+      +page()
+      +pdf()
+    }
+    class BranchTicketIncomeController {
+      +page()
+      +pdf()
+    }
+    class BranchTicketIncomeService {
+      +page()
+      +pdf()
+    }
+    class FleetCopiesHandler {
+      +busAdded()
+      +busDeactivated()
+      +busUpdated()
+      +driverAdded()
+      +driverUpdated()
+    }
+    class RentalsHandler {
+      +cancelled()
+      +paid()
+    }
+    class RepairsHandler {
+      +added()
+    }
+    class RoutesHandler {
+      +routeCreated()
+      +routeDeleted()
+      +routeUpdated()
+    }
+    class SettingsHandler {
+      +updated()
+    }
+    class SystemArchitectureController {
+      +page()
+      +pdf()
+    }
+    class SystemArchitectureService {
+      +page()
+      +pdf()
+    }
+    class SystemBusOptionsController {
+      +page()
+    }
+    class SystemBusOptionsService {
+      +page()
+    }
+    class SystemExpensesController {
+      +page()
+      +pdf()
+    }
+    class SystemExpensesService {
+      +page()
+      +pdf()
+    }
+    class SystemIncomeController {
+      +page()
+      +pdf()
+    }
+    class SystemIncomeService {
+      +page()
+      +pdf()
+    }
+    class SystemProfitController {
+      +page()
+      +pdf()
+    }
+    class SystemProfitService {
+      +page()
+      +pdf()
+    }
+    class SystemRepairExpensesController {
+      +page()
+      +pdf()
+    }
+    class SystemRepairExpensesService {
+      +page()
+      +pdf()
+    }
+    class SystemRoutesMapController {
+      +map()
+      +pdf()
+    }
+    class SystemRoutesMapService {
+      +map()
+      +pdf()
+    }
+    class SystemTopRoutesController {
+      +page()
+      +pdf()
+    }
+    class SystemTopRoutesService {
+      +page()
+      +pdf()
+    }
+    class TicketSalesHandler {
+      +sold()
+    }
+    class TripFactsHandler {
+      +tripCompleted()
+      +tripDeleted()
+      +tripDeparted()
+      +tripScheduled()
+    }
+  }
+  BranchBusesController --> BranchBusesService
+  BranchBusesService --> BranchNames
+  BranchBusesService --> PdfRenderer
+  BranchBusesService --> PrismaService
+  BranchDepreciationController --> BranchDepreciationService
+  BranchDepreciationService --> BranchNames
+  BranchDepreciationService --> PdfRenderer
+  BranchDepreciationService --> PrismaService
+  BranchDriversController --> BranchDriversService
+  BranchDriversService --> BranchNames
+  BranchDriversService --> PdfRenderer
+  BranchDriversService --> PrismaService
+  BranchesHandler --> PrismaService
+  BranchNames --> PrismaService
+  BranchRentalIncomeController --> BranchRentalIncomeService
+  BranchRentalIncomeService --> BranchNames
+  BranchRentalIncomeService --> PdfRenderer
+  BranchRentalIncomeService --> PrismaService
+  BranchRepairExpensesController --> BranchRepairExpensesService
+  BranchRepairExpensesService --> BranchNames
+  BranchRepairExpensesService --> PdfRenderer
+  BranchRepairExpensesService --> PrismaService
+  BranchTicketIncomeController --> BranchTicketIncomeService
+  BranchTicketIncomeService --> BranchNames
+  BranchTicketIncomeService --> PdfRenderer
+  BranchTicketIncomeService --> PrismaService
+  FleetCopiesHandler --> PrismaService
+  RentalsHandler --> PrismaService
+  RepairsHandler --> PrismaService
+  RoutesHandler --> PrismaService
+  SettingsHandler --> PrismaService
+  SystemArchitectureController --> SystemArchitectureService
+  SystemArchitectureService --> PdfRenderer
+  SystemBusOptionsController --> SystemBusOptionsService
+  SystemBusOptionsService --> PrismaService
+  SystemExpensesController --> SystemExpensesService
+  SystemExpensesService --> BranchNames
+  SystemExpensesService --> PdfRenderer
+  SystemExpensesService --> PrismaService
+  SystemIncomeController --> SystemIncomeService
+  SystemIncomeService --> BranchNames
+  SystemIncomeService --> PdfRenderer
+  SystemIncomeService --> PrismaService
+  SystemProfitController --> SystemProfitService
+  SystemProfitService --> BranchNames
+  SystemProfitService --> PdfRenderer
+  SystemProfitService --> PrismaService
+  SystemRepairExpensesController --> SystemRepairExpensesService
+  SystemRepairExpensesService --> BranchNames
+  SystemRepairExpensesService --> PdfRenderer
+  SystemRepairExpensesService --> PrismaService
+  SystemRoutesMapController --> SystemRoutesMapService
+  SystemRoutesMapService --> PdfRenderer
+  SystemRoutesMapService --> PrismaService
+  SystemTopRoutesController --> SystemTopRoutesService
+  SystemTopRoutesService --> BranchNames
+  SystemTopRoutesService --> PdfRenderer
+  SystemTopRoutesService --> PrismaService
+  TicketSalesHandler --> PrismaService
+  TripFactsHandler --> PrismaService
+```
+<!-- /generado:clases -->
+<!-- prettier-ignore-end -->
 
 ## 3. Diagrama de tablas
 
@@ -310,6 +551,8 @@ Todas las rutas pasan por el gateway con el prefijo `/api/reportes` (aquí apare
 | `GET` | `/reports/branch-repair-expenses/pdf` | Exporta a PDF los gastos de taller de la sucursal | BRANCH_ADMIN |
 | `GET` | `/reports/branch-ticket-income` | Reporte de la sucursal: ingresos por boletos | BRANCH_ADMIN |
 | `GET` | `/reports/branch-ticket-income/pdf` | Exporta a PDF los ingresos por boletos | BRANCH_ADMIN |
+| `GET` | `/reports/system-architecture` | Reporte del sistema: eventos entre servicios | SYSTEM_ADMIN |
+| `GET` | `/reports/system-architecture/pdf` | Exporta a PDF la arquitectura y sus eventos | SYSTEM_ADMIN |
 | `GET` | `/reports/system-bus-options` | Lista los buses de todas las sucursales, para elegir uno | SYSTEM_ADMIN |
 | `GET` | `/reports/system-expenses` | Reporte del sistema: gastos por sucursal, con subtotales y total | SYSTEM_ADMIN |
 | `GET` | `/reports/system-expenses/pdf` | Exporta a PDF los gastos por sucursal | SYSTEM_ADMIN |
