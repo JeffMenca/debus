@@ -59,5 +59,7 @@ describe('gateway documentation', () => {
 
     expect(page.text.toLowerCase()).toContain('swagger');
     expect(init.text).toContain('/docs-json');
+    // An embedded spec wins over the url in Swagger UI, so it must be empty for the combined document to load.
+    expect(init.text).toMatch(/"spec":\s*\{\s*\}/);
   });
 });

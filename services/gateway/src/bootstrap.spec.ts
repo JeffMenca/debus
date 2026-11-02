@@ -42,7 +42,7 @@ describe('configureDocs', () => {
     expect(docs.useGatewayDocument).toHaveBeenCalledWith(document);
     expect(setup).toHaveBeenCalledWith('docs', app, document, {
       jsonDocumentUrl: 'docs/gateway-json',
-      swaggerOptions: { url: '/docs-json' },
+      swaggerOptions: { url: '/docs-json', spec: {} },
     });
   });
 });
