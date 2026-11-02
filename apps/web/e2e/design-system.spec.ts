@@ -29,3 +29,16 @@ test('the design system page is not indexed and animations respect reduced motio
   );
   expect(animated).toBe(0);
 });
+
+test('the status tabs have no vertical scroll', async ({ page }) => {
+  await page.goto('/design-system');
+  const frames = page.locator('[data-tabs-frame]');
+  await expect(frames.first()).toBeVisible();
+  for (const frame of await frames.all()) {
+    const { scrollHeight, clientHeight } = await frame.evaluate((el) => ({
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    }));
+    expect(scrollHeight).toBeLessThanOrEqual(clientHeight);
+  }
+});
