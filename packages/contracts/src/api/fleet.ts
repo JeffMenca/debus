@@ -25,6 +25,10 @@ export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
 export const BUS_MIN_YEAR = 1980;
+// One or two letters, three digits and three letters.
+export const PLATE_LENGTH = 8;
+export const LICENSE_MAX = 20;
+export const FLEET_NAME_MAX = 40;
 const strip = (raw: string) => raw.replace(/[\s-]/g, '').toUpperCase();
 
 export const normalizePlate = (raw: string): string => strip(raw.trim());
@@ -39,7 +43,7 @@ export const distanceKmSchema = z.number().positive().max(2000).refine(hasAtMost
 // One limit for the bus form and for every trip event, so a valid bus never breaks a consumer.
 export const MILEAGE_MAX_KM = 5_000_000;
 export const mileageKmSchema = z.number().int().min(0).max(MILEAGE_MAX_KM);
-const nameText = z.string().trim().min(1).max(40);
+const nameText = z.string().trim().min(1).max(FLEET_NAME_MAX);
 const listStatus = z.enum(['active', 'inactive', 'all']);
 
 export const busFieldsSchema = z.object({
@@ -96,7 +100,7 @@ export type BusPage = z.infer<typeof busPageSchema>;
 export const licenseNumberSchema = z
   .string()
   .transform(strip)
-  .pipe(z.string().regex(/^[A-Z0-9]{5,20}$/));
+  .pipe(z.string().regex(new RegExp(`^[A-Z0-9]{5,${LICENSE_MAX}}$`)));
 
 export const driverFieldsSchema = z.object({
   fullName: fullNameSchema,

@@ -32,6 +32,21 @@ test.describe('access with a mocked gateway', () => {
     ),
   );
 
+  test('the DPI only takes the digits it can use', async ({ page }) => {
+    await page.goto('/registro');
+    const dpi = page.getByLabel('DPI');
+
+    await dpi.pressSequentially('12345678901234567');
+    await expect(dpi).toHaveValue('1234567890123');
+
+    await dpi.fill('2345 67890 1234');
+    await expect(dpi).toHaveValue('2345678901234');
+
+    await dpi.fill('');
+    await dpi.pressSequentially('abc');
+    await expect(dpi).toHaveValue('');
+  });
+
   test('signs in and reaches the dashboard of its role', async ({ page, baseURL }) => {
     await page.route('**/api/session/refresh', (route) => route.fulfill({ status: 401, json: {} }));
     await page.route('**/api/session/login', (route) =>

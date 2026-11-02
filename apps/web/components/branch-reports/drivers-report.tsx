@@ -25,6 +25,7 @@ import {
   readDriverReportParams,
   writeDriverReportParams,
 } from '@/lib/branch-reports/driver-report-params';
+import { inputRules } from '@/lib/forms/input-rules';
 import { driverReportColumns } from './driver-report-columns';
 
 export const DRIVERS_REPORT_PATH = '/api/reportes/reports/branch-drivers';
@@ -78,7 +79,7 @@ export function DriversReport() {
             <Input
               id="drivers-report-search"
               icon={Search}
-              maxLength={SEARCH_MAX_LENGTH}
+              rule={inputRules.text(SEARCH_MAX_LENGTH)}
               placeholder="Nombre o licencia"
               value={typed}
               onChange={(event) => setTyped(event.target.value)}

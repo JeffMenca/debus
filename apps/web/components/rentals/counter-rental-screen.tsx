@@ -1,6 +1,6 @@
 'use client';
 
-import { todayInGuatemala } from '@debus/contracts';
+import { todayInGuatemala, FULL_NAME_MAX } from '@debus/contracts';
 import { Mail, ReceiptText, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
@@ -14,6 +14,7 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useOwnBranch } from '@/hooks/use-own-branch';
 import { messageOf } from '@/lib/api/client';
 import { useSession } from '@/lib/auth/session-store';
+import { inputRules } from '@/lib/forms/input-rules';
 import {
   type CounterDraft,
   type CounterProblems,
@@ -111,6 +112,7 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
           <Field id="counter-rental-nit" label="NIT" optional error={problems.nit}>
             <Input
               id="counter-rental-nit"
+              rule={inputRules.nitOrCf}
               icon={ReceiptText}
               placeholder="Vacío para consumidor final"
               value={counter.nit}
@@ -123,7 +125,7 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
             <Input
               id="counter-rental-name"
               icon={User}
-              maxLength={120}
+              rule={inputRules.text(FULL_NAME_MAX)}
               value={counter.clientName}
               onChange={(event) => changeCounter({ clientName: event.target.value })}
               className="bg-card"
@@ -135,6 +137,7 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
               id="counter-rental-email"
               icon={Mail}
               type="email"
+              rule={inputRules.email}
               placeholder="Para enviarle la confirmación"
               value={counter.email}
               onChange={(event) => changeCounter({ email: event.target.value })}
@@ -146,7 +149,7 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
           <Field id="counter-rental-price" label="Precio acordado" error={problems.price}>
             <Input
               id="counter-rental-price"
-              inputMode="decimal"
+              rule={inputRules.decimal(7, 2)}
               value={price}
               onChange={(event) => {
                 setPriceTouched(true);

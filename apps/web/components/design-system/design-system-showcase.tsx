@@ -1,6 +1,6 @@
 'use client';
 
-import { todayInGuatemala } from '@debus/contracts';
+import { todayInGuatemala, FULL_NAME_MAX } from '@debus/contracts';
 import { Bus, Route, Users, Wallet } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { formatQuetzales } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 
 interface ExampleBus {
   id: string;
@@ -103,7 +104,7 @@ export function DesignSystemShowcase() {
       <Section title="Campos">
         <div className="grid gap-4 rounded-[26px] bg-card p-6 md:grid-cols-3">
           <Field id="ds-name" label="Nombre completo">
-            <Input id="ds-name" placeholder="Ana López" />
+            <Input id="ds-name" rule={inputRules.text(FULL_NAME_MAX)} placeholder="Ana López" />
           </Field>
           <Field id="ds-role" label="Rol">
             <Select defaultValue="cashier">

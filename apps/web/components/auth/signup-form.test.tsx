@@ -66,7 +66,7 @@ describe('SignupForm', () => {
 
     await userEvent.type(screen.getByLabelText('DPI'), '123');
     await userEvent.type(screen.getByLabelText('Teléfono'), '12');
-    await userEvent.type(screen.getByLabelText(/NIT/), '12K4');
+    await userEvent.type(screen.getByLabelText(/NIT/), 'K');
     await userEvent.click(screen.getByRole('button', { name: /Crear cuenta/ }));
 
     expect(await screen.findByText('El DPI tiene 13 dígitos.')).toBeInTheDocument();

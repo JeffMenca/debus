@@ -11,6 +11,7 @@ import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useRecordDeparture } from '@/hooks/use-trip';
 import { formatKm, formatPlate } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import { departureRequestFrom, formatMoment, nowInGuatemala } from '@/lib/trips/cycle';
 import {
   CONFIRM_RECORD,
@@ -100,7 +101,7 @@ function DepartureForm({ trip }: { trip: TripDetail }) {
           <Field id="departure-mileage" label="Kilometraje inicial" error={problems.mileage}>
             <Input
               id="departure-mileage"
-              inputMode="numeric"
+              rule={inputRules.integer(7)}
               autoComplete="off"
               value={values.mileage}
               onChange={(event) => set({ mileage: event.target.value })}

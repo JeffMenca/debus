@@ -20,6 +20,10 @@ describe('identity fields', () => {
     expect(nitSchema.safeParse('ABC').success).toBe(false);
   });
 
+  it('rejects an email longer than the limit', () => {
+    expect(emailSchema.safeParse(`${'a'.repeat(250)}@b.co`).success).toBe(false);
+  });
+
   it('accepts a DPI of 13 digits written with spaces', () => {
     expect(dpiSchema.parse('2345 67890 1234')).toBe('2345678901234');
     expect(dpiSchema.safeParse('123').success).toBe(false);

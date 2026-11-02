@@ -24,6 +24,7 @@ import {
   readCategoryListParams,
   writeCategoryListParams,
 } from '@/lib/expenses/category-list-params';
+import { inputRules } from '@/lib/forms/input-rules';
 import { CategoryDialog } from './category-dialog';
 import { useCategoryColumns } from './category-columns';
 
@@ -81,7 +82,7 @@ export function CategoriesScreen() {
           <Input
             icon={Search}
             aria-label="Buscar categoría"
-            maxLength={SEARCH_MAX_LENGTH}
+            rule={inputRules.text(SEARCH_MAX_LENGTH)}
             placeholder="Buscar por nombre"
             value={search}
             onChange={(event) => setSearch(event.target.value)}

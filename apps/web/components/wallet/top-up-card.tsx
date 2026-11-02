@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { isAccountPending } from '@/lib/account/account-state';
 import { messageOf } from '@/lib/api/client';
 import { formatQuetzales } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TOP_UP, TOP_UP_PRESETS, parseTopUpAmount, topUpLabel } from '@/lib/wallet/top-up';
 import { useTopUp, useWallet } from '@/lib/wallet/wallet-api';
@@ -82,7 +83,7 @@ export function TopUpCard({ today = todayInGuatemala() }: { today?: string }) {
           <Field id="top-up-amount" label="Monto" error={amountError}>
             <Input
               id="top-up-amount"
-              inputMode="decimal"
+              rule={inputRules.decimal(7, 2)}
               autoComplete="off"
               value={amountText}
               onChange={(event) => change(() => setAmountText(event.target.value))}

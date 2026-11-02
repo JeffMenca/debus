@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type SignupRequest, signupRequestSchema } from '@debus/contracts';
+import { type SignupRequest, signupRequestSchema, FULL_NAME_MAX } from '@debus/contracts';
 import { Ticket } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -13,6 +13,7 @@ import { useHydrated } from '@/hooks/use-hydrated';
 import { messageOf } from '@/lib/api/api-error';
 import { type FieldName, FIELD_MESSAGES } from '@/lib/auth/form-messages';
 import { signUp } from '@/lib/auth/auth-api';
+import { inputRules } from '@/lib/forms/input-rules';
 import { AuthCard } from './auth-card';
 import { AuthTabs } from './auth-tabs';
 import { CheckEmail } from './check-email';
@@ -28,7 +29,10 @@ export function SignupForm() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormInput, unknown, SignupRequest>({ resolver: zodResolver(signupRequestSchema) });
+  } = useForm<FormInput, unknown, SignupRequest>({
+    mode: 'onTouched',
+    resolver: zodResolver(signupRequestSchema),
+  });
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
@@ -63,12 +67,18 @@ export function SignupForm() {
         className="flex animate-[arrive_0.45s_var(--ease-route)_both] flex-col gap-3.5 motion-reduce:animate-none"
       >
         <Field id="signup-fullName" label="Nombre completo" error={error('fullName')}>
-          <Input {...props('fullName')} autoComplete="name" placeholder="Como aparece en tu DPI" />
+          <Input
+            {...props('fullName')}
+            rule={inputRules.text(FULL_NAME_MAX)}
+            autoComplete="name"
+            placeholder="Como aparece en tu DPI"
+          />
         </Field>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(170px,100%),1fr))] gap-3.5">
           <Field id="signup-nit" label="NIT" optional error={error('nit')}>
             <Input
               {...props('nit')}
+              rule={inputRules.nit}
               autoComplete="off"
               placeholder="0000000-0"
               className="font-mono tabular-nums"
@@ -77,7 +87,7 @@ export function SignupForm() {
           <Field id="signup-dpi" label="DPI" error={error('dpi')}>
             <Input
               {...props('dpi')}
-              inputMode="numeric"
+              rule={inputRules.dpi}
               autoComplete="off"
               placeholder="0000 00000 0000"
               className="font-mono tabular-nums"
@@ -87,7 +97,7 @@ export function SignupForm() {
             <Input
               {...props('phone')}
               type="tel"
-              inputMode="numeric"
+              rule={inputRules.phone}
               autoComplete="tel"
               placeholder="0000 0000"
               className="font-mono tabular-nums"
@@ -97,6 +107,7 @@ export function SignupForm() {
             <Input
               {...props('email')}
               type="email"
+              rule={inputRules.email}
               autoComplete="email"
               placeholder="tu@correo.com"
             />
@@ -105,6 +116,7 @@ export function SignupForm() {
         <Field id="signup-address" label="Dirección" optional error={error('address')}>
           <Input
             {...props('address')}
+            rule={inputRules.address}
             autoComplete="street-address"
             placeholder="Zona, municipio, departamento"
           />

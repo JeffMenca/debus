@@ -7,6 +7,7 @@ import {
   LICENSE_TYPES,
   driverFieldsSchema,
   todayInGuatemala,
+  FULL_NAME_MAX,
 } from '@debus/contracts';
 import { UserRound } from 'lucide-react';
 import { useState } from 'react';
@@ -29,6 +30,7 @@ import { DRIVERS_PATH, useSaveDriver, useUploadDriverPhoto } from '@/hooks/use-d
 import { photoPathOf } from '@/hooks/use-photo';
 import { messageOf } from '@/lib/api/client';
 import { formatPhone } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import { PhotoField } from './photo-field';
 
 type FormInput = z.input<typeof driverFieldsSchema>;
@@ -72,6 +74,7 @@ export function DriverForm({ driver, onDone }: DriverFormProps) {
     setFocus,
     formState: { errors, isSubmitting, isSubmitted },
   } = useForm<FormInput, unknown, DriverFields>({
+    mode: 'onTouched',
     resolver: zodResolver(driverFieldsSchema),
     defaultValues: driver
       ? {
@@ -144,10 +147,15 @@ export function DriverForm({ driver, onDone }: DriverFormProps) {
           }
         />
         <Field id="driver-name" label="Nombre completo" error={error('fullName')}>
-          <Input {...text('fullName', 'driver-name')} />
+          <Input {...text('fullName', 'driver-name')} rule={inputRules.text(FULL_NAME_MAX)} />
         </Field>
         <Field id="driver-email" label="Correo" error={error('email')}>
-          <Input {...text('email', 'driver-email')} type="email" placeholder="chofer@correo.com" />
+          <Input
+            {...text('email', 'driver-email')}
+            type="email"
+            rule={inputRules.email}
+            placeholder="chofer@correo.com"
+          />
           <span className="text-xs text-muted-foreground">
             Con este correo entrará a debus para registrar sus salidas. Debe ser solo suyo.
           </span>
@@ -155,13 +163,17 @@ export function DriverForm({ driver, onDone }: DriverFormProps) {
         <Field id="driver-phone" label="Teléfono" error={error('phone')}>
           <Input
             {...text('phone', 'driver-phone')}
-            inputMode="tel"
+            rule={inputRules.phone}
             className="font-mono tabular-nums"
           />
         </Field>
         <div className="grid grid-cols-[1fr_auto] gap-3">
           <Field id="driver-license" label="Número de licencia" error={error('licenseNumber')}>
-            <Input {...text('licenseNumber', 'driver-license')} className="font-mono uppercase" />
+            <Input
+              {...text('licenseNumber', 'driver-license')}
+              rule={inputRules.license}
+              className="font-mono uppercase"
+            />
           </Field>
           <Field id="driver-license-type" label="Tipo de licencia" error={error('licenseType')}>
             <Select
@@ -199,9 +211,7 @@ export function DriverForm({ driver, onDone }: DriverFormProps) {
         <Field id="driver-salary" label="Salario base por viaje (Q)" error={error('baseSalary')}>
           <Input
             id="driver-salary"
-            type="number"
-            step="0.01"
-            inputMode="decimal"
+            rule={inputRules.decimal(7, 2)}
             autoComplete="off"
             className="font-mono tabular-nums"
             {...invalidProps('driver-salary', error('baseSalary'))}

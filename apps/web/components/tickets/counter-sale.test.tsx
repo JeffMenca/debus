@@ -65,13 +65,14 @@ describe('CounterSale', () => {
 
     await choose(5);
     await userEvent.type(screen.getByLabelText('NIT'), '4521837-6');
+    expect(screen.getByLabelText('NIT')).toHaveValue('45218376');
     await userEvent.type(screen.getByLabelText(/Nombre/), 'Ana Méndez');
     await userEvent.type(screen.getByLabelText(/Correo/), 'ana@correo.com');
     await userEvent.click(screen.getByRole('button', { name: /Cobrar/ }));
 
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]!.body).toMatchObject({
-      nit: '4521837-6',
+      nit: '45218376',
       buyerName: 'Ana Méndez',
       email: 'ana@correo.com',
     });
@@ -81,7 +82,7 @@ describe('CounterSale', () => {
     const { sent } = setup();
 
     await choose(5);
-    await userEvent.type(screen.getByLabelText('NIT'), '12-x');
+    await userEvent.type(screen.getByLabelText('NIT'), 'k');
     await userEvent.click(screen.getByRole('button', { name: /Cobrar/ }));
 
     expect(

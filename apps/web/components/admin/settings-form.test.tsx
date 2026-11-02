@@ -40,15 +40,11 @@ describe('SettingsForm', () => {
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 
-  it('refuses more than two decimals', async () => {
-    const { mutateAsync } = setup();
+  it('stops at two decimals while typing', async () => {
+    setup();
     await userEvent.type(depreciation(), '1.255');
-    await userEvent.type(rental(), '12');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambio' }));
-
-    expect(await screen.findByText('Usa como máximo dos decimales.')).toBeInTheDocument();
-    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(depreciation()).toHaveValue('1.25');
   });
 
   it('refuses a date before today', async () => {

@@ -1,7 +1,13 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type Bus, type BusFields, busFieldsSchema } from '@debus/contracts';
+import {
+  type Bus,
+  type BusFields,
+  busFieldsSchema,
+  FLEET_NAME_MAX,
+  SEARCH_MAX_LENGTH,
+} from '@debus/contracts';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -25,6 +31,7 @@ import { photoPathOf } from '@/hooks/use-photo';
 import { messageOf } from '@/lib/api/client';
 import { busToFields } from '@/lib/fleet/bus-fields';
 import { formatPlate } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import { PhotoField } from './photo-field';
 
 type FormInput = z.input<typeof busFieldsSchema>;
@@ -43,6 +50,8 @@ const FIELD_MESSAGES: Record<
   capacity: 'La capacidad va de 10 a 80 asientos.',
   mileageKm: 'Escribe el kilometraje, de 0 en adelante.',
 };
+
+const INTEGER_DIGITS = { year: 4, capacity: 2, mileageKm: 7 } as const;
 
 type ServerClash = { field: 'plate' | 'driver' | null; message: string };
 
@@ -74,6 +83,7 @@ export function BusForm({ bus, onDone }: BusFormProps) {
     setFocus,
     formState: { errors, isSubmitting, isSubmitted },
   } = useForm<FormInput, unknown, BusFields>({
+    mode: 'onTouched',
     resolver: zodResolver(busFieldsSchema),
     defaultValues: bus
       ? { ...busToFields(bus), plate: formatPlate(bus.plate) }
@@ -136,9 +146,8 @@ export function BusForm({ bus, onDone }: BusFormProps) {
     ...invalidProps(id, error(name)),
   });
   const submitLabel = bus ? 'Guardar cambios' : 'Registrar bus';
-  const number = (name: 'year' | 'capacity' | 'mileageKm') => ({
-    type: 'number' as const,
-    inputMode: 'numeric' as const,
+  const number = (name: keyof typeof INTEGER_DIGITS) => ({
+    rule: inputRules.integer(INTEGER_DIGITS[name]),
     className: 'font-mono tabular-nums',
     ...register(name, { valueAsNumber: true }),
   });
@@ -158,17 +167,26 @@ export function BusForm({ bus, onDone }: BusFormProps) {
         <Field id="bus-plate" label="Placa" error={error('plate')}>
           <Input
             {...text('plate', 'bus-plate')}
-            placeholder="C-482BTX"
+            rule={inputRules.plate}
+            placeholder="C482BTX"
             className="font-mono uppercase"
             {...register('plate')}
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field id="bus-brand" label="Marca" error={error('brand')}>
-            <Input {...text('brand', 'bus-brand')} {...register('brand')} />
+            <Input
+              {...text('brand', 'bus-brand')}
+              rule={inputRules.text(FLEET_NAME_MAX)}
+              {...register('brand')}
+            />
           </Field>
           <Field id="bus-model" label="Modelo" error={error('model')}>
-            <Input {...text('model', 'bus-model')} {...register('model')} />
+            <Input
+              {...text('model', 'bus-model')}
+              rule={inputRules.text(FLEET_NAME_MAX)}
+              {...register('model')}
+            />
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -204,6 +222,7 @@ export function BusForm({ bus, onDone }: BusFormProps) {
           {showDriverSearch && (
             <Input
               type="search"
+              rule={inputRules.text(SEARCH_MAX_LENGTH)}
               aria-label="Buscar chofer"
               placeholder="Buscar chofer por nombre, licencia o correo"
               value={driverSearch}

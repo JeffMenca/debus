@@ -78,6 +78,17 @@ async function fillCreate() {
   await fill(screen.getByLabelText('Correo'), 'carla.xol@correo.com');
 }
 
+it('explains a short phone when the person leaves the field, without sending', async () => {
+  (useCreateBranch as jest.Mock).mockReturnValue({ mutateAsync: jest.fn() });
+  (useUpdateBranch as jest.Mock).mockReturnValue({ mutateAsync: jest.fn() });
+  render(<BranchForm mode="create" />);
+
+  await user.type(screen.getByLabelText('Teléfono'), '123');
+  await user.tab();
+
+  expect(await screen.findByText('Escribe un teléfono de 8 dígitos.')).toBeInTheDocument();
+});
+
 describe('BranchForm (create)', () => {
   beforeEach(() => {
     push.mockReset();

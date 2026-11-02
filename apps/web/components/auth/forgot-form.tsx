@@ -14,6 +14,7 @@ import { useHydrated } from '@/hooks/use-hydrated';
 import { messageOf } from '@/lib/api/api-error';
 import { forgotPassword } from '@/lib/auth/auth-api';
 import { FIELD_MESSAGES } from '@/lib/auth/form-messages';
+import { inputRules } from '@/lib/forms/input-rules';
 import { AuthCard } from './auth-card';
 import { CheckEmail } from './check-email';
 import { FormAlert } from './form-alert';
@@ -54,6 +55,7 @@ export function ForgotForm() {
           <Input
             id="forgot-email"
             type="email"
+            rule={inputRules.email}
             icon={Mail}
             autoComplete="email"
             placeholder="tu@correo.com"

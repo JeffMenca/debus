@@ -1,6 +1,6 @@
 'use client';
 
-import { todayInGuatemala } from '@debus/contracts';
+import { todayInGuatemala, FULL_NAME_MAX } from '@debus/contracts';
 import { ChevronLeft, Wallet } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { FormAlert } from '@/components/auth/form-alert';
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { messageOf } from '@/lib/api/client';
 import { formatQuetzales } from '@/lib/format';
+import { type InputRule, inputRules } from '@/lib/forms/input-rules';
 import { useCounterSale } from '@/lib/tickets/counter-api';
 import {
   type BuyerForm,
@@ -36,12 +37,22 @@ interface CounterSaleProps {
 }
 
 const EMPTY_BUYER: BuyerForm = { nit: '', buyerName: '', email: '' };
-const BUYER_FIELDS: { name: keyof BuyerForm; label: string; optional?: boolean; hint?: string }[] =
-  [
-    { name: 'nit', label: 'NIT', hint: 'Déjalo vacío para consumidor final (CF).' },
-    { name: 'buyerName', label: 'Nombre', optional: true },
-    { name: 'email', label: 'Correo', optional: true },
-  ];
+const BUYER_FIELDS: {
+  name: keyof BuyerForm;
+  label: string;
+  rule: InputRule;
+  optional?: boolean;
+  hint?: string;
+}[] = [
+  {
+    name: 'nit',
+    label: 'NIT',
+    rule: inputRules.nitOrCf,
+    hint: 'Déjalo vacío para consumidor final (CF).',
+  },
+  { name: 'buyerName', label: 'Nombre', rule: inputRules.text(FULL_NAME_MAX), optional: true },
+  { name: 'email', label: 'Correo', rule: inputRules.email, optional: true },
+];
 
 // Step two at the counter: seats, buyer and the cash payment of one trip.
 export function CounterSale({ tripId, today = todayInGuatemala(), onBack }: CounterSaleProps) {
@@ -158,7 +169,7 @@ export function CounterSale({ tripId, today = todayInGuatemala(), onBack }: Coun
                   {formatQuetzales(total)}
                 </span>
               </div>
-              {BUYER_FIELDS.map(({ name, label, optional, hint }) => {
+              {BUYER_FIELDS.map(({ name, label, rule, optional, hint }) => {
                 const id = `counter-${name}`;
                 return (
                   <Field
@@ -171,7 +182,7 @@ export function CounterSale({ tripId, today = todayInGuatemala(), onBack }: Coun
                     <Input
                       id={id}
                       autoComplete="off"
-                      inputMode={name === 'email' ? 'email' : undefined}
+                      rule={rule}
                       value={buyer[name]}
                       onChange={(event) =>
                         change(() => setBuyer({ ...buyer, [name]: event.target.value }))

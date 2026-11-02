@@ -16,6 +16,7 @@ import { messageOf } from '@/lib/api/api-error';
 import { homePathFor, safeNext } from '@/lib/auth/home-path';
 import { FIELD_MESSAGES } from '@/lib/auth/form-messages';
 import { signIn } from '@/lib/auth/session-client';
+import { inputRules } from '@/lib/forms/input-rules';
 import { AuthCard } from './auth-card';
 import { AuthTabs } from './auth-tabs';
 import { FormAlert } from './form-alert';
@@ -76,6 +77,7 @@ export function LoginForm({ next, notice }: LoginFormProps) {
           <Input
             id="login-email"
             type="email"
+            rule={inputRules.email}
             icon={Mail}
             autoComplete="email"
             placeholder="tu@correo.com"

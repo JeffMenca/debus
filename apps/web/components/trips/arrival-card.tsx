@@ -11,6 +11,7 @@ import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useRecordArrival } from '@/hooks/use-trip';
 import { formatKm, formatQuetzales } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import { parseWholeNumber } from '@/lib/number-input';
 import {
   arrivalPreview,
@@ -154,7 +155,7 @@ function ArrivalForm({ trip }: { trip: TripDetail }) {
         <Field id="arrival-mileage" label="Kilometraje final" error={mileageError}>
           <Input
             id="arrival-mileage"
-            inputMode="numeric"
+            rule={inputRules.integer(7)}
             autoComplete="off"
             value={values.mileage}
             onChange={(event) => set({ mileage: event.target.value })}
@@ -167,7 +168,7 @@ function ArrivalForm({ trip }: { trip: TripDetail }) {
         <Field id="arrival-fuel" label="Combustible total (Q)" error={problems.fuel}>
           <Input
             id="arrival-fuel"
-            inputMode="decimal"
+            rule={inputRules.decimal(5, 2)}
             autoComplete="off"
             value={values.fuel}
             onChange={(event) => set({ fuel: event.target.value })}

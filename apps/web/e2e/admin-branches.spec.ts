@@ -163,6 +163,23 @@ test.describe('admin branches', () => {
     await expect(page).toHaveURL(new RegExp(`/admin/sucursales/${SAMPLE_BRANCH_ID}$`));
   });
 
+  test('the phone only takes the digits it can use', async ({ page, baseURL }) => {
+    await mockAdminGateway(page, seed);
+    await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+    await page.goto('/admin/sucursales/nueva');
+    const phone = page.getByLabel('Teléfono');
+
+    await phone.pressSequentially('123456789012');
+    await expect(phone).toHaveValue('12345678');
+
+    await phone.fill('5555-4444');
+    await expect(phone).toHaveValue('55554444');
+
+    await phone.fill('');
+    await phone.pressSequentially('abc');
+    await expect(phone).toHaveValue('');
+  });
+
   test('creates a branch with its location and first admin', async ({ page, baseURL }) => {
     const gateway = await mockAdminGateway(page, seed);
     await signInAs(page, baseURL!, 'SYSTEM_ADMIN');

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { usePageInRange } from '@/hooks/use-page-in-range';
 import { useUrlQuery } from '@/hooks/use-url-query';
 import { useUrlSearch } from '@/hooks/use-url-search';
+import { inputRules } from '@/lib/forms/input-rules';
 import { useCounterTrips } from '@/lib/tickets/counter-api';
 import { readCounterParams, writeCounterParams } from '@/lib/tickets/counter-list-params';
 import { counterTripColumns } from './counter-trip-columns';
@@ -41,7 +42,7 @@ export function CounterTrips({ onChoose }: { onChoose: (tripId: string) => void 
           <Input
             icon={Search}
             aria-label="Buscar destino o placa"
-            maxLength={SEARCH_MAX_LENGTH}
+            rule={inputRules.text(SEARCH_MAX_LENGTH)}
             placeholder="Buscar destino o placa"
             value={search}
             onChange={(event) => setSearch(event.target.value)}

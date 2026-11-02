@@ -256,7 +256,7 @@ describe('editing', () => {
     const { save } = setup({ existing: bus({ id: 'b-1', mileageKm: 150000 }) });
 
     expect(screen.getByLabelText('Placa')).toHaveValue('C-482BTX');
-    expect(screen.getByLabelText('Kilometraje')).toHaveValue(150000);
+    expect(screen.getByLabelText('Kilometraje')).toHaveValue('150000');
     await submit();
 
     await waitFor(() => expect(save).toHaveBeenCalled());
