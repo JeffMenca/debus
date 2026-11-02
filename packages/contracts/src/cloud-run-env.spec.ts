@@ -13,6 +13,7 @@ const appSecrets = {
   jwtPrivateKey: '-----BEGIN PRIVATE KEY-----\nAAA\n-----END PRIVATE KEY-----\n',
   jwtPublicKey: '-----BEGIN PUBLIC KEY-----\nBBB\n-----END PUBLIC KEY-----\n',
   bootstrapAdminEmail: 'admin@correo.com',
+  docsPassword: 'docs-secret',
 };
 
 const settings = {
@@ -90,11 +91,12 @@ describe('application secrets', () => {
     expect(env).not.toHaveProperty('SMTP_PASSWORD');
   });
 
-  it('gives the gateway only the public key', () => {
+  it('gives the gateway only the public key and the password of the docs', () => {
     const env = cloudRunEnv('gateway', 'production', settings);
 
     expect(env.JWT_PUBLIC_KEY).toContain('BEGIN PUBLIC KEY');
     expect(env.JWT_PUBLIC_KEY).not.toContain('\n');
+    expect(env.DOCS_PASSWORD).toBe('docs-secret');
     expect(env).not.toHaveProperty('JWT_PRIVATE_KEY');
   });
 
@@ -111,6 +113,7 @@ describe('application secrets', () => {
       expect(values).not.toContain('abcdefghijklmnop');
       expect(values).not.toContain('PRIVATE KEY');
       expect(values).not.toContain('PUBLIC KEY');
+      expect(values).not.toContain('docs-secret');
     }
   });
 });
@@ -122,7 +125,7 @@ describe('escapeNewlines', () => {
 });
 
 describe('readAppSecrets', () => {
-  it('reads the five values from the process environment, empty when absent', () => {
+  it('reads the six values from the process environment, empty when absent', () => {
     expect(
       readAppSecrets({
         SMTP_USER: 'u',
@@ -130,6 +133,7 @@ describe('readAppSecrets', () => {
         JWT_PRIVATE_KEY: 'k1',
         JWT_PUBLIC_KEY: 'k2',
         BOOTSTRAP_ADMIN_EMAIL: 'a@b.com',
+        DOCS_PASSWORD: 'd',
       }),
     ).toEqual({
       smtpUser: 'u',
@@ -137,6 +141,7 @@ describe('readAppSecrets', () => {
       jwtPrivateKey: 'k1',
       jwtPublicKey: 'k2',
       bootstrapAdminEmail: 'a@b.com',
+      docsPassword: 'd',
     });
     expect(readAppSecrets({})).toEqual({
       smtpUser: '',
@@ -144,6 +149,7 @@ describe('readAppSecrets', () => {
       jwtPrivateKey: '',
       jwtPublicKey: '',
       bootstrapAdminEmail: '',
+      docsPassword: '',
     });
   });
 });
@@ -157,7 +163,7 @@ describe('missingAppValues', () => {
       'JWT_PRIVATE_KEY',
       'BOOTSTRAP_ADMIN_EMAIL',
     ]);
-    expect(missingAppValues('gateway', empty)).toEqual(['JWT_PUBLIC_KEY']);
+    expect(missingAppValues('gateway', empty)).toEqual(['JWT_PUBLIC_KEY', 'DOCS_PASSWORD']);
   });
 
   it('reports only the values that are missing, treating blanks as missing', () => {
@@ -166,6 +172,9 @@ describe('missingAppValues', () => {
     ]);
     expect(missingAppValues('gateway', { ...appSecrets, jwtPublicKey: '  \n' })).toEqual([
       'JWT_PUBLIC_KEY',
+    ]);
+    expect(missingAppValues('gateway', { ...appSecrets, docsPassword: '' })).toEqual([
+      'DOCS_PASSWORD',
     ]);
   });
 

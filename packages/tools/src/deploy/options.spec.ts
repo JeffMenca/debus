@@ -6,6 +6,7 @@ const secrets = {
   jwtPrivateKey: '',
   jwtPublicKey: '',
   bootstrapAdminEmail: '',
+  docsPassword: '',
 };
 
 describe('parseReleaseArgs', () => {
@@ -32,6 +33,18 @@ describe('parseReleaseArgs', () => {
       '--confirm production',
     );
     expect(parseReleaseArgs(['release', '--apply', '--confirm', 'production']).apply).toBe(true);
+  });
+
+  it('empties the databases only with its own confirmation', () => {
+    expect(() => parseReleaseArgs(['reset', '--apply', '--confirm', 'production'])).toThrow(
+      '--confirm wipe-production',
+    );
+    expect(() => parseReleaseArgs(['release', '--apply', '--confirm', 'wipe-production'])).toThrow(
+      '--confirm production',
+    );
+    const options = parseReleaseArgs(['reset', '--apply', '--confirm', 'wipe-production']);
+    expect(options).toMatchObject({ command: 'reset', apply: true });
+    expect(parseReleaseArgs(['reset']).apply).toBe(false);
   });
 
   it('never applies a plan', () => {

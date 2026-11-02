@@ -23,8 +23,9 @@ function deps(results: (argv: string[]) => RunResult = () => ({ code: 0, stdout:
   fetchStatus.mockResolvedValue(200);
   const sleep = jest.fn(() => Promise.resolve());
   const log = jest.fn();
-  const value: StepDeps = { run, fetchStatus, sleep, log };
-  return { ...value, run, fetchStatus, sleep, log };
+  const now = jest.fn(() => new Date('2026-10-28T12:00:00.000Z'));
+  const value: StepDeps = { run, fetchStatus, sleep, now, log };
+  return { ...value, run, fetchStatus, sleep, now, log };
 }
 
 const command = (overrides: Partial<Extract<Step, { kind: 'command' }>> = {}): Step => ({
@@ -61,6 +62,62 @@ describe('describeStep', () => {
     expect(describeStep(health(false))).toContain(`GET ${url}/health`);
     expect(describeStep({ kind: 'scheduler', label: 'Schedule it', job, url, settings })).toContain(
       `* * * * * POST ${url}/outbox/flush`,
+    );
+  });
+});
+
+describe('seek', () => {
+  const step: Step = { kind: 'seek', label: 'Drop events', project: 'debus-x' };
+
+  it('describes the seek', () => {
+    expect(describeStep(step)).toContain('every subscription of debus-x');
+  });
+
+  it('seeks every subscription of the project to the current time', async () => {
+    const d = deps((argv) => ({
+      code: 0,
+      stdout: argv.includes('list') ? 'ventas-from-viajes\n\nclientes-dlq-sub\n' : '',
+    }));
+    await executeSteps([step], d, { apply: true });
+    const seeks = d.run.mock.calls.map(([argv]) => argv).filter((argv) => argv.includes('seek'));
+    expect(seeks).toEqual([
+      [
+        'gcloud',
+        'pubsub',
+        'subscriptions',
+        'seek',
+        'ventas-from-viajes',
+        '--project',
+        'debus-x',
+        '--time=2026-10-28T12:00:00.000Z',
+      ],
+      [
+        'gcloud',
+        'pubsub',
+        'subscriptions',
+        'seek',
+        'clientes-dlq-sub',
+        '--project',
+        'debus-x',
+        '--time=2026-10-28T12:00:00.000Z',
+      ],
+    ]);
+  });
+
+  it('stops when the subscriptions cannot be listed', async () => {
+    const d = deps(() => ({ code: 1, stdout: '' }));
+    await expect(executeSteps([step], d, { apply: true })).rejects.toThrow(
+      'List the subscriptions',
+    );
+  });
+
+  it('names the subscription that cannot be seeked', async () => {
+    const d = deps((argv) => ({
+      code: argv.includes('seek') ? 1 : 0,
+      stdout: argv.includes('list') ? 'ventas-from-viajes' : '',
+    }));
+    await expect(executeSteps([step], d, { apply: true })).rejects.toThrow(
+      'Seek ventas-from-viajes failed',
     );
   });
 });

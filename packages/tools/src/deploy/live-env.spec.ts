@@ -35,7 +35,10 @@ describe('appValuesFromLive', () => {
       { name: 'JWT_PRIVATE_KEY', value: 'live-private' },
       { name: 'BOOTSTRAP_ADMIN_EMAIL', value: 'admin@example.test' },
     ]),
-    gateway: service('i', [{ name: 'JWT_PUBLIC_KEY', value: 'live-public' }]),
+    gateway: service('i', [
+      { name: 'JWT_PUBLIC_KEY', value: 'live-public' },
+      { name: 'DOCS_PASSWORD', value: 'live-docs' },
+    ]),
     notificaciones: service('i', [
       { name: 'SMTP_USER', value: 'mail@example.test' },
       { name: 'SMTP_PASSWORD', value: 'live-password' },
@@ -47,6 +50,7 @@ describe('appValuesFromLive', () => {
       JWT_PRIVATE_KEY: 'live-private',
       BOOTSTRAP_ADMIN_EMAIL: 'admin@example.test',
       JWT_PUBLIC_KEY: 'live-public',
+      DOCS_PASSWORD: 'live-docs',
       SMTP_USER: 'mail@example.test',
       SMTP_PASSWORD: 'live-password',
     });

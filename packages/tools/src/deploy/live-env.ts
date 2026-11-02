@@ -29,7 +29,7 @@ export function envOf(description: unknown): Record<string, string> {
 // Secret Manager, so a release rebuilds them from the running services instead of asking for them again.
 const VALUE_HOMES: readonly { unit: DeployUnit; names: readonly string[] }[] = [
   { unit: 'administracion', names: ['JWT_PRIVATE_KEY', 'BOOTSTRAP_ADMIN_EMAIL'] },
-  { unit: 'gateway', names: ['JWT_PUBLIC_KEY'] },
+  { unit: 'gateway', names: ['JWT_PUBLIC_KEY', 'DOCS_PASSWORD'] },
   { unit: 'notificaciones', names: ['SMTP_USER', 'SMTP_PASSWORD'] },
 ];
 
