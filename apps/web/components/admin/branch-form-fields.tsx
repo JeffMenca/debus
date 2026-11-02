@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { inputRules } from '@/lib/forms/input-rules';
-import { BranchLocationPicker } from './branch-location-picker';
+import { BranchLocationPicker, type PickedLocation } from './branch-location-picker';
 
 export type BranchFieldName = keyof BranchFields;
 
@@ -39,7 +39,7 @@ interface BranchFormFieldsProps {
   onDepartmentChange: (department: string) => void;
   latitude: number;
   longitude: number;
-  onLocationChange: (location: { latitude: number; longitude: number }) => void;
+  onLocationChange: (location: PickedLocation) => void;
 }
 
 const card = 'flex flex-col gap-4 rounded-[26px] bg-card p-6';

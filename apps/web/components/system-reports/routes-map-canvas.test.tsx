@@ -4,6 +4,9 @@ import type { ReactNode } from 'react';
 import RoutesMapCanvas from './routes-map-canvas';
 
 jest.mock('leaflet/dist/leaflet.css', () => ({}));
+jest.mock('../maps/department-labels', () => ({
+  DepartmentLabels: () => <div data-testid="department-labels" />,
+}));
 const mockMarkers: { position: [number, number]; icon: { options: { html: HTMLElement } } }[] = [];
 // The map as the canvas asks it: where a coordinate falls on the container, and the events it hears.
 // `scale` is how many pixels a degree takes, so a bigger one is the map zoomed in.
@@ -97,6 +100,12 @@ const labelsOf = () => [...lastDrawn().keys()].filter((label) => label.includes(
 const tagOf = (label: string) => lastDrawn().get(label)?.querySelector('[data-part="tag"]');
 
 describe('RoutesMapCanvas', () => {
+  it('names the departments on the map', () => {
+    render(<RoutesMapCanvas branches={[]} selectedBranchId={null} routes={[]} />);
+
+    expect(screen.getByTestId('department-labels')).toBeInTheDocument();
+  });
+
   it('draws the outline of the country with no tiles from outside, and the controls', () => {
     render(<RoutesMapCanvas branches={branches} selectedBranchId={XELA} routes={routes} />);
 

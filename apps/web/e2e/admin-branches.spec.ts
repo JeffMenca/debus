@@ -180,6 +180,31 @@ test.describe('admin branches', () => {
     await expect(phone).toHaveValue('');
   });
 
+  test('names the departments and fills the one that is touched on the map', async ({
+    page,
+    baseURL,
+  }) => {
+    await mockAdminGateway(page, seed);
+    await signInAs(page, baseURL!, 'SYSTEM_ADMIN');
+    await page.goto('/admin/sucursales/nueva');
+    const map = page.getByLabel('Mapa para ubicar la sucursal');
+    await expect(map.getByText('Quet', { exact: true })).toBeVisible();
+
+    const quet = (await map.getByText('Quet', { exact: true }).boundingBox())!;
+    const frame = (await map.boundingBox())!;
+    await map.click({
+      position: { x: quet.x - frame.x + quet.width / 2, y: quet.y - frame.y + quet.height / 2 },
+    });
+    await expect(page.getByRole('combobox', { name: 'Departamento' })).toHaveText('Quetzaltenango');
+    await expect(page.getByText('Ubicación en Quetzaltenango.', { exact: false })).toBeVisible();
+
+    // The Pacific, south of the coast, is inside the frame of the map but not in the country.
+    await map.click({ position: { x: quet.x - frame.x + quet.width / 2, y: frame.height - 6 } });
+    await expect(page.getByText('Ese punto está fuera de Guatemala.')).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Departamento' })).toHaveText('Quetzaltenango');
+    await expectNoHorizontalScroll(page);
+  });
+
   test('creates a branch with its location and first admin', async ({ page, baseURL }) => {
     const gateway = await mockAdminGateway(page, seed);
     await signInAs(page, baseURL!, 'SYSTEM_ADMIN');

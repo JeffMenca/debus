@@ -82,6 +82,7 @@ function ConnectedBranchFields() {
       latitude={latitude}
       longitude={longitude}
       onLocationChange={(point) => {
+        setValue('department', point.department, { shouldValidate: isSubmitted });
         setValue('latitude', point.latitude, { shouldValidate: isSubmitted });
         setValue('longitude', point.longitude, { shouldValidate: isSubmitted });
       }}
