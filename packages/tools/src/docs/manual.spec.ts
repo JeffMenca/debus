@@ -1,7 +1,14 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DOC_SERVICES, readSchemaText, renderManual, syncManuals } from './manual';
+import { classDiagram } from './class-diagram';
+import {
+  DOC_SERVICES,
+  readClassSources,
+  readSchemaText,
+  renderManual,
+  syncManuals,
+} from './manual';
 import type { OpenApiDocument } from '../postman/openapi-types';
 
 const OPENAPI: OpenApiDocument = {
@@ -15,11 +22,17 @@ const OPENAPI: OpenApiDocument = {
   },
 };
 const SCHEMA = 'model Bus {\n  id String @id\n  @@map("buses")\n}\n';
+const SOURCES = [
+  { path: 'buses/buses.service.ts', text: '@Injectable() export class BusesService {}' },
+];
 const SKELETON = [
   '# Manual',
   '## Tablas',
   '<!-- generado:tablas -->',
   '<!-- /generado:tablas -->',
+  '## Clases',
+  '<!-- generado:clases -->',
+  '<!-- /generado:clases -->',
   '## Despliegue',
   '<!-- generado:despliegue -->',
   '<!-- /generado:despliegue -->',
@@ -37,11 +50,14 @@ describe('renderManual', () => {
   const rendered = renderManual(SKELETON, {
     service: 'flota',
     schemaText: SCHEMA,
+    sources: SOURCES,
     openapi: OPENAPI,
   });
 
-  it('fills the four blocks and keeps what is written by hand', () => {
+  it('fills the five blocks and keeps what is written by hand', () => {
     expect(rendered).toContain('```mermaid\nerDiagram');
+    expect(rendered).toContain('```mermaid\nclassDiagram');
+    expect(rendered).toContain('class BusesService');
     expect(rendered).toContain('  buses {');
     expect(rendered).toContain('```mermaid\nflowchart LR');
     expect(rendered).toContain('Cloud Run flota');
@@ -51,15 +67,21 @@ describe('renderManual', () => {
   });
 
   it('is stable: rendering what was rendered changes nothing', () => {
-    expect(renderManual(rendered, { service: 'flota', schemaText: SCHEMA, openapi: OPENAPI })).toBe(
-      rendered,
-    );
+    expect(
+      renderManual(rendered, {
+        service: 'flota',
+        schemaText: SCHEMA,
+        sources: SOURCES,
+        openapi: OPENAPI,
+      }),
+    ).toBe(rendered);
   });
 
   it('says the gateway has no database', () => {
     const gateway = renderManual(SKELETON, {
       service: 'gateway',
       schemaText: null,
+      sources: SOURCES,
       openapi: OPENAPI,
     });
     expect(gateway).toContain('El gateway no tiene base de datos.');
@@ -68,13 +90,35 @@ describe('renderManual', () => {
 
   it('fails when a service that has a database comes without its schema', () => {
     expect(() =>
-      renderManual(SKELETON, { service: 'flota', schemaText: null, openapi: OPENAPI }),
+      renderManual(SKELETON, {
+        service: 'flota',
+        schemaText: null,
+        sources: SOURCES,
+        openapi: OPENAPI,
+      }),
     ).toThrow('flota');
+  });
+
+  it('fails when the manual lacks the block of the classes', () => {
+    const noClasses = SKELETON.replace('<!-- generado:clases -->', '');
+    expect(() =>
+      renderManual(noClasses, {
+        service: 'flota',
+        schemaText: SCHEMA,
+        sources: SOURCES,
+        openapi: OPENAPI,
+      }),
+    ).toThrow('generado:clases');
   });
 
   it('fails when the manual lacks a marker', () => {
     expect(() =>
-      renderManual('# Manual', { service: 'flota', schemaText: SCHEMA, openapi: OPENAPI }),
+      renderManual('# Manual', {
+        service: 'flota',
+        schemaText: SCHEMA,
+        sources: SOURCES,
+        openapi: OPENAPI,
+      }),
     ).toThrow('generado:tablas');
   });
 });
@@ -101,6 +145,7 @@ function project(): string {
   for (const service of DOC_SERVICES) {
     mkdirSync(join(root, 'docs', service), { recursive: true });
     writeFileSync(join(root, 'docs', service, 'README.md'), SKELETON);
+    mkdirSync(join(root, 'services', service, 'src'), { recursive: true });
     if (service === 'gateway') continue;
     mkdirSync(join(root, 'services', service, 'prisma'), { recursive: true });
     writeFileSync(join(root, 'services', service, 'prisma/schema.prisma'), SCHEMA);
@@ -136,6 +181,35 @@ describe('readSchemaText', () => {
   it('fails when a service has no schema at all', () => {
     const root = mkdtempSync(join(tmpdir(), 'debus-docs-'));
     expect(() => readSchemaText(root, 'flota')).toThrow('flota');
+  });
+});
+
+describe('readClassSources', () => {
+  it('reads the code of the service, relative to src, without tests or generated files', () => {
+    const root = mkdtempSync(join(tmpdir(), 'debus-docs-'));
+    const src = join(root, 'services/flota/src');
+    mkdirSync(join(src, 'buses'), { recursive: true });
+    mkdirSync(join(src, 'generated/prisma'), { recursive: true });
+    writeFileSync(join(src, 'main.ts'), 'main');
+    writeFileSync(join(src, 'buses/buses.service.ts'), 'service');
+    writeFileSync(join(src, 'buses/buses.service.spec.ts'), 'spec');
+    writeFileSync(join(src, 'buses/notes.md'), 'notes');
+    writeFileSync(join(src, 'generated/prisma/client.ts'), 'client');
+
+    expect(readClassSources(root, 'flota')).toEqual([
+      { path: 'buses/buses.service.ts', text: 'service' },
+      { path: 'main.ts', text: 'main' },
+    ]);
+  });
+});
+
+describe('the class diagrams of the real services', () => {
+  it.each(DOC_SERVICES)('%s stays under what a viewer of Mermaid accepts', (service) => {
+    const root = join(__dirname, '../../../..');
+    const diagram = classDiagram(readClassSources(root, service));
+
+    expect(diagram).toContain('class ');
+    expect(diagram.length).toBeLessThan(45_000);
   });
 });
 

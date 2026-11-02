@@ -5,6 +5,7 @@ import { GUATEMALA_BOUNDS } from '@debus/contracts';
 import { divIcon } from 'leaflet';
 import type { ComponentProps } from 'react';
 import { GeoJSON, MapContainer, Marker, useMapEvents } from 'react-leaflet';
+import { DepartmentLabels } from '@/components/maps/department-labels';
 import guatemala from '@/lib/geo/guatemala.json';
 
 type GeoData = ComponentProps<typeof GeoJSON>['data'];
@@ -58,16 +59,23 @@ export default function BranchLocationMap({ value, onPick }: BranchLocationMapPr
         maxBounds={MAX_BOUNDS}
         zoomControl={false}
         attributionControl={false}
-        className="h-80 rounded-2xl bg-sky-100!"
+        // A whole zoom would leave too few pixels per degree for the names of the departments.
+        zoomSnap={0}
+        className="h-[26rem] rounded-2xl bg-sky-100!"
       >
         <GeoJSON
           data={guatemala as GeoData}
           style={(feature) => ({
             className: feature?.properties?.gt ? OUTLINE_CLASSES.home : OUTLINE_CLASSES.neighbour,
-            weight: 1.5,
+            weight: 1,
             fillOpacity: 1,
           })}
+          onEachFeature={(feature, layer) => {
+            if (feature.properties?.gt)
+              layer.bindTooltip(feature.properties.name, { sticky: true });
+          }}
         />
+        <DepartmentLabels />
         <ClickToPick onPick={onPick} />
         {value && <Marker position={[value.latitude, value.longitude]} icon={PIN} />}
       </MapContainer>

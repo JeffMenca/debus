@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type ManagedUser, fullNameSchema, isBranchRole } from '@debus/contracts';
+import { type ManagedUser, fullNameSchema, isBranchRole, FULL_NAME_MAX } from '@debus/contracts';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { useUpdateUser } from '@/hooks/use-users';
 import type { BranchOption } from '@/lib/admin/branch-options';
 import { messageOf } from '@/lib/api/client';
+import { inputRules } from '@/lib/forms/input-rules';
 import { UserRoleFields } from './user-role-fields';
 
 const editSchema = z.object({ fullName: fullNameSchema, branchId: z.string().optional() });
@@ -49,6 +50,7 @@ function EditForm({
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<EditValues>({
+    mode: 'onTouched',
     resolver: zodResolver(editSchema),
     defaultValues: { fullName: user.fullName, branchId: user.branchId ?? undefined },
   });
@@ -79,6 +81,7 @@ function EditForm({
       <Field id="edit-fullName" label="Nombre completo" error={nameError}>
         <Input
           id="edit-fullName"
+          rule={inputRules.text(FULL_NAME_MAX)}
           autoComplete="off"
           {...invalidProps('edit-fullName', nameError)}
           {...register('fullName')}

@@ -16,6 +16,7 @@ import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { messageOf } from '@/lib/api/client';
 import { formatQuetzales } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import { parseMoney } from '@/lib/number-input';
 import { parseDistance } from '@/lib/rentals/rental-form';
 import { useConfirmRental } from '@/lib/rentals/rentals-api';
@@ -61,7 +62,7 @@ function ConfirmRentalForm({ rental, onDone }: { rental: Rental; onDone: () => v
         <Field id="confirm-distance" label="Distancia (km)" error={distanceError}>
           <Input
             id="confirm-distance"
-            inputMode="decimal"
+            rule={inputRules.decimal(4, 1)}
             value={distance}
             onChange={(event) => setDistance(event.target.value)}
             className="font-mono tabular-nums"
@@ -71,7 +72,7 @@ function ConfirmRentalForm({ rental, onDone }: { rental: Rental; onDone: () => v
         <Field id="confirm-price" label="Precio" error={priceError}>
           <Input
             id="confirm-price"
-            inputMode="decimal"
+            rule={inputRules.decimal(7, 2)}
             value={price}
             onChange={(event) => setTypedPrice(event.target.value)}
             className="font-mono tabular-nums"

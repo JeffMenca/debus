@@ -3,6 +3,7 @@
 import { Clock } from 'lucide-react';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { inputRules } from '@/lib/forms/input-rules';
 
 interface TimeFieldProps {
   id: string;
@@ -25,6 +26,7 @@ export function TimeField({ id, label, value, onChange, error }: TimeFieldProps)
         <Input
           id={id}
           type="time"
+          rule={inputRules.native}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           className="pl-11 font-mono tabular-nums"

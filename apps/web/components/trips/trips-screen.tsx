@@ -17,6 +17,7 @@ import { useTripsPage } from '@/hooks/use-trips';
 import { useUrlQuery } from '@/hooks/use-url-query';
 import { useUrlSearch } from '@/hooks/use-url-search';
 import { readTripListParams, writeTripListParams } from '@/lib/fleet/trip-list-params';
+import { inputRules } from '@/lib/forms/input-rules';
 import { RENTALS_TAB, TAB_PARAM, isRentalsTab } from '@/lib/trips/rental-list-params';
 import { RentalRequestsTab } from './rental-requests-tab';
 import { ScheduleTripDialog } from './schedule-trip-dialog';
@@ -79,7 +80,7 @@ function TripsList() {
           <Input
             icon={Search}
             aria-label="Buscar ruta, placa o chofer"
-            maxLength={SEARCH_MAX_LENGTH}
+            rule={inputRules.text(SEARCH_MAX_LENGTH)}
             placeholder="Buscar ruta, placa o chofer"
             value={search}
             onChange={(event) => setSearch(event.target.value)}

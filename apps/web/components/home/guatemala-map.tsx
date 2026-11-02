@@ -1,10 +1,11 @@
 import { Mail, MapPinned, Smartphone, type LucideIcon } from 'lucide-react';
 import guatemala from '@/lib/geo/guatemala.json';
+import { DEPARTMENT_LABELS } from '@/lib/geo/departments';
 import { MAP_BOUNDS, MAP_WIDTH } from '@/lib/geo/guatemala-map';
 import { projectGeoJson } from '@/lib/geo/project';
 import { BranchMap } from './branch-map';
 
-// The outline comes from Natural Earth (public domain). It is projected while the page is built,
+// The outlines come from Natural Earth admin-1 (public domain). It is projected while the page is built,
 // so the shapes travel as markup and the GeoJSON never reaches the browser bundle.
 const MAP = projectGeoJson(guatemala, MAP_BOUNDS, MAP_WIDTH);
 
@@ -49,6 +50,9 @@ const HIGHLIGHTS: readonly Highlight[] = [
 // map (its container), not of the window.
 const NEIGHBOR_SIZE =
   'text-[14px] @max-[500px]:text-[16px] @max-[430px]:text-[18px] @max-[380px]:text-[20px] @max-[340px]:text-[23px] @max-[300px]:text-[25px]';
+// The same idea for the departments, a little smaller: about 10px on any screen.
+const DEPARTMENT_SIZE =
+  'text-[11px] @max-[500px]:text-[13px] @max-[430px]:text-[15px] @max-[380px]:text-[17px] @max-[340px]:text-[19px] @max-[300px]:text-[21px]';
 
 export function GuatemalaMap() {
   return (
@@ -95,7 +99,7 @@ export function GuatemalaMap() {
               fillRule="evenodd"
               className={
                 isHome
-                  ? 'fill-card stroke-lilac-300 stroke-[3px] [stroke-linejoin:round]'
+                  ? 'fill-card stroke-lilac-300 stroke-1 [stroke-linejoin:round]'
                   : 'fill-muted-2 stroke-muted-foreground/25 stroke-1'
               }
             />
@@ -111,6 +115,23 @@ export function GuatemalaMap() {
                 className={`fill-muted-foreground font-semibold tracking-[0.08em] ${NEIGHBOR_SIZE}`}
               >
                 {name}
+              </text>
+            );
+          })}
+          {DEPARTMENT_LABELS.map(({ name, short, latitude, longitude }) => {
+            const [x, y] = MAP.project(longitude, latitude);
+            return (
+              <text
+                key={name}
+                aria-hidden="true"
+                data-department={name}
+                x={x}
+                y={y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className={`pointer-events-none fill-muted-foreground font-semibold ${DEPARTMENT_SIZE}`}
+              >
+                {short}
               </text>
             );
           })}

@@ -37,6 +37,7 @@ import { useSaveRoute } from '@/hooks/use-routes';
 import { messageOf } from '@/lib/api/client';
 import { useSession } from '@/lib/auth/session-store';
 import { routeClashField } from '@/lib/fleet/route-clash';
+import { inputRules } from '@/lib/forms/input-rules';
 
 type CreateInput = z.input<typeof createRouteRequestSchema>;
 type EditInput = z.input<typeof updateRouteRequestSchema>;
@@ -61,9 +62,7 @@ function NumberFields({ distance, price, distanceError, priceError }: NumberFiel
       <Field id="route-distance" label="Distancia (km)" error={distanceError}>
         <Input
           id="route-distance"
-          type="number"
-          step="0.1"
-          inputMode="decimal"
+          rule={inputRules.decimal(4, 1)}
           autoComplete="off"
           className="font-mono tabular-nums"
           {...invalidProps('route-distance', distanceError)}
@@ -73,9 +72,7 @@ function NumberFields({ distance, price, distanceError, priceError }: NumberFiel
       <Field id="route-price" label="Precio del boleto (Q)" error={priceError}>
         <Input
           id="route-price"
-          type="number"
-          step="0.01"
-          inputMode="decimal"
+          rule={inputRules.decimal(7, 2)}
           autoComplete="off"
           className="font-mono tabular-nums"
           {...invalidProps('route-price', priceError)}
@@ -101,6 +98,7 @@ function CreateRouteForm({ onDone }: { onDone: () => void }) {
     setValue,
     formState: { errors, isSubmitting, isSubmitted },
   } = useForm<CreateInput, unknown, CreateRouteRequest>({
+    mode: 'onTouched',
     resolver: zodResolver(createRouteRequestSchema),
   });
   const destinationId = useWatch({ control, name: 'destinationBranchId' });
@@ -179,6 +177,7 @@ function EditRouteForm({ route, onDone }: { route: Route; onDone: () => void }) 
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<EditInput, unknown, UpdateRouteRequest>({
+    mode: 'onTouched',
     resolver: zodResolver(updateRouteRequestSchema),
     defaultValues: {
       distanceKm: route.distanceKm,

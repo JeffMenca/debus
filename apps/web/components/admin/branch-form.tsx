@@ -8,6 +8,7 @@ import {
   type UpdateBranchRequest,
   branchFieldsSchema,
   createBranchRequestSchema,
+  FULL_NAME_MAX,
 } from '@debus/contracts';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -29,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { useCreateBranch, useUpdateBranch } from '@/hooks/use-branches';
 import { messageOf } from '@/lib/api/client';
 import { formatPhone } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import {
   BRANCH_FIELD_MESSAGES,
   type BranchFieldName,
@@ -80,6 +82,7 @@ function ConnectedBranchFields() {
       latitude={latitude}
       longitude={longitude}
       onLocationChange={(point) => {
+        setValue('department', point.department, { shouldValidate: isSubmitted });
         setValue('latitude', point.latitude, { shouldValidate: isSubmitted });
         setValue('longitude', point.longitude, { shouldValidate: isSubmitted });
       }}
@@ -127,6 +130,7 @@ function CreateBranchForm() {
   const create = useCreateBranch();
   const [serverError, setServerError] = useState<string | null>(null);
   const form = useForm<CreateInput, unknown, CreateBranchRequest>({
+    mode: 'onTouched',
     resolver: zodResolver(createBranchRequestSchema),
   });
   const {
@@ -173,6 +177,7 @@ function CreateBranchForm() {
             <Field id="admin-fullName" label="Nombre completo" error={adminError('fullName')}>
               <Input
                 id="admin-fullName"
+                rule={inputRules.text(FULL_NAME_MAX)}
                 autoComplete="off"
                 {...invalidProps('admin-fullName', adminError('fullName'))}
                 {...register('admin.fullName')}
@@ -182,6 +187,7 @@ function CreateBranchForm() {
               <Input
                 id="admin-email"
                 type="email"
+                rule={inputRules.email}
                 autoComplete="off"
                 {...invalidProps('admin-email', adminError('email'))}
                 {...register('admin.email')}
@@ -202,6 +208,7 @@ function EditBranchForm({ branch }: { branch: Branch }) {
   const update = useUpdateBranch(branch.id);
   const [serverError, setServerError] = useState<string | null>(null);
   const form = useForm<EditInput, unknown, BranchFields>({
+    mode: 'onTouched',
     resolver: zodResolver(branchFieldsSchema),
     defaultValues: {
       name: branch.name,

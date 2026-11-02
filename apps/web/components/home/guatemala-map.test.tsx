@@ -99,11 +99,20 @@ describe('GuatemalaMap', () => {
     expect(marked).toEqual(CITIES);
   });
 
+  it('names the departments behind the cities', async () => {
+    const { container } = await renderMap();
+
+    const label = screen.getByText('Quet');
+    expect(label).toHaveAttribute('aria-hidden', 'true');
+    const cities = container.querySelector('[data-city]')!;
+    expect(label.compareDocumentPosition(cities) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('draws the country in white with a lilac edge over its neighbors and the sea, all by token', async () => {
     const { container } = await renderMap();
 
     const country = container.querySelectorAll('path.fill-card.stroke-lilac-300');
-    expect(country).toHaveLength(1);
+    expect(country).toHaveLength(22);
     expect(country[0].getAttribute('d')?.length).toBeGreaterThan(100);
     expect(container.querySelectorAll('path.fill-muted-2')).toHaveLength(4);
     expect(container.querySelector('.bg-sky-100')).not.toBeNull();
@@ -163,7 +172,7 @@ describe('GuatemalaMap', () => {
     const { container } = await renderMap();
 
     const names = Array.from(container.querySelectorAll('text.fill-muted-foreground'));
-    expect(names.map((name) => name.textContent)).toEqual([
+    expect(names.slice(0, 4).map((name) => name.textContent)).toEqual([
       'MÉXICO',
       'BELICE',
       'HONDURAS',

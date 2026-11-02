@@ -7,6 +7,9 @@ import ProfitReportPage, { metadata as ProfitReportMetadata } from './ganancias/
 import TopRoutesReportPage, { metadata as TopRoutesReportMetadata } from './rutas-demandadas/page';
 import RepairCategoryReportPage, { metadata as RepairCategoryReportMetadata } from './taller/page';
 import RoutesMapReportPage, { metadata as RoutesMapReportMetadata } from './mapa-rutas/page';
+import ArchitectureReportPage, {
+  metadata as ArchitectureReportMetadata,
+} from './arquitectura/page';
 
 const replace = jest.fn();
 jest.mock('../../../components/system-reports/income-report', () => ({
@@ -26,6 +29,9 @@ jest.mock('../../../components/system-reports/repair-category-report', () => ({
 }));
 jest.mock('../../../components/system-reports/routes-map-report', () => ({
   RoutesMapReport: () => <p>reporte mapa-rutas</p>,
+}));
+jest.mock('../../../components/system-reports/architecture-report', () => ({
+  ArchitectureReport: () => <p>reporte arquitectura</p>,
 }));
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
@@ -61,6 +67,7 @@ const PAGES = [
     'Gastos de taller por categoría',
   ],
   [RoutesMapReportPage, RoutesMapReportMetadata, 'mapa-rutas', 'Mapa de rutas'],
+  [ArchitectureReportPage, ArchitectureReportMetadata, 'arquitectura', 'Arquitectura'],
 ] as const;
 
 describe('system report pages', () => {

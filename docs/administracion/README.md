@@ -1,5 +1,9 @@
 # Manual técnico · Administración
 
+En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · [Swagger](https://gateway-avqapfieaa-uc.a.run.app/docs) (datos para los endpoints protegidos: pedirlos a un administrador).
+
+**Repositorio:** [rrobertobt/sa-debus-administracion](https://github.com/rrobertobt/sa-debus-administracion) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
+
 **Administración** es dueña de las cuentas y de la configuración de la empresa: usuarios y sesiones, sucursales, la configuración vigente (depreciación y tarifa de alquiler), el catálogo de categorías de gasto y los gastos de taller.
 
 ## 1. Para qué sirve y qué reglas cumple
@@ -29,6 +33,229 @@ flowchart LR
   links --> events
   boot[BootstrapAdmin] --> svc
 ```
+
+## 2.1 Diagrama de clases
+
+Controladores, servicios y sus dependencias, agrupados por carpeta. Se genera del código con `pnpm run docs`.
+
+<!-- prettier-ignore-start -->
+<!-- generado:clases -->
+```mermaid
+classDiagram
+  namespace accounts {
+    class AccountEvents {
+      +flush()
+      +linkSent()
+      +userRegistered()
+      +userUpdated()
+    }
+    class AccountLinksService {
+      +find()
+      +issue()
+      +noticeAlreadyRegistered()
+      +writeLink()
+    }
+    class AccountsController {
+      +forgot()
+      +renew()
+      +setPassword()
+      +signUp()
+      +status()
+    }
+    class RegistrationService {
+      +forgotPassword()
+      +linkStatus()
+      +renewLink()
+      +setPassword()
+      +signUp()
+    }
+  }
+  namespace branches {
+    class BranchesController {
+      +create()
+      +deactivate()
+      +get()
+      +list()
+      +locations()
+      +reactivate()
+      +update()
+    }
+    class BranchesService {
+      +create()
+      +get()
+      +list()
+      +locations()
+      +setActive()
+      +update()
+    }
+    class BranchRepublishController {
+      +republish()
+    }
+    class BranchRepublishService {
+      +republish()
+    }
+  }
+  namespace common {
+    class AdminEvents {
+      +branchChanged()
+      +flush()
+      +repairExpenseAdded()
+      +settingsUpdated()
+    }
+  }
+  namespace drivers {
+    class DriverAccountsHandler {
+      +added()
+      +updated()
+    }
+  }
+  namespace expenses {
+    class CategoriesController {
+      +create()
+      +list()
+      +remove()
+      +update()
+    }
+    class CategoriesService {
+      +create()
+      +list()
+      +remove()
+      +update()
+    }
+    class RepairExpensesController {
+      +create()
+      +get()
+      +list()
+    }
+    class RepairExpensesService {
+      +create()
+      +get()
+      +list()
+    }
+    class TripCostsHandler {
+      +completed()
+    }
+  }
+  namespace fleet {
+    class BusCopiesHandler {
+      +added()
+      +deactivated()
+      +updated()
+    }
+  }
+  namespace health {
+    class HealthController {
+      +check()
+    }
+  }
+  namespace prisma {
+    class PrismaService
+  }
+  namespace sessions {
+    class AccessTokensService {
+      +sign()
+    }
+    class SessionsController {
+      +login()
+      +logout()
+      +me()
+      +refresh()
+    }
+    class SessionsService {
+      +login()
+      +logout()
+      +me()
+      +refresh()
+    }
+  }
+  namespace settings {
+    class SettingsController {
+      +create()
+      +list()
+    }
+    class SettingsRepublishController {
+      +republish()
+    }
+    class SettingsRepublishService {
+      +republish()
+    }
+    class SettingsService {
+      +create()
+      +list()
+    }
+  }
+  namespace users {
+    class BootstrapAdmin {
+      +ensureSystemAdmin()
+    }
+    class UserRepublishController {
+      +republish()
+    }
+    class UserRepublishService {
+      +republish()
+    }
+    class UsersController {
+      +create()
+      +deactivate()
+      +get()
+      +list()
+      +reactivate()
+      +resendInvitation()
+      +update()
+    }
+    class UsersService {
+      +create()
+      +deactivate()
+      +get()
+      +list()
+      +reactivate()
+      +resendInvitation()
+      +update()
+    }
+  }
+  AccountLinksService --> AccountEvents
+  AccountLinksService --> PrismaService
+  AccountsController --> RegistrationService
+  BootstrapAdmin --> AccountLinksService
+  BootstrapAdmin --> PrismaService
+  BranchesController --> BranchesService
+  BranchesService --> AccountLinksService
+  BranchesService --> AdminEvents
+  BranchesService --> PrismaService
+  BranchRepublishController --> BranchRepublishService
+  BranchRepublishService --> AdminEvents
+  BranchRepublishService --> PrismaService
+  BusCopiesHandler --> PrismaService
+  CategoriesController --> CategoriesService
+  CategoriesService --> PrismaService
+  DriverAccountsHandler --> AccountLinksService
+  DriverAccountsHandler --> PrismaService
+  RegistrationService --> AccountEvents
+  RegistrationService --> AccountLinksService
+  RegistrationService --> PrismaService
+  RepairExpensesController --> RepairExpensesService
+  RepairExpensesService --> AdminEvents
+  RepairExpensesService --> PrismaService
+  SessionsController --> SessionsService
+  SessionsService --> AccessTokensService
+  SessionsService --> PrismaService
+  SettingsController --> SettingsService
+  SettingsRepublishController --> SettingsRepublishService
+  SettingsRepublishService --> AdminEvents
+  SettingsRepublishService --> PrismaService
+  SettingsService --> AdminEvents
+  SettingsService --> PrismaService
+  TripCostsHandler --> PrismaService
+  UserRepublishController --> UserRepublishService
+  UserRepublishService --> AccountEvents
+  UserRepublishService --> PrismaService
+  UsersController --> UsersService
+  UsersService --> AccountEvents
+  UsersService --> AccountLinksService
+  UsersService --> PrismaService
+```
+<!-- /generado:clases -->
+<!-- prettier-ignore-end -->
 
 ## 3. Diagrama de tablas
 

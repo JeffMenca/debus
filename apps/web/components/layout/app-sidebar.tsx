@@ -35,7 +35,7 @@ function CollapseButton() {
       aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
       aria-expanded={!collapsed}
       onClick={toggleSidebar}
-      className="absolute top-8 -right-4 z-20 hidden size-[34px] cursor-pointer items-center justify-center rounded-full bg-card text-foreground shadow-float md:flex"
+      className="absolute top-8 -right-4 z-20 hidden group-data-[collapsible=icon]:top-16 size-[34px] cursor-pointer items-center justify-center rounded-full bg-card text-foreground shadow-float md:flex"
     >
       <ChevronLeft
         aria-hidden
@@ -55,9 +55,9 @@ export function AppSidebar({ context }: AppSidebarProps) {
 
   return (
     <Sidebar collapsible="icon" className="border-0">
-      <SidebarHeader className="gap-4 p-4">
+      <SidebarHeader className="gap-4 p-4 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center group-data-[collapsible=icon]:justify-center">
-          <Logo tone="light" />
+          <Logo tone="light" collapsible />
         </div>
         {context && (
           <div className="flex items-center gap-2.5 rounded-[14px] bg-sidebar-accent p-2 group-data-[collapsible=icon]:hidden">

@@ -14,6 +14,7 @@ import {
   ZoomControl,
   useMap,
 } from 'react-leaflet';
+import { DepartmentLabels } from '@/components/maps/department-labels';
 import { MAP_BOUNDS } from '@/lib/geo/guatemala-map';
 import guatemala from '@/lib/geo/guatemala.json';
 import { type BranchMarkerKind, NEIGHBOUR_LABELS } from '@/lib/system-reports/map-markers';
@@ -32,7 +33,7 @@ type GeoData = ComponentProps<typeof GeoJSON>['data'];
 // Leaflet writes SVG attributes, which cannot read CSS variables, so the colors come from
 // classes. Tailwind sees these strings because they live in source.
 const OUTLINE_CLASSES = {
-  home: 'fill-card stroke-lilac-500',
+  home: 'fill-card stroke-lilac-300',
   neighbour: 'fill-muted stroke-transparent',
 };
 // The class and `interactive` are read when Leaflet creates a line and never again, so they go as
@@ -192,7 +193,8 @@ export default function RoutesMapCanvas({
       zoomControl={false}
       attributionControl={false}
       scrollWheelZoom={false}
-      zoomSnap={0.25}
+      // A whole zoom would leave too few pixels per degree for the names of the departments.
+      zoomSnap={0}
       className="size-full bg-sky-100!"
     >
       <GeoJSON
@@ -201,13 +203,14 @@ export default function RoutesMapCanvas({
         attribution="Natural Earth"
         style={(feature) => ({
           className: feature?.properties?.gt ? OUTLINE_CLASSES.home : OUTLINE_CLASSES.neighbour,
-          weight: feature?.properties?.gt ? 2.5 : 1,
+          weight: 1,
           fillOpacity: 1,
         })}
       />
       <ZoomControl position="topright" />
       <AttributionControl position="bottomright" prefix="Leaflet" />
       <KeepSize />
+      <DepartmentLabels />
       {NEIGHBOUR_LABELS.map(({ name, position }) => (
         <NeighbourLabel key={name} name={name} position={position} />
       ))}

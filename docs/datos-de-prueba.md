@@ -1,5 +1,7 @@
 # Datos de demostración
 
+Las cuentas de abajo sirven en la aplicación de producción, <https://web-169401355798.us-central1.run.app/>, una vez corrido el workflow `seed`, y en local (`http://localhost:3000`) después de `pnpm seed`.
+
 Los datos de demostración se cargan con `pnpm seed` (local) o con el workflow `seed` (producción). Todo entra por la API del gateway, como lo haría una persona, así que los eventos fluyen y las copias y los reportes se llenan solos. No son datos de prueba: `pnpm test:clean` no los borra. Esa limpieza sí quita las filas de `reportes` de una sucursal que ya no existe en `administracion` (restos de pruebas que evitan la "Sucursal sin datos" en los reportes); las sucursales del seed siempre existen allí y conservan sus filas.
 
 ## Cuentas

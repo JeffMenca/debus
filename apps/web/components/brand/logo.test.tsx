@@ -24,3 +24,13 @@ it('has a light version for dark backgrounds, colored by sidebar tokens', () => 
     'text-sidebar-primary-foreground',
   );
 });
+
+it('folds with the sidebar when it is collapsible, keeping its name', () => {
+  const { container } = render(<Logo tone="light" collapsible />);
+
+  expect(screen.getByText('debus')).toHaveClass('group-data-[collapsible=icon]:hidden');
+  expect(container.firstElementChild).toHaveAttribute('aria-label', 'debus');
+  expect(container.firstElementChild?.firstElementChild).toHaveClass(
+    'group-data-[collapsible=icon]:size-8',
+  );
+});

@@ -17,6 +17,7 @@ import { usePageInRange } from '@/hooks/use-page-in-range';
 import { useUrlQuery } from '@/hooks/use-url-query';
 import { useUrlSearch } from '@/hooks/use-url-search';
 import { readBranchListParams, writeBranchListParams } from '@/lib/admin/branch-list-params';
+import { inputRules } from '@/lib/forms/input-rules';
 import { useBranchColumns } from './branch-columns';
 
 export function BranchesScreen() {
@@ -75,7 +76,7 @@ export function BranchesScreen() {
           <Input
             icon={Search}
             aria-label="Buscar sucursal"
-            maxLength={SEARCH_MAX_LENGTH}
+            rule={inputRules.text(SEARCH_MAX_LENGTH)}
             placeholder="Buscar nombre, código o lugar"
             value={search}
             onChange={(event) => setSearch(event.target.value)}

@@ -16,6 +16,7 @@ import { usePageInRange } from '@/hooks/use-page-in-range';
 import { useUrlQuery } from '@/hooks/use-url-query';
 import { useUrlSearch } from '@/hooks/use-url-search';
 import { readDriverListParams, writeDriverListParams } from '@/lib/fleet/driver-list-params';
+import { inputRules } from '@/lib/forms/input-rules';
 import { useDriverColumns } from './driver-columns';
 import { DriverSheet } from './driver-sheet';
 
@@ -67,7 +68,7 @@ export function DriversScreen() {
           <Input
             icon={Search}
             aria-label="Buscar chofer"
-            maxLength={SEARCH_MAX_LENGTH}
+            rule={inputRules.text(SEARCH_MAX_LENGTH)}
             placeholder="Buscar nombre, licencia o correo"
             value={search}
             onChange={(event) => setSearch(event.target.value)}

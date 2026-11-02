@@ -35,6 +35,14 @@ export const ACCEPTED_MESSAGE =
   'Si los datos son correctos, te enviamos un correo con los siguientes pasos.';
 export const acceptedResponseSchema = z.object({ message: z.string() });
 
+export const PHONE_DIGITS = 8;
+export const DPI_DIGITS = 13;
+export const NIT_MAX_LENGTH = 13;
+export const EMAIL_MAX = 254;
+export const PASSWORD_MAX = 128;
+export const FULL_NAME_MAX = 120;
+export const ADDRESS_MAX = 200;
+
 const stripSeparators = (raw: string): string => raw.replace(/[\s-]/g, '');
 export const normalizeNit = (raw: string): string => stripSeparators(raw).toUpperCase();
 const blankToUndefined = (value: unknown) =>
@@ -43,19 +51,19 @@ const blankToUndefined = (value: unknown) =>
 export const nitSchema = z
   .string()
   .transform(normalizeNit)
-  .pipe(z.string().regex(/^\d{1,12}[\dK]$/));
+  .pipe(z.string().regex(new RegExp(`^\\d{1,${NIT_MAX_LENGTH - 1}}[\\dK]$`)));
 export const dpiSchema = z
   .string()
   .transform(stripSeparators)
-  .pipe(z.string().regex(/^\d{13}$/));
+  .pipe(z.string().regex(new RegExp(`^\\d{${DPI_DIGITS}}$`)));
 export const phoneSchema = z
   .string()
   .transform(stripSeparators)
-  .pipe(z.string().regex(/^\d{8}$/));
-export const emailSchema = z.string().trim().toLowerCase().pipe(z.email());
-export const passwordSchema = z.string().min(8).max(128);
-export const fullNameSchema = z.string().trim().min(2).max(120);
-const addressSchema = z.string().trim().max(200);
+  .pipe(z.string().regex(new RegExp(`^\\d{${PHONE_DIGITS}}$`)));
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(EMAIL_MAX));
+export const passwordSchema = z.string().min(8).max(PASSWORD_MAX);
+export const fullNameSchema = z.string().trim().min(2).max(FULL_NAME_MAX);
+const addressSchema = z.string().trim().max(ADDRESS_MAX);
 
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess(blankToUndefined, schema.optional());

@@ -46,5 +46,6 @@ export interface OpenApiDocument {
   openapi: string;
   info: { title: string; version: string; description?: string };
   paths: Record<string, Partial<Record<HttpMethod, OperationObject>>>;
+  tags?: { name: string }[];
   [key: string]: unknown;
 }

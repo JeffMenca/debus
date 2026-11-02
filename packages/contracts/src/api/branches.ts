@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { USER_STATUSES, emailSchema, fullNameSchema, phoneSchema } from './auth';
+import { ADDRESS_MAX, USER_STATUSES, emailSchema, fullNameSchema, phoneSchema } from './auth';
 import { pageQuerySchema, pageSchema, pageWithSummarySchema } from './pagination';
 import { searchTermSchema } from '../text';
 
@@ -42,13 +42,17 @@ export const isInsideGuatemala = (latitude: number, longitude: number): boolean 
   longitude >= GUATEMALA_BOUNDS.minLongitude &&
   longitude <= GUATEMALA_BOUNDS.maxLongitude;
 
+export const BRANCH_CODE_MAX = 5;
+export const BRANCH_NAME_MAX = 80;
+export const BRANCH_MUNICIPALITY_MAX = 80;
+
 const text = (min: number, max: number) => z.string().trim().min(min).max(max);
 
 export const branchCodeSchema = z
   .string()
   .trim()
   .toUpperCase()
-  .pipe(z.string().regex(/^[A-Z]{3,5}$/));
+  .pipe(z.string().regex(new RegExp(`^[A-Z]{3,${BRANCH_CODE_MAX}}$`)));
 export const latitudeSchema = z
   .number()
   .min(GUATEMALA_BOUNDS.minLatitude)
@@ -60,10 +64,10 @@ export const longitudeSchema = z
 
 export const branchFieldsSchema = z.object({
   code: branchCodeSchema,
-  name: text(2, 80),
+  name: text(2, BRANCH_NAME_MAX),
   department: z.enum(GUATEMALA_DEPARTMENTS),
-  municipality: text(2, 80),
-  address: text(5, 200),
+  municipality: text(2, BRANCH_MUNICIPALITY_MAX),
+  address: text(5, ADDRESS_MAX),
   phone: phoneSchema,
   latitude: latitudeSchema,
   longitude: longitudeSchema,

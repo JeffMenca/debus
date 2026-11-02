@@ -23,7 +23,9 @@ const OPENAPI: OpenApiDocument = {
   openapi: '3.0.0',
   info: { title: 'debus API', version: '1.0' },
   paths: {
-    '/health': { get: { tags: ['health'], responses: { '200': { description: 'Done.' } } } },
+    '/health': {
+      get: { tags: ['gateway · health'], responses: { '200': { description: 'Done.' } } },
+    },
     '/api/flota/health': { get: { tags: ['flota · health'], responses: { '200': {} } } },
     '/api/administracion/auth/login': {
       post: {
@@ -250,6 +252,30 @@ describe('toCollection', () => {
         'GET /health',
         'GET /docs-json',
       ]);
+    });
+
+    it('follows the order of the tags of the document when it lists them', () => {
+      const ordered = toCollection(
+        {
+          ...OPENAPI,
+          tags: [
+            { name: 'gateway · health' },
+            { name: 'flota · health' },
+            { name: 'flota · buses' },
+            { name: 'administracion · sessions' },
+          ],
+        },
+        FLOW,
+      );
+
+      expect(ordered.item.map((item) => item.name).slice(0, 5)).toEqual([
+        'Recorrido',
+        'Salud',
+        'flota · health',
+        'flota · buses',
+        'administracion · sessions',
+      ]);
+      expect(ordered.item).toHaveLength(collection.item.length);
     });
 
     it('orders the requests of a folder by path and then by method', () => {

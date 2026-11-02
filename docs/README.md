@@ -32,6 +32,11 @@ flowchart LR
   viajes -->|HTTP| flota
 ```
 
+## Direcciones de producción
+
+- **Aplicación:** <https://web-169401355798.us-central1.run.app/>
+- **Swagger:** <https://gateway-avqapfieaa-uc.a.run.app/docs>, con los siete servicios unidos. Los datos para probar los endpoints protegidos se piden a un administrador.
+
 ## Manuales
 
 | Servicio       | Para qué sirve                                                                          | Manual                                     |
@@ -45,7 +50,12 @@ flowchart LR
 | reportes       | Los 12 reportes (6 de sucursal y 6 del sistema) con exportación a PDF                   | [reportes](reportes/README.md)             |
 | notificaciones | Correos de cuentas, boletos, cancelaciones, cartera y alquileres, y alertas de licencia | [notificaciones](notificaciones/README.md) |
 
-Cada manual explica para qué sirve el servicio, sus componentes, sus tablas, su despliegue, los eventos que publica y consume, sus endpoints, sus variables de entorno y cómo probarlo. Los diagramas de tablas, de despliegue, los eventos y los endpoints **se generan** del código con `pnpm run docs` (y `pnpm run docs --check` en la integración continua los compara); el diagrama de componentes se escribe a mano.
+Cada manual explica para qué sirve el servicio, sus componentes, sus clases, sus tablas, su despliegue, los eventos que publica y consume, sus endpoints, sus variables de entorno y cómo probarlo. Los diagramas de clases, de tablas y de despliegue, los eventos y los endpoints **se generan** del código con `pnpm run docs` (y `pnpm run docs --check` en la integración continua los compara); el diagrama de componentes se escribe a mano.
+
+## Manuales de usuario
+
+- [Clientes](manuales/usuario-clientes.md): crear la cuenta, recargar la cartera, comprar boletos y pedir alquileres.
+- [Personal](manuales/usuario-personal.md): una sección por rol, los 12 reportes y el mapa de departamentos.
 
 ## Diagrama de despliegue general
 
@@ -91,10 +101,22 @@ flowchart LR
 
 ## Otros entregables
 
-- **Swagger**: `/docs` en el gateway, con los siete servicios unidos.
+- **Swagger**: `/docs` en el gateway, con los siete servicios unidos ([producción](https://gateway-avqapfieaa-uc.a.run.app/docs); `http://localhost:4000/docs` en local).
 - **Colección Postman**: [`postman/debus.postman_collection.json`](../postman/debus.postman_collection.json), generada del Swagger (`pnpm postman`) con un recorrido de uso.
 - **Datos de demostración**: [`datos-de-prueba.md`](datos-de-prueba.md).
 
 ## Repositorios por unidad
 
-Además del monorepo, cada unidad (`gateway`, los siete servicios y `web`) tiene un repositorio privado de solo lectura, `rrobertobt/sa-debus-<unidad>`, con el historial de sus archivos y de los paquetes compartidos que usa. El monorepo sigue siendo la fuente de verdad: los espejos se regeneran con `pnpm mirror` (prueba local en un directorio temporal) y `pnpm mirror --push` (crea los repositorios si faltan y los actualiza). Cada espejo compila y prueba por sí solo (`pnpm install --frozen-lockfile && pnpm build && pnpm test`); el despliegue y las pruebas de integración se quedan en el monorepo.
+Además del monorepo, cada unidad (`gateway`, los siete servicios y `web`) tiene su propio repositorio, `rrobertobt/sa-debus-<unidad>`, con el historial de sus archivos y los paquetes compartidos que usa. Cada repositorio compila y corre sus pruebas por sí solo (`pnpm install --frozen-lockfile && pnpm build && pnpm test`); el despliegue y las pruebas de integración se hacen desde el monorepo.
+
+| Unidad         | Repositorio                                                                                 | Manual                                     |
+| -------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| gateway        | [rrobertobt/sa-debus-gateway](https://github.com/rrobertobt/sa-debus-gateway)               | [gateway](gateway/README.md)               |
+| administracion | [rrobertobt/sa-debus-administracion](https://github.com/rrobertobt/sa-debus-administracion) | [administracion](administracion/README.md) |
+| flota          | [rrobertobt/sa-debus-flota](https://github.com/rrobertobt/sa-debus-flota)                   | [flota](flota/README.md)                   |
+| viajes         | [rrobertobt/sa-debus-viajes](https://github.com/rrobertobt/sa-debus-viajes)                 | [viajes](viajes/README.md)                 |
+| ventas         | [rrobertobt/sa-debus-ventas](https://github.com/rrobertobt/sa-debus-ventas)                 | [ventas](ventas/README.md)                 |
+| clientes       | [rrobertobt/sa-debus-clientes](https://github.com/rrobertobt/sa-debus-clientes)             | [clientes](clientes/README.md)             |
+| reportes       | [rrobertobt/sa-debus-reportes](https://github.com/rrobertobt/sa-debus-reportes)             | [reportes](reportes/README.md)             |
+| notificaciones | [rrobertobt/sa-debus-notificaciones](https://github.com/rrobertobt/sa-debus-notificaciones) | [notificaciones](notificaciones/README.md) |
+| web            | [rrobertobt/sa-debus-web](https://github.com/rrobertobt/sa-debus-web)                       | —                                          |

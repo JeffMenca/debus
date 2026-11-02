@@ -24,6 +24,7 @@ import {
 
 const SCHEMA_URL = 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json';
 const HEALTH_FOLDER = 'Salud';
+const GATEWAY_HEALTH_TAG = 'gateway · health';
 const DEFAULT_BASE_URL = 'http://localhost:4000';
 
 const COLLECTION_DESCRIPTION = [
@@ -348,7 +349,7 @@ function operationsOf(openapi: OpenApiDocument): Found[] {
       const [tag = 'general'] = operation.tags ?? [];
       return [
         {
-          tag: tag === 'health' ? HEALTH_FOLDER : tag,
+          tag: tag === GATEWAY_HEALTH_TAG ? HEALTH_FOLDER : tag,
           path,
           method,
           item: requestFor(method, path, operation),
@@ -376,7 +377,12 @@ export function toCollection(openapi: OpenApiDocument, flow: PostmanFolder): Pos
       ...extra,
     ],
   });
-  const tags = [...grouped.keys()].filter((tag) => tag !== HEALTH_FOLDER).sort();
+  // The document already orders its tags by service; without that list, alphabetically.
+  const listed = (openapi.tags ?? []).map((tag) => tag.name);
+  const tags = [
+    ...listed.filter((tag) => grouped.has(tag)),
+    ...[...grouped.keys()].filter((tag) => !listed.includes(tag)).sort(),
+  ].filter((tag) => tag !== HEALTH_FOLDER);
   return {
     info: { name: openapi.info.title, description: COLLECTION_DESCRIPTION, schema: SCHEMA_URL },
     variable: [{ key: 'baseUrl', value: DEFAULT_BASE_URL }],

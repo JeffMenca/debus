@@ -49,7 +49,7 @@ export function StatusTabs<V extends string>({
   }, [index, options.length]);
 
   return (
-    <div data-tabs-frame className="max-w-full overflow-x-auto">
+    <div data-tabs-frame className="max-w-full overflow-x-auto overflow-y-hidden">
       <Tabs value={value} onValueChange={(next) => onChange(next as V)}>
         <TabsList
           ref={listRef}
@@ -79,7 +79,8 @@ export function StatusTabs<V extends string>({
               key={option.value}
               value={option.value}
               data-tab-index={position}
-              className="relative z-10 h-auto min-h-10 min-w-0 gap-2 rounded-xl border-0 bg-transparent px-3 py-1.5 text-center text-sm leading-tight font-semibold whitespace-normal data-active:bg-transparent group-data-[variant=default]/tabs-list:data-active:shadow-none sm:min-w-[112px] sm:px-4"
+              // The underline of the line variant, never shown here, sticks out of the bar by 1 px.
+              className="relative z-10 h-auto min-h-10 min-w-0 after:hidden gap-2 rounded-xl border-0 bg-transparent px-3 py-1.5 text-center text-sm leading-tight font-semibold whitespace-normal data-active:bg-transparent group-data-[variant=default]/tabs-list:data-active:shadow-none sm:min-w-[112px] sm:px-4"
             >
               {option.label}
               {option.count !== undefined && (

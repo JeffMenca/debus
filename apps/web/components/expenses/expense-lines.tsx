@@ -19,6 +19,7 @@ import {
   type LineKind,
   type LineValues,
 } from '@/lib/expenses/expense-form';
+import { inputRules } from '@/lib/forms/input-rules';
 
 export const lineFieldId = (key: string, field: 'category' | 'kind' | 'description' | 'amount') =>
   `expense-line-${key}-${field}`;
@@ -111,7 +112,7 @@ export function ExpenseLines({
                 <Input
                   id={lineFieldId(line.key, 'description')}
                   autoComplete="off"
-                  maxLength={200}
+                  rule={inputRules.text(200)}
                   value={line.description}
                   onChange={(event) => onChange(index, { description: event.target.value })}
                 />
@@ -119,7 +120,7 @@ export function ExpenseLines({
               <Field id={lineFieldId(line.key, 'amount')} label="Monto (Q)" error={error?.amount}>
                 <Input
                   id={lineFieldId(line.key, 'amount')}
-                  inputMode="decimal"
+                  rule={inputRules.decimal(7, 2)}
                   autoComplete="off"
                   value={line.amount}
                   onChange={(event) => onChange(index, { amount: event.target.value })}

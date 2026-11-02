@@ -26,6 +26,7 @@ import {
   writeRentalIncomeReportParams,
 } from '@/lib/branch-reports/rental-income-report-params';
 import { formatQuetzales } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import { rentalIncomeReportColumns } from './rental-income-report-columns';
 
 export const RENTAL_INCOME_REPORT_PATH = '/api/reportes/reports/branch-rental-income';
@@ -80,7 +81,7 @@ export function RentalIncomeReport() {
             <Input
               id="rental-income-report-search"
               icon={Search}
-              maxLength={SEARCH_MAX_LENGTH}
+              rule={inputRules.text(SEARCH_MAX_LENGTH)}
               placeholder="Cliente, NIT o destino"
               value={typed}
               onChange={(event) => setTyped(event.target.value)}

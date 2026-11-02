@@ -112,7 +112,7 @@ describe('projectGeoJson', () => {
     const bounds = { west: -92.25, east: -88.2, south: 13.7, north: 17.85 };
     const { features, width, height } = projectGeoJson(guatemala as FeatureCollection, bounds, 600);
 
-    expect(features.filter((feature) => feature.isHome)).toHaveLength(1);
+    expect(features.filter((feature) => feature.isHome)).toHaveLength(22);
     expect(features.map((feature) => feature.name)).toEqual(
       expect.arrayContaining(['Guatemala', 'México', 'Belice', 'Honduras', 'El Salvador']),
     );

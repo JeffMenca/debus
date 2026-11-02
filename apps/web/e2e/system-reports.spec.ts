@@ -136,6 +136,7 @@ const MENU_LINKS = [
   'Rutas más demandadas',
   'Taller por categoría',
   'Mapa de rutas',
+  'Arquitectura',
 ];
 
 test.describe('system reports', () => {
@@ -462,6 +463,15 @@ test.describe('system reports', () => {
       await expect(
         map.getByRole('img', { name: 'Sucursal de origen: Quetzaltenango' }),
       ).toBeVisible();
+      await expect(map.getByText('Quet', { exact: true })).toBeVisible();
+      // The pins stay above the names of the departments.
+      const paneOf = (text: ReturnType<typeof map.getByText>) =>
+        text.evaluate((node) =>
+          Number(getComputedStyle(node.closest('.leaflet-marker-icon')!).zIndex),
+        );
+      expect(
+        await paneOf(map.getByRole('img', { name: 'Sucursal de origen: Quetzaltenango' })),
+      ).toBeGreaterThan(await paneOf(map.getByText('Quet', { exact: true })));
       await expect(map.getByRole('img', { name: 'Destino con ruta: Guatemala' })).toBeVisible();
       await expect(map.getByRole('img', { name: 'Destino con ruta: Escuintla' })).toBeVisible();
       // Each route is a halo and a dashed line, both in the brand color and not Leaflet's default.

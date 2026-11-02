@@ -23,6 +23,7 @@ import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useSaveExpenseCategory } from '@/hooks/use-expense-categories';
 import { ApiError, messageOf } from '@/lib/api/client';
+import { inputRules } from '@/lib/forms/input-rules';
 
 const NAME_PROBLEM = `Escribe un nombre de 2 a ${EXPENSE_CATEGORY_NAME_MAX} caracteres.`;
 
@@ -91,7 +92,7 @@ function CategoryForm({
         <Input
           id="category-name"
           autoComplete="off"
-          maxLength={EXPENSE_CATEGORY_NAME_MAX}
+          rule={inputRules.text(EXPENSE_CATEGORY_NAME_MAX)}
           {...invalidProps('category-name', nameError)}
           {...register('name')}
         />

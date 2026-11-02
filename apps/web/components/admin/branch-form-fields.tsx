@@ -1,6 +1,11 @@
 'use client';
 
-import { GUATEMALA_DEPARTMENTS, type BranchFields } from '@debus/contracts';
+import {
+  GUATEMALA_DEPARTMENTS,
+  type BranchFields,
+  BRANCH_NAME_MAX,
+  BRANCH_MUNICIPALITY_MAX,
+} from '@debus/contracts';
 import type { UseFormRegisterReturn } from 'react-hook-form';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -11,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BranchLocationPicker } from './branch-location-picker';
+import { inputRules } from '@/lib/forms/input-rules';
+import { BranchLocationPicker, type PickedLocation } from './branch-location-picker';
 
 export type BranchFieldName = keyof BranchFields;
 
@@ -33,7 +39,7 @@ interface BranchFormFieldsProps {
   onDepartmentChange: (department: string) => void;
   latitude: number;
   longitude: number;
-  onLocationChange: (location: { latitude: number; longitude: number }) => void;
+  onLocationChange: (location: PickedLocation) => void;
 }
 
 const card = 'flex flex-col gap-4 rounded-[26px] bg-card p-6';
@@ -62,13 +68,17 @@ export function BranchFormFields({
           Datos de la sucursal
         </h2>
         <Field id="branch-name" label="Nombre" error={errors.name}>
-          <Input {...text('name', { id: 'branch-name' })} autoComplete="off" />
+          <Input
+            {...text('name', { id: 'branch-name' })}
+            rule={inputRules.text(BRANCH_NAME_MAX)}
+            autoComplete="off"
+          />
         </Field>
         <Field id="branch-code" label="Código" error={errors.code}>
           <Input
             {...text('code', { id: 'branch-code', className: 'font-mono uppercase' })}
+            rule={inputRules.branchCode}
             autoComplete="off"
-            maxLength={5}
           />
           <span className="text-xs text-muted-foreground">De 3 a 5 letras, por ejemplo XEL</span>
         </Field>
@@ -90,15 +100,23 @@ export function BranchFormFields({
           </Select>
         </Field>
         <Field id="branch-municipality" label="Municipio" error={errors.municipality}>
-          <Input {...text('municipality', { id: 'branch-municipality' })} autoComplete="off" />
+          <Input
+            {...text('municipality', { id: 'branch-municipality' })}
+            rule={inputRules.text(BRANCH_MUNICIPALITY_MAX)}
+            autoComplete="off"
+          />
         </Field>
         <Field id="branch-address" label="Dirección" error={errors.address}>
-          <Input {...text('address', { id: 'branch-address' })} autoComplete="off" />
+          <Input
+            {...text('address', { id: 'branch-address' })}
+            rule={inputRules.address}
+            autoComplete="off"
+          />
         </Field>
         <Field id="branch-phone" label="Teléfono" error={errors.phone}>
           <Input
             {...text('phone', { id: 'branch-phone', className: 'font-mono tabular-nums' })}
-            inputMode="tel"
+            rule={inputRules.phone}
             autoComplete="off"
           />
         </Field>
@@ -117,7 +135,7 @@ export function BranchFormFields({
           <Field id="branch-latitude" label="Latitud">
             <Input
               {...text('latitude', { id: 'branch-latitude', className: 'font-mono tabular-nums' })}
-              inputMode="decimal"
+              rule={inputRules.coordinate}
               autoComplete="off"
             />
           </Field>
@@ -127,7 +145,7 @@ export function BranchFormFields({
                 id: 'branch-longitude',
                 className: 'font-mono tabular-nums',
               })}
-              inputMode="decimal"
+              rule={inputRules.coordinate}
               autoComplete="off"
             />
           </Field>

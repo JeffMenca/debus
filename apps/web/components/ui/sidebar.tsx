@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { inputRules } from '@/lib/forms/input-rules';
 import { PanelLeftIcon } from 'lucide-react';
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state';
@@ -304,9 +305,10 @@ function SidebarInset({ className, ...props }: React.ComponentProps<'div'>) {
   );
 }
 
-function SidebarInput({ className, ...props }: React.ComponentProps<typeof Input>) {
+function SidebarInput({ className, ...props }: Omit<React.ComponentProps<typeof Input>, 'rule'>) {
   return (
     <Input
+      rule={inputRules.text(100)}
       data-slot="sidebar-input"
       data-sidebar="input"
       className={cn('h-8 w-full bg-background shadow-none', className)}

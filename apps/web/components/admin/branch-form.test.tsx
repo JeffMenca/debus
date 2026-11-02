@@ -22,13 +22,18 @@ jest.mock('./branch-location-picker', () => ({
     error,
   }: {
     value: { latitude: number; longitude: number } | null;
-    onChange: (value: { latitude: number; longitude: number }) => void;
+    onChange: (value: { latitude: number; longitude: number; department: string }) => void;
     error?: string;
   }) => (
     <div>
       <p>{value ? `pin ${value.latitude},${value.longitude}` : 'sin pin'}</p>
       {error && <p role="alert">{error}</p>}
-      <button type="button" onClick={() => onChange({ latitude: 14.8347, longitude: -91.5181 })}>
+      <button
+        type="button"
+        onClick={() =>
+          onChange({ latitude: 14.8347, longitude: -91.5181, department: 'Quetzaltenango' })
+        }
+      >
         Tocar Xela
       </button>
     </div>
@@ -68,15 +73,27 @@ async function fill(field: HTMLElement, text: string) {
 async function fillCreate() {
   await fill(screen.getByLabelText('Nombre', { exact: true }), 'Cobán');
   await fill(screen.getByLabelText('Código'), 'cob');
+  // The map suggests a department; the person can still choose another one after it.
+  await user.click(screen.getByRole('button', { name: 'Tocar Xela' }));
   await user.click(screen.getByRole('combobox', { name: 'Departamento' }));
   await user.click(await screen.findByRole('option', { name: 'Alta Verapaz' }));
   await fill(screen.getByLabelText('Municipio'), 'Cobán');
   await fill(screen.getByLabelText('Dirección'), '1a calle 3-10 zona 1');
   await fill(screen.getByLabelText('Teléfono'), '7951-1234');
-  await user.click(screen.getByRole('button', { name: 'Tocar Xela' }));
   await fill(screen.getByLabelText('Nombre completo'), 'Carla Xol');
   await fill(screen.getByLabelText('Correo'), 'carla.xol@correo.com');
 }
+
+it('explains a short phone when the person leaves the field, without sending', async () => {
+  (useCreateBranch as jest.Mock).mockReturnValue({ mutateAsync: jest.fn() });
+  (useUpdateBranch as jest.Mock).mockReturnValue({ mutateAsync: jest.fn() });
+  render(<BranchForm mode="create" />);
+
+  await user.type(screen.getByLabelText('Teléfono'), '123');
+  await user.tab();
+
+  expect(await screen.findByText('Escribe un teléfono de 8 dígitos.')).toBeInTheDocument();
+});
 
 describe('BranchForm (create)', () => {
   beforeEach(() => {
@@ -144,6 +161,16 @@ describe('BranchForm (create)', () => {
 
     expect(screen.getByLabelText('Latitud')).toHaveValue('14.8347');
     expect(screen.getByLabelText('Longitud')).toHaveValue('-91.5181');
+  });
+
+  it('fills the department when the map is touched', async () => {
+    setup('create');
+
+    await user.click(screen.getByRole('button', { name: 'Tocar Xela' }));
+
+    expect(screen.getByRole('combobox', { name: 'Departamento' })).toHaveTextContent(
+      'Quetzaltenango',
+    );
   });
 
   it('shows a repeated code in the alert and puts the focus on the code', async () => {

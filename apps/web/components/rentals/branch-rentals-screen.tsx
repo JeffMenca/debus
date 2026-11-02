@@ -18,6 +18,7 @@ import { usePageInRange } from '@/hooks/use-page-in-range';
 import { useUrlQuery } from '@/hooks/use-url-query';
 import { useUrlSearch } from '@/hooks/use-url-search';
 import { formatQuetzales } from '@/lib/format';
+import { inputRules } from '@/lib/forms/input-rules';
 import {
   type BranchRentalStatus,
   readBranchRentalParams,
@@ -193,7 +194,7 @@ export function BranchRentalsScreen() {
           <Input
             icon={Search}
             aria-label="Buscar alquiler"
-            maxLength={SEARCH_MAX_LENGTH}
+            rule={inputRules.text(SEARCH_MAX_LENGTH)}
             placeholder="Buscar cliente, NIT o destino"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
