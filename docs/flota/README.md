@@ -1,5 +1,7 @@
 # Manual técnico · Flota
 
+En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · [Swagger](https://gateway-avqapfieaa-uc.a.run.app/docs) (datos para los endpoints protegidos: pedirlos a un administrador).
+
 **Repositorio:** [rrobertobt/sa-debus-flota](https://github.com/rrobertobt/sa-debus-flota) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
 
 **Flota** es dueña de los buses, los choferes y las rutas de cada sucursal, y responde si un bus y un chofer pueden hacer un viaje.
@@ -30,6 +32,157 @@ flowchart LR
   handlers --> prisma
   handlers --> processed[processed_events<br/>inbox idempotente]
 ```
+
+## 2.1 Diagrama de clases
+
+Controladores, servicios y sus dependencias, agrupados por carpeta. Se genera del código con `pnpm run docs`.
+
+<!-- prettier-ignore-start -->
+<!-- generado:clases -->
+```mermaid
+classDiagram
+  namespace availability {
+    class AvailabilityController {
+      +check()
+    }
+    class AvailabilityService {
+      +check()
+    }
+  }
+  namespace branches {
+    class BranchesHandler {
+      +created()
+      +updated()
+    }
+  }
+  namespace buses {
+    class BusesController {
+      +create()
+      +deactivate()
+      +get()
+      +list()
+      +photo()
+      +reactivate()
+      +savePhoto()
+      +update()
+    }
+    class BusesService {
+      +create()
+      +get()
+      +list()
+      +readPhoto()
+      +savePhoto()
+      +setActive()
+      +update()
+    }
+    class BusRepublishController {
+      +republish()
+    }
+    class BusRepublishService {
+      +republish()
+    }
+  }
+  namespace common {
+    class FleetEvents {
+      +bus()
+      +driver()
+      +flush()
+      +route()
+    }
+  }
+  namespace drivers {
+    class DriverRepublishController {
+      +republish()
+    }
+    class DriverRepublishService {
+      +republish()
+    }
+    class DriversController {
+      +create()
+      +deactivate()
+      +get()
+      +list()
+      +photo()
+      +reactivate()
+      +savePhoto()
+      +update()
+    }
+    class DriversService {
+      +create()
+      +get()
+      +list()
+      +readPhoto()
+      +savePhoto()
+      +setActive()
+      +update()
+    }
+  }
+  namespace health {
+    class HealthController {
+      +check()
+    }
+  }
+  namespace photos {
+    class PhotoTooLargeFilter {
+      +catch()
+    }
+  }
+  namespace prisma {
+    class PrismaService
+  }
+  namespace routes {
+    class RouteRepublishController {
+      +republish()
+    }
+    class RouteRepublishService {
+      +republish()
+    }
+    class RoutesController {
+      +create()
+      +list()
+      +remove()
+      +update()
+    }
+    class RoutesService {
+      +create()
+      +list()
+      +remove()
+      +update()
+    }
+  }
+  namespace trips {
+    class TripCopiesHandler {
+      +completed()
+      +deleted()
+      +departed()
+      +scheduled()
+    }
+  }
+  AvailabilityController --> AvailabilityService
+  AvailabilityService --> PrismaService
+  BranchesHandler --> PrismaService
+  BusesController --> BusesService
+  BusesService --> FleetEvents
+  BusesService --> PrismaService
+  BusRepublishController --> BusRepublishService
+  BusRepublishService --> FleetEvents
+  BusRepublishService --> PrismaService
+  DriverRepublishController --> DriverRepublishService
+  DriverRepublishService --> FleetEvents
+  DriverRepublishService --> PrismaService
+  DriversController --> DriversService
+  DriversService --> FleetEvents
+  DriversService --> PrismaService
+  RouteRepublishController --> RouteRepublishService
+  RouteRepublishService --> FleetEvents
+  RouteRepublishService --> PrismaService
+  RoutesController --> RoutesService
+  RoutesService --> FleetEvents
+  RoutesService --> PrismaService
+  TripCopiesHandler --> PrismaService
+```
+<!-- /generado:clases -->
+<!-- prettier-ignore-end -->
 
 ## 3. Diagrama de tablas
 

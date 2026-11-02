@@ -1,5 +1,7 @@
 # Manual técnico · Reportes
 
+En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · [Swagger](https://gateway-avqapfieaa-uc.a.run.app/docs) (datos para los endpoints protegidos: pedirlos a un administrador).
+
 **Repositorio:** [rrobertobt/sa-debus-reportes](https://github.com/rrobertobt/sa-debus-reportes) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
 
 **Reportes** responde los 12 reportes del enunciado (6 de sucursal y 6 del administrador del sistema) y los exporta a PDF; además, para el administrador del sistema, la vista **Arquitectura**, que no es uno de los 12. No escribe en ningún otro servicio: guarda sus propias copias de lo que le interesa, llenadas por eventos, y las consulta con SQL.
@@ -52,6 +54,241 @@ flowchart LR
 ```
 
 Cada reporte vive en su carpeta (`src/reports/<branch|system>-<nombre>`) con su controlador, su servicio, su SQL, sus filas, su PDF y su módulo. Lo que comparten está en `src/common` (renderizador de PDF, formato de dinero y fechas, nombres de sucursal) y en `src/reports/system-finance` (los fragmentos SQL de ingresos y gastos que usan tres reportes del sistema).
+
+## 2.1 Diagrama de clases
+
+Controladores, servicios y sus dependencias, agrupados por carpeta. Se genera del código con `pnpm run docs`.
+
+<!-- prettier-ignore-start -->
+<!-- generado:clases -->
+```mermaid
+classDiagram
+  namespace common {
+    class BranchesHandler {
+      +created()
+      +updated()
+    }
+    class BranchNames {
+      +nameOf()
+    }
+    class PdfRenderer {
+      +render()
+    }
+  }
+  namespace health {
+    class HealthController {
+      +check()
+    }
+  }
+  namespace prisma {
+    class PrismaService
+  }
+  namespace reports {
+    class BranchBusesController {
+      +page()
+      +pdf()
+    }
+    class BranchBusesService {
+      +page()
+      +pdf()
+    }
+    class BranchDepreciationController {
+      +page()
+      +pdf()
+    }
+    class BranchDepreciationService {
+      +page()
+      +pdf()
+    }
+    class BranchDriversController {
+      +page()
+      +pdf()
+    }
+    class BranchDriversService {
+      +page()
+      +pdf()
+    }
+    class BranchRentalIncomeController {
+      +page()
+      +pdf()
+    }
+    class BranchRentalIncomeService {
+      +page()
+      +pdf()
+    }
+    class BranchRepairExpensesController {
+      +page()
+      +pdf()
+    }
+    class BranchRepairExpensesService {
+      +page()
+      +pdf()
+    }
+    class BranchTicketIncomeController {
+      +page()
+      +pdf()
+    }
+    class BranchTicketIncomeService {
+      +page()
+      +pdf()
+    }
+    class FleetCopiesHandler {
+      +busAdded()
+      +busDeactivated()
+      +busUpdated()
+      +driverAdded()
+      +driverUpdated()
+    }
+    class RentalsHandler {
+      +cancelled()
+      +paid()
+    }
+    class RepairsHandler {
+      +added()
+    }
+    class RoutesHandler {
+      +routeCreated()
+      +routeDeleted()
+      +routeUpdated()
+    }
+    class SettingsHandler {
+      +updated()
+    }
+    class SystemArchitectureController {
+      +page()
+      +pdf()
+    }
+    class SystemArchitectureService {
+      +page()
+      +pdf()
+    }
+    class SystemBusOptionsController {
+      +page()
+    }
+    class SystemBusOptionsService {
+      +page()
+    }
+    class SystemExpensesController {
+      +page()
+      +pdf()
+    }
+    class SystemExpensesService {
+      +page()
+      +pdf()
+    }
+    class SystemIncomeController {
+      +page()
+      +pdf()
+    }
+    class SystemIncomeService {
+      +page()
+      +pdf()
+    }
+    class SystemProfitController {
+      +page()
+      +pdf()
+    }
+    class SystemProfitService {
+      +page()
+      +pdf()
+    }
+    class SystemRepairExpensesController {
+      +page()
+      +pdf()
+    }
+    class SystemRepairExpensesService {
+      +page()
+      +pdf()
+    }
+    class SystemRoutesMapController {
+      +map()
+      +pdf()
+    }
+    class SystemRoutesMapService {
+      +map()
+      +pdf()
+    }
+    class SystemTopRoutesController {
+      +page()
+      +pdf()
+    }
+    class SystemTopRoutesService {
+      +page()
+      +pdf()
+    }
+    class TicketSalesHandler {
+      +sold()
+    }
+    class TripFactsHandler {
+      +tripCompleted()
+      +tripDeleted()
+      +tripDeparted()
+      +tripScheduled()
+    }
+  }
+  BranchBusesController --> BranchBusesService
+  BranchBusesService --> BranchNames
+  BranchBusesService --> PdfRenderer
+  BranchBusesService --> PrismaService
+  BranchDepreciationController --> BranchDepreciationService
+  BranchDepreciationService --> BranchNames
+  BranchDepreciationService --> PdfRenderer
+  BranchDepreciationService --> PrismaService
+  BranchDriversController --> BranchDriversService
+  BranchDriversService --> BranchNames
+  BranchDriversService --> PdfRenderer
+  BranchDriversService --> PrismaService
+  BranchesHandler --> PrismaService
+  BranchNames --> PrismaService
+  BranchRentalIncomeController --> BranchRentalIncomeService
+  BranchRentalIncomeService --> BranchNames
+  BranchRentalIncomeService --> PdfRenderer
+  BranchRentalIncomeService --> PrismaService
+  BranchRepairExpensesController --> BranchRepairExpensesService
+  BranchRepairExpensesService --> BranchNames
+  BranchRepairExpensesService --> PdfRenderer
+  BranchRepairExpensesService --> PrismaService
+  BranchTicketIncomeController --> BranchTicketIncomeService
+  BranchTicketIncomeService --> BranchNames
+  BranchTicketIncomeService --> PdfRenderer
+  BranchTicketIncomeService --> PrismaService
+  FleetCopiesHandler --> PrismaService
+  RentalsHandler --> PrismaService
+  RepairsHandler --> PrismaService
+  RoutesHandler --> PrismaService
+  SettingsHandler --> PrismaService
+  SystemArchitectureController --> SystemArchitectureService
+  SystemArchitectureService --> PdfRenderer
+  SystemBusOptionsController --> SystemBusOptionsService
+  SystemBusOptionsService --> PrismaService
+  SystemExpensesController --> SystemExpensesService
+  SystemExpensesService --> BranchNames
+  SystemExpensesService --> PdfRenderer
+  SystemExpensesService --> PrismaService
+  SystemIncomeController --> SystemIncomeService
+  SystemIncomeService --> BranchNames
+  SystemIncomeService --> PdfRenderer
+  SystemIncomeService --> PrismaService
+  SystemProfitController --> SystemProfitService
+  SystemProfitService --> BranchNames
+  SystemProfitService --> PdfRenderer
+  SystemProfitService --> PrismaService
+  SystemRepairExpensesController --> SystemRepairExpensesService
+  SystemRepairExpensesService --> BranchNames
+  SystemRepairExpensesService --> PdfRenderer
+  SystemRepairExpensesService --> PrismaService
+  SystemRoutesMapController --> SystemRoutesMapService
+  SystemRoutesMapService --> PdfRenderer
+  SystemRoutesMapService --> PrismaService
+  SystemTopRoutesController --> SystemTopRoutesService
+  SystemTopRoutesService --> BranchNames
+  SystemTopRoutesService --> PdfRenderer
+  SystemTopRoutesService --> PrismaService
+  TicketSalesHandler --> PrismaService
+  TripFactsHandler --> PrismaService
+```
+<!-- /generado:clases -->
+<!-- prettier-ignore-end -->
 
 ## 3. Diagrama de tablas
 

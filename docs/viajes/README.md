@@ -1,5 +1,7 @@
 # Manual técnico · Viajes
 
+En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · [Swagger](https://gateway-avqapfieaa-uc.a.run.app/docs) (datos para los endpoints protegidos: pedirlos a un administrador).
+
 **Repositorio:** [rrobertobt/sa-debus-viajes](https://github.com/rrobertobt/sa-debus-viajes) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
 
 **Viajes** programa los viajes de cada sucursal, registra su salida y su llegada y asigna bus y chofer a los alquileres que paga el cliente.
@@ -30,6 +32,123 @@ flowchart LR
   handlers --> prisma
   handlers --> processed[processed_events<br/>inbox idempotente]
 ```
+
+## 2.1 Diagrama de clases
+
+Controladores, servicios y sus dependencias, agrupados por carpeta. Se genera del código con `pnpm run docs`.
+
+<!-- prettier-ignore-start -->
+<!-- generado:clases -->
+```mermaid
+classDiagram
+  namespace branches {
+    class BranchesHandler {
+      +created()
+      +updated()
+    }
+  }
+  namespace copies {
+    class FleetCopiesHandler {
+      +busAdded()
+      +busDeactivated()
+      +busUpdated()
+      +driverAdded()
+      +driverUpdated()
+      +routeCreated()
+      +routeDeleted()
+      +routeUpdated()
+    }
+  }
+  namespace health {
+    class HealthController {
+      +check()
+    }
+  }
+  namespace prisma {
+    class PrismaService
+  }
+  namespace rentals {
+    class RentalRequestsController {
+      +assign()
+      +cancel()
+      +list()
+    }
+    class RentalRequestsHandler {
+      +paid()
+    }
+    class RentalRequestsService {
+      +assign()
+      +cancel()
+      +list()
+    }
+  }
+  namespace sale_status {
+    class SaleStatusController {
+      +saleStatus()
+    }
+    class SaleStatusService {
+      +of()
+    }
+  }
+  namespace settings {
+    class SettingsCopyService {
+      +effectiveOn()
+    }
+    class SettingsHandler {
+      +updated()
+    }
+  }
+  namespace trips {
+    class FleetClient {
+      +availability()
+    }
+    class TripCycleService {
+      +recordArrival()
+      +recordDeparture()
+      +remove()
+    }
+    class TripsController {
+      +get()
+      +list()
+      +recordArrival()
+      +recordDeparture()
+      +remove()
+      +schedule()
+    }
+    class TripsService {
+      +get()
+      +list()
+      +loadDetail()
+      +schedule()
+    }
+    class TripWrites {
+      +write()
+    }
+  }
+  BranchesHandler --> PrismaService
+  FleetCopiesHandler --> PrismaService
+  RentalRequestsController --> RentalRequestsService
+  RentalRequestsHandler --> PrismaService
+  RentalRequestsService --> FleetClient
+  RentalRequestsService --> PrismaService
+  RentalRequestsService --> TripWrites
+  SaleStatusController --> SaleStatusService
+  SaleStatusService --> PrismaService
+  SettingsCopyService --> PrismaService
+  SettingsHandler --> PrismaService
+  TripCycleService --> PrismaService
+  TripCycleService --> SettingsCopyService
+  TripCycleService --> TripsService
+  TripsController --> TripCycleService
+  TripsController --> TripsService
+  TripsService --> FleetClient
+  TripsService --> PrismaService
+  TripsService --> SettingsCopyService
+  TripsService --> TripWrites
+  TripWrites --> PrismaService
+```
+<!-- /generado:clases -->
+<!-- prettier-ignore-end -->
 
 ## 3. Diagrama de tablas
 

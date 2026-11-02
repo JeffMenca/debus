@@ -1,5 +1,7 @@
 # Manual técnico · Clientes
 
+En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · [Swagger](https://gateway-avqapfieaa-uc.a.run.app/docs) (datos para los endpoints protegidos: pedirlos a un administrador).
+
 **Repositorio:** [rrobertobt/sa-debus-clientes](https://github.com/rrobertobt/sa-debus-clientes) (monorepo: [JeffMenca/debus](https://github.com/JeffMenca/debus)).
 
 **Clientes** guarda el perfil de cada persona, su **cartera digital** y los **alquileres de buses**. Es el único servicio que mueve dinero de la cartera: `ventas` le pide cobrar un boleto y `clientes` decide, con la cartera bloqueada, si se puede.
@@ -55,6 +57,117 @@ flowchart LR
   handlers --> processed[processed_events<br/>inbox idempotente]
   handlers --> outbox
 ```
+
+## 2.1 Diagrama de clases
+
+Controladores, servicios y sus dependencias, agrupados por carpeta. Se genera del código con `pnpm run docs`.
+
+<!-- prettier-ignore-start -->
+<!-- generado:clases -->
+```mermaid
+classDiagram
+  namespace branches {
+    class BranchesHandler {
+      +created()
+      +updated()
+    }
+  }
+  namespace health {
+    class HealthController {
+      +check()
+    }
+  }
+  namespace prisma {
+    class PrismaService
+  }
+  namespace profiles {
+    class ProfilesController {
+      +get()
+      +update()
+    }
+    class ProfilesHandler {
+      +registered()
+      +updated()
+    }
+    class ProfilesService {
+      +get()
+      +update()
+    }
+  }
+  namespace rentals {
+    class BranchRentalsController {
+      +confirm()
+      +list()
+      +registerCounter()
+    }
+    class RentalCancelledHandler {
+      +cancelled()
+    }
+    class RentalsController {
+      +cancel()
+      +estimate()
+      +history()
+      +pay()
+      +request()
+    }
+    class RentalsService {
+      +branchList()
+      +cancel()
+      +confirm()
+      +estimate()
+      +history()
+      +pay()
+      +registerCounter()
+      +request()
+    }
+  }
+  namespace settings {
+    class SettingsCopyService {
+      +effectiveOn()
+    }
+    class SettingsHandler {
+      +updated()
+    }
+  }
+  namespace wallet {
+    class InternalWalletController {
+      +debit()
+    }
+    class RefundsHandler {
+      +requested()
+    }
+    class WalletController {
+      +get()
+      +movements()
+      +topUp()
+    }
+    class WalletService {
+      +debit()
+      +debitIn()
+      +get()
+      +movements()
+      +topUp()
+    }
+  }
+  BranchesHandler --> PrismaService
+  BranchRentalsController --> RentalsService
+  InternalWalletController --> WalletService
+  ProfilesController --> ProfilesService
+  ProfilesHandler --> PrismaService
+  ProfilesService --> PrismaService
+  RefundsHandler --> PrismaService
+  RentalCancelledHandler --> PrismaService
+  RentalsController --> RentalsService
+  RentalsService --> PrismaService
+  RentalsService --> SettingsCopyService
+  RentalsService --> WalletService
+  SettingsCopyService --> PrismaService
+  SettingsHandler --> PrismaService
+  WalletController --> WalletService
+  WalletService --> PrismaService
+```
+<!-- /generado:clases -->
+<!-- prettier-ignore-end -->
 
 ## 3. Diagrama de tablas
 
