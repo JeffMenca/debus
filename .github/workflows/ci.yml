@@ -1,12 +1,11 @@
 name: ci
 
+# Only pull requests are checked: a push to main is the merge of one that already passed, and deploy ships it.
 on:
   pull_request:
-  push:
-    branches: [main]
 
 env:
-  TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+  TURBO_SCM_BASE: ${{ github.event.pull_request.base.sha }}
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -75,7 +74,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # One service at a time: they all share one Postgres on a small runner, and with every service at
-      # once (a merge to main affects them all) a transaction waits past Prisma's 5 s and a 20-buyer race fails.
+      # once (a pull request to main affects them all) a transaction waits past Prisma's 5 s and a 20-buyer race fails.
       - run: pnpm turbo run test:integration --affected --concurrency=1
 
   web-e2e:

@@ -22,6 +22,7 @@ export function configureDocs(app: INestApplication): void {
   app.get(DocsService).useGatewayDocument(document);
   // The UI reads the combined document; the gateway-only JSON moves out of the way of /docs-json.
   // The empty spec replaces the embedded gateway document, which would otherwise win over the url.
+  // Swagger UI prefers an embedded spec over the url, so the embedded one is emptied.
   SwaggerModule.setup('docs', app, document, {
     jsonDocumentUrl: 'docs/gateway-json',
     swaggerOptions: { url: '/docs-json', spec: {} },
