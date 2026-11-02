@@ -119,6 +119,10 @@ test('clients with a session', async ({ page }) => {
   await shot(page, 'clientes', 'cuenta-boletos');
   await page.getByRole('tab', { name: 'Movimientos' }).click();
   await page.getByText('Tipo de movimiento').waitFor();
+  await page
+    .getByText(/^Recarga de saldo/)
+    .first()
+    .waitFor();
   await shot(page, 'clientes', 'cuenta-movimientos');
   const amount = page.getByRole('textbox', { name: 'Monto' });
   await amount.fill('250');
