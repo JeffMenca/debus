@@ -18,6 +18,8 @@ on:
         required: false
       JWT_PUBLIC_KEY:
         required: false
+      DOCS_PASSWORD:
+        required: false
 
 jobs:
   # Topics and filtered push subscriptions must exist before any service starts: a message published to
@@ -53,6 +55,7 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
           JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
+          DOCS_PASSWORD: ${{ secrets.DOCS_PASSWORD }}
           BOOTSTRAP_ADMIN_EMAIL: ${{ vars.BOOTSTRAP_ADMIN_EMAIL }}
       - uses: google-github-actions/auth@v2
         with:
@@ -119,6 +122,7 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           JWT_PRIVATE_KEY: ${{ secrets.JWT_PRIVATE_KEY }}
           JWT_PUBLIC_KEY: ${{ secrets.JWT_PUBLIC_KEY }}
+          DOCS_PASSWORD: ${{ secrets.DOCS_PASSWORD }}
           BOOTSTRAP_ADMIN_EMAIL: ${{ vars.BOOTSTRAP_ADMIN_EMAIL }}
         run: |
           flags=(--image "$REGISTRY/$UNIT:$TAG" --region "$GCP_REGION"

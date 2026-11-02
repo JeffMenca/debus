@@ -19,6 +19,7 @@ describe('loadGatewayConfig', () => {
       environment: 'local',
       serviceAuth: 'none',
       jwtPublicKey: 'k',
+      docsPassword: null,
       corsOrigins: ['http://a.com', 'http://b.com'],
       serviceUrls: expect.objectContaining({ flota: 'http://f', notificaciones: 'http://n' }),
     });
@@ -50,5 +51,22 @@ describe('loadGatewayConfig', () => {
     delete partial.JWT_PUBLIC_KEY;
 
     expect(() => loadGatewayConfig(partial)).toThrow('JWT_PUBLIC_KEY is required');
+  });
+
+  it('leaves the docs open when no password is set outside production', () => {
+    expect(loadGatewayConfig(urls).docsPassword).toBeNull();
+  });
+
+  it('reads the password of the docs', () => {
+    expect(loadGatewayConfig({ ...urls, DOCS_PASSWORD: 'secret' }).docsPassword).toBe('secret');
+  });
+
+  it('requires the password of the docs in production', () => {
+    expect(() => loadGatewayConfig({ ...urls, DEBUS_ENV: 'production' })).toThrow(
+      'DOCS_PASSWORD is required',
+    );
+    expect(
+      loadGatewayConfig({ ...urls, DEBUS_ENV: 'production', DOCS_PASSWORD: 'secret' }).docsPassword,
+    ).toBe('secret');
   });
 });

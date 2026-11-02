@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fails the deploy early, with variable names only, when a unit would start without its required values.
-// Usage: [SMTP_USER SMTP_PASSWORD JWT_PRIVATE_KEY JWT_PUBLIC_KEY BOOTSTRAP_ADMIN_EMAIL] node scripts/check-release-env.mjs <unit>
+// Usage: [SMTP_USER SMTP_PASSWORD JWT_PRIVATE_KEY JWT_PUBLIC_KEY BOOTSTRAP_ADMIN_EMAIL DOCS_PASSWORD] node scripts/check-release-env.mjs <unit>
 import { missingAppValues, readAppSecrets } from '@debus/contracts';
 
 const [unit] = process.argv.slice(2);

@@ -6,6 +6,7 @@ const secrets = {
   jwtPrivateKey: '',
   jwtPublicKey: '',
   bootstrapAdminEmail: '',
+  docsPassword: '',
 };
 
 describe('parseReleaseArgs', () => {

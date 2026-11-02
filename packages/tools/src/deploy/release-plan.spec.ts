@@ -23,6 +23,7 @@ const appSecrets: AppSecrets = {
   jwtPrivateKey: 'private\nkey',
   jwtPublicKey: 'public\nkey',
   bootstrapAdminEmail: 'admin@example.test',
+  docsPassword: 'docs-password',
 };
 
 const settings: ReleaseSettings = {

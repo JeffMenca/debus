@@ -63,3 +63,57 @@ describe('gateway documentation', () => {
     expect(init.text).toMatch(/"spec":\s*\{\s*\}/);
   });
 });
+
+describe('gateway documentation with a password', () => {
+  let app: INestApplication;
+  let stub: Server;
+  const credentials = `Basic ${Buffer.from('debus:docs-secret').toString('base64')}`;
+
+  beforeAll(async () => {
+    useTestKeys();
+    process.env.DOCS_PASSWORD = 'docs-secret';
+    stub = await startStub();
+    pointServicesAt(stub);
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = moduleRef.createNestApplication();
+    configureGateway(app);
+    configureDocs(app);
+    await app.init();
+  });
+
+  afterAll(async () => {
+    delete process.env.DOCS_PASSWORD;
+    await app.close();
+    stub.close();
+  });
+
+  it.each(['/docs/', '/docs', '/docs/swagger-ui-init.js', '/docs-json', '/docs/gateway-json'])(
+    'asks for the password at %s',
+    async (path) => {
+      const response = await request(app.getHttpServer()).get(path).expect(401);
+
+      expect(response.headers['www-authenticate']).toContain('Basic');
+    },
+  );
+
+  it('rejects a wrong password', async () => {
+    const wrong = `Basic ${Buffer.from('debus:nope').toString('base64')}`;
+
+    await request(app.getHttpServer()).get('/docs-json').set('Authorization', wrong).expect(401);
+  });
+
+  it('serves the page and the combined document with the right password', async () => {
+    await request(app.getHttpServer()).get('/docs/').set('Authorization', credentials).expect(200);
+    const response = await request(app.getHttpServer())
+      .get('/docs-json')
+      .set('Authorization', credentials)
+      .expect(200);
+
+    expect(response.body.paths['/api/administracion/things']).toBeDefined();
+  });
+
+  it('leaves the API and the health check outside the password', async () => {
+    await request(app.getHttpServer()).get('/health').expect(200);
+    await request(app.getHttpServer()).get('/api/system/status').expect(401);
+  });
+});
