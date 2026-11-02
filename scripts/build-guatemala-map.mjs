@@ -30,40 +30,35 @@ const download = async (file) => {
 };
 const mapshaper = (...args) =>
   execFileSync('npx', ['--yes', 'mapshaper@0.6.113', ...args], { cwd: work, stdio: 'inherit' });
-const collection = (features) => ({ type: 'FeatureCollection', features });
+const writeLayer = (file, features, nameOf, gt) =>
+  writeFileSync(
+    join(work, file),
+    JSON.stringify({
+      type: 'FeatureCollection',
+      features: features.map(({ geometry, properties }) => ({
+        type: 'Feature',
+        geometry,
+        properties: { name: nameOf(properties), gt },
+      })),
+    }),
+  );
 
 try {
   const [departments, countries] = await Promise.all([
     download('ne_10m_admin_1_states_provinces.geojson'),
     download('ne_10m_admin_0_countries.geojson'),
   ]);
-  writeFileSync(
-    join(work, 'gt.geojson'),
-    JSON.stringify(
-      collection(
-        departments.features
-          .filter(({ properties }) => properties.adm0_a3 === 'GTM')
-          .map(({ geometry, properties }) => ({
-            type: 'Feature',
-            geometry,
-            properties: { name: OFFICIAL_NAMES[properties.name] ?? properties.name, gt: true },
-          })),
-      ),
-    ),
+  writeLayer(
+    'gt.geojson',
+    departments.features.filter(({ properties }) => properties.adm0_a3 === 'GTM'),
+    ({ name }) => OFFICIAL_NAMES[name] ?? name,
+    true,
   );
-  writeFileSync(
-    join(work, 'countries.geojson'),
-    JSON.stringify(
-      collection(
-        countries.features
-          .filter(({ properties }) => properties.ADM0_A3 in NEIGHBOURS)
-          .map(({ geometry, properties }) => ({
-            type: 'Feature',
-            geometry,
-            properties: { name: NEIGHBOURS[properties.ADM0_A3], gt: false },
-          })),
-      ),
-    ),
+  writeLayer(
+    'countries.geojson',
+    countries.features.filter(({ properties }) => properties.ADM0_A3 in NEIGHBOURS),
+    ({ ADM0_A3 }) => NEIGHBOURS[ADM0_A3],
+    false,
   );
   mapshaper('countries.geojson', '-clip', 'bbox=-93.5,12.8,-87.2,18.7', '-o', 'neighbours.geojson');
   mapshaper(

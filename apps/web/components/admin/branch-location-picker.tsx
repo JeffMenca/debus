@@ -32,12 +32,12 @@ export function BranchLocationPicker({ value, onChange, error }: BranchLocationP
       ? departmentAt(latitude, longitude)
       : null;
     setOutside(!department);
-    if (department)
-      onChange({
-        latitude: roundCoordinate(latitude),
-        longitude: roundCoordinate(longitude),
-        department,
-      });
+    if (!department) return;
+    onChange({
+      latitude: roundCoordinate(latitude),
+      longitude: roundCoordinate(longitude),
+      department,
+    });
   }
 
   const pinned = value && departmentAt(value.latitude, value.longitude);

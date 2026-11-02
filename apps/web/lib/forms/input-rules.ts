@@ -19,11 +19,10 @@ export interface InputRule {
 }
 
 const digits = (max: number) => (value: string) => value.replace(/\D/g, '').slice(0, max);
-const upperAlnum = (max: number) => (value: string) =>
-  value
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-    .slice(0, max);
+const upperOnly = (unwanted: RegExp, max: number) => (value: string) =>
+  value.toUpperCase().replace(unwanted, '').slice(0, max);
+const upperAlnum = (max: number) => upperOnly(/[^A-Z0-9]/g, max);
+const cleanCf = upperOnly(/[^CF]/g, 2);
 
 function cleanNit(value: string): string {
   const raw = value.toUpperCase().replace(/[^\dK]/g, '');
@@ -46,20 +45,11 @@ export const inputRules = {
   dpi: { inputMode: 'numeric', sanitize: digits(DPI_DIGITS) },
   nit: { sanitize: cleanNit },
   nitOrCf: {
-    sanitize: (value: string) =>
-      /^\s*c/i.test(value)
-        ? value.toUpperCase().replace(/[^CF]/g, '').slice(0, 2)
-        : cleanNit(value),
+    sanitize: (value: string) => (/^\s*c/i.test(value) ? cleanCf(value) : cleanNit(value)),
   },
   plate: { sanitize: upperAlnum(PLATE_LENGTH) },
   license: { sanitize: upperAlnum(LICENSE_MAX) },
-  branchCode: {
-    sanitize: (value: string) =>
-      value
-        .toUpperCase()
-        .replace(/[^A-Z]/g, '')
-        .slice(0, BRANCH_CODE_MAX),
-  },
+  branchCode: { sanitize: upperOnly(/[^A-Z]/g, BRANCH_CODE_MAX) },
   coordinate: {
     inputMode: 'decimal',
     sanitize: (value: string) =>

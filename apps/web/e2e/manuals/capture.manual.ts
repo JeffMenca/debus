@@ -62,6 +62,25 @@ async function searchTrips(page: Page) {
   await page.evaluate(() => window.scrollBy(0, 240));
 }
 
+const openFirstTripSeats = (page: Page) =>
+  page
+    .getByRole('list', { name: 'Viajes a la venta' })
+    .getByRole('link', { name: /Elegir asientos/ })
+    .first()
+    .click();
+
+async function openFirstDriverTrip(page: Page) {
+  await page.getByRole('table').getByRole('link').first().click();
+  await page.waitForURL(/\/chofer\/viajes\//);
+}
+
+async function captureScreens(page: Page, screens: readonly [path: string, name: string][]) {
+  for (const [path, name] of screens) {
+    await open(page, path);
+    await shot(page, 'personal', name);
+  }
+}
+
 test('clients without a session', async ({ page }) => {
   await open(page, '/');
   await shot(page, 'clientes', 'inicio');
@@ -91,11 +110,7 @@ test('clients with a session', async ({ page }) => {
   await searchTrips(page);
   await shot(page, 'clientes', 'viajes-resultados');
 
-  await page
-    .getByRole('list', { name: 'Viajes a la venta' })
-    .getByRole('link', { name: /Elegir asientos/ })
-    .first()
-    .click();
+  await openFirstTripSeats(page);
   await chooseSeat(page);
   await chooseSeat(page);
   await shot(page, 'clientes', 'asientos-pago');
@@ -130,18 +145,14 @@ test('clients on a phone', async ({ page }) => {
 
   await signIn(page, account('cliente-1'));
   await searchTrips(page);
-  await page
-    .getByRole('list', { name: 'Viajes a la venta' })
-    .getByRole('link', { name: /Elegir asientos/ })
-    .first()
-    .click();
+  await openFirstTripSeats(page);
   await chooseSeat(page);
   await shot(page, 'clientes', 'asientos-telefono');
 });
 
 test('system admin', async ({ page }) => {
   await signIn(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-  const screens: [string, string][] = [
+  await captureScreens(page, [
     ['/admin', 'admin-panel'],
     ['/admin/sucursales', 'admin-sucursales'],
     ['/admin/configuracion', 'admin-configuracion'],
@@ -150,11 +161,7 @@ test('system admin', async ({ page }) => {
     ['/admin/reportes/ingresos', 'admin-reporte-ingresos'],
     ['/admin/reportes/rutas-demandadas', 'admin-reporte-rutas'],
     ['/admin/estado', 'admin-estado'],
-  ];
-  for (const [path, name] of screens) {
-    await open(page, path);
-    await shot(page, 'personal', name);
-  }
+  ]);
 
   // Only the demo accounts: a local stack keeps whatever other runs left behind.
   await open(page, '/admin/usuarios');
@@ -182,7 +189,7 @@ test('system admin', async ({ page }) => {
 
 test('branch admin', async ({ page }) => {
   await signIn(page, account('admin-gua'));
-  const screens: [string, string][] = [
+  await captureScreens(page, [
     ['/sucursal', 'sucursal-panel'],
     ['/sucursal/viajes', 'sucursal-viajes'],
     ['/sucursal/alquileres', 'sucursal-alquileres'],
@@ -192,11 +199,7 @@ test('branch admin', async ({ page }) => {
     ['/sucursal/gastos', 'sucursal-gastos'],
     ['/sucursal/reportes/ingresos-boletos', 'sucursal-reporte-boletos'],
     ['/sucursal/reportes/depreciacion', 'sucursal-reporte-depreciacion'],
-  ];
-  for (const [path, name] of screens) {
-    await open(page, path);
-    await shot(page, 'personal', name);
-  }
+  ]);
 });
 
 test('cashier', async ({ page }) => {
@@ -222,16 +225,14 @@ test('driver', async ({ page }) => {
   await open(page, '/chofer');
   await shot(page, 'personal', 'chofer-viajes');
 
-  await page.getByRole('table').getByRole('link').first().click();
-  await page.waitForURL(/\/chofer\/viajes\//);
+  await openFirstDriverTrip(page);
   await page.getByLabel('Kilometraje inicial').fill('150000');
   await page.getByLabel('Kilometraje inicial').scrollIntoViewIfNeeded();
   await shot(page, 'personal', 'chofer-viaje');
 
   await open(page, '/chofer');
   await page.getByRole('tab', { name: 'Completados' }).click();
-  await page.getByRole('table').getByRole('link').first().click();
-  await page.waitForURL(/\/chofer\/viajes\//);
+  await openFirstDriverTrip(page);
   await page.getByText('Registrada, no editable').first().waitFor();
   await shot(page, 'personal', 'chofer-viaje-completado');
 });
