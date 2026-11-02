@@ -47,14 +47,26 @@ Las migraciones no se revierten: son aditivas.
 
 ## Vaciar y sembrar producción
 
-Orden: **desplegar, vaciar, sembrar**.
+Orden: **desplegar, vaciar, sembrar**. Vaciar borra los datos de las siete bases y no se puede deshacer.
 
-1. Pausar los trabajos de Cloud Scheduler (`gcloud scheduler jobs pause <trabajo> --location us-central1`).
-2. `TRUNCATE` de todas las tablas de las siete bases salvo `_prisma_migrations`.
-3. `seek` de todas las suscripciones y colas de errores a la hora actual, para no reentregar eventos viejos sobre bases vacías.
-4. Crear una revisión nueva de `administracion` sin cambiar su configuración (`gcloud run services update administracion --region us-central1 --update-labels restarted=<hora>`); al arrancar crea al administrador de `BOOTSTRAP_ADMIN_EMAIL` y le envía la invitación.
-5. Reanudar los trabajos de Cloud Scheduler (`email-flush` envía la invitación).
-6. `pnpm seed --target production` (ver [datos-de-prueba.md](datos-de-prueba.md)). Los datos nuevos viajan por la API, así que no hace falta republicar copias.
+```bash
+pnpm deploy:local reset                                          # simulacro: imprime los pasos
+pnpm deploy:local reset --apply --confirm wipe-production        # vacía de verdad
+pnpm seed --target production                                    # ver datos-de-prueba.md
+```
+
+Qué hace `reset`, en este orden:
+
+1. Pausa los 10 trabajos de Cloud Scheduler, para que nada publique ni consuma.
+2. Marca como entregados los mensajes pendientes de todas las suscripciones y colas de errores (`seek` a la hora actual), para no reentregar eventos viejos sobre bases vacías.
+3. Vacía cada base con un Cloud Run Job temporal (`<servicio>-reset`) que usa la imagen de migración del servicio: un solo `TRUNCATE ... RESTART IDENTITY CASCADE` de todas las tablas salvo `_prisma_migrations`, en una transacción. Borra el job al terminar.
+4. Repite el `seek` por si algo se publicó mientras tanto.
+5. Crea una revisión nueva de `administracion` sin cambiar su configuración; al arrancar crea al administrador de `BOOTSTRAP_ADMIN_EMAIL` y le envía la invitación. Comprueba `/health`.
+6. Reanuda los trabajos de Cloud Scheduler (`email-flush` envía la invitación).
+
+Si un paso falla, el comando se detiene y los trabajos de Scheduler quedan pausados, que es el estado seguro. Se puede repetir sin riesgo. Para reanudarlos a mano: `gcloud scheduler jobs resume <trabajo> --location us-central1`.
+
+El seed carga todo por la API, así que no hace falta republicar copias.
 
 ## Cómo comprobar
 
