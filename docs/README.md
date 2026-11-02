@@ -52,6 +52,11 @@ flowchart LR
 
 Cada manual explica para qué sirve el servicio, sus componentes, sus clases, sus tablas, su despliegue, los eventos que publica y consume, sus endpoints, sus variables de entorno y cómo probarlo. Los diagramas de clases, de tablas y de despliegue, los eventos y los endpoints **se generan** del código con `pnpm run docs` (y `pnpm run docs --check` en la integración continua los compara); el diagrama de componentes se escribe a mano.
 
+## Manuales de usuario
+
+- [Clientes](manuales/usuario-clientes.md): crear la cuenta, recargar la cartera, comprar boletos y pedir alquileres.
+- [Personal](manuales/usuario-personal.md): una sección por rol, los 12 reportes y el mapa de departamentos.
+
 ## Diagrama de despliegue general
 
 Todo corre en un solo proyecto de Google Cloud. Los siete servicios, el gateway y el web son un Cloud Run cada uno; cada servicio tiene su propia instancia de Cloud SQL (`debus-pg-<servicio>`), su tópico de Pub/Sub (`<servicio>-events`) y su cola de errores (`<servicio>-dlq`). El detalle de cada servicio (sus suscripciones y sus trabajos) está en la sección "Diagrama de despliegue" de su manual.
