@@ -101,6 +101,7 @@ export class MailpitMailbox implements Mailbox {
 export interface ImapClientLike {
   connect(): Promise<void>;
   logout(): Promise<void>;
+  list(): Promise<{ path: string; specialUse?: string }[]>;
   getMailboxLock(path: string): Promise<{ release(): void }>;
   search(query: { since: Date }): Promise<number[] | false | undefined>;
   fetchAll(
@@ -134,6 +135,7 @@ export class ImapMailbox implements Mailbox {
   private readonly polling: Polling;
   private addressed = 0;
   private arrived = 0;
+  private folder = 'INBOX';
 
   constructor(
     private readonly options: ImapOptions,
@@ -145,41 +147,48 @@ export class ImapMailbox implements Mailbox {
   }
 
   async latestLink(to: string, pathPattern: string, since: Date): Promise<string> {
-    return this.withClient((client) =>
+    return this.withClient((client, folder) =>
       poll(
         this.polling,
-        async () => (await this.scan(client, to, pathPattern, since, 1))[0] ?? null,
+        async () => (await this.scan(client, folder, to, pathPattern, since, 1))[0] ?? null,
         () =>
           new Error(
-            `${missing(to, pathPattern).message} (IMAP: ${this.addressed} addressed to it, ${this.arrived} arrived in the inbox since ${since.toISOString()})`,
+            `${missing(to, pathPattern).message} (IMAP: ${this.addressed} addressed to it, ${this.arrived} arrived in ${this.folder} since ${since.toISOString()})`,
           ),
       ),
     );
   }
 
   links(to: string, pathPattern: string, since: Date): Promise<string[]> {
-    return this.withClient((client) => this.scan(client, to, pathPattern, since));
+    return this.withClient((client, folder) => this.scan(client, folder, to, pathPattern, since));
   }
 
-  private async withClient<T>(work: (client: ImapClientLike) => Promise<T>): Promise<T> {
+  private async withClient<T>(
+    work: (client: ImapClientLike, folder: string) => Promise<T>,
+  ): Promise<T> {
     const client = this.createClient(this.options);
     try {
       await client.connect();
-      return await work(client);
+      const folders = await client.list();
+      const folder = folders.find(({ specialUse }) => specialUse === '\\All')?.path ?? 'INBOX';
+      this.folder = folder;
+      return await work(client, folder);
     } finally {
       await client.logout().catch(() => undefined);
     }
   }
 
-  // The recipient is checked here: Gmail's own search by address finds nothing for tagged ones.
+  // Searches all mail, not the inbox: Gmail files what an account sends to its own tagged
+  // addresses as sent mail. The recipient is checked here, since a mailbox holds everyone's mail.
   private async scan(
     client: ImapClientLike,
+    folder: string,
     to: string,
     pathPattern: string,
     since: Date,
     limit = Infinity,
   ): Promise<string[]> {
-    const lock = await client.getMailboxLock('INBOX');
+    const lock = await client.getMailboxLock(folder);
     try {
       const arrived = (await client.search({ since: searchFrom(since) })) || [];
       this.arrived = arrived.length;

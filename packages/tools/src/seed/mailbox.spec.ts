@@ -117,9 +117,25 @@ interface Stored {
 }
 
 const NOW = new Date('2026-10-15T10:00:00.000Z');
+// Gmail names it after the account's language; the special-use flag is what identifies it.
+const ALL_MAIL = '[Gmail]/Todos';
+const GMAIL_FOLDERS = [
+  { path: 'INBOX' },
+  { path: '[Gmail]/Enviados', specialUse: '\\Sent' },
+  { path: ALL_MAIL, specialUse: '\\All' },
+];
 
-function fakeImap(stored: Stored[]) {
-  const state = { searched: [] as unknown[], fetched: [] as string[], released: 0, closed: 0 };
+function fakeImap(
+  stored: Stored[],
+  folders: { path: string; specialUse?: string }[] = GMAIL_FOLDERS,
+) {
+  const state = {
+    searched: [] as unknown[],
+    fetched: [] as string[],
+    locked: [] as string[],
+    released: 0,
+    closed: 0,
+  };
   const sourceOf = ({ token }: Stored) =>
     [
       'Content-Type: text/html',
@@ -131,8 +147,9 @@ function fakeImap(stored: Stored[]) {
     logout: async () => {
       state.closed += 1;
     },
+    list: async () => folders,
     getMailboxLock: async (path) => {
-      expect(path).toBe('INBOX');
+      state.locked.push(path);
       return {
         release: () => {
           state.released += 1;
@@ -189,6 +206,22 @@ describe('ImapMailbox', () => {
     expect(state.closed).toBe(1);
   });
 
+  // Gmail files what an account sends to its own tagged addresses as sent mail, outside the inbox.
+  it('searches the mailbox that holds every message', async () => {
+    const { client, state } = fakeImap([{ seq: 1, date: at(1), to: 'a@gmail.com', token: 't' }]);
+    await mailboxOf(client).links('a@gmail.com', LINK_PATH, since);
+    expect(state.locked).toEqual([ALL_MAIL]);
+  });
+
+  it('searches the inbox when the server has no such mailbox', async () => {
+    const { client, state } = fakeImap(
+      [{ seq: 1, date: at(1), to: 'a@gmail.com', token: 't' }],
+      [{ path: 'INBOX' }],
+    );
+    await mailboxOf(client).links('a@gmail.com', LINK_PATH, since);
+    expect(state.locked).toEqual(['INBOX']);
+  });
+
   it('ignores messages from before the request', async () => {
     const { client } = fakeImap([{ seq: 1, date: at(-3600), to: 'a@gmail.com', token: 'stale' }]);
     await expect(
@@ -224,7 +257,7 @@ describe('ImapMailbox', () => {
     await expect(
       mailboxOf(client, { timeoutMs: 20, pollMs: 5 }).latestLink('a@gmail.com', LINK_PATH, since),
     ).rejects.toThrow(
-      /reached a@gmail\.com \(IMAP: 1 addressed to it, 3 arrived in the inbox since 2026-10-15T10:00:00\.000Z\)/,
+      /reached a@gmail\.com \(IMAP: 1 addressed to it, 3 arrived in \[Gmail\]\/Todos since 2026-10-15T10:00:00\.000Z\)/,
     );
     expect(state.closed).toBe(1);
   });
