@@ -23,7 +23,7 @@ const missing = (to: string, pathPattern: string): Error =>
 async function poll(
   { timeoutMs = DEFAULT_TIMEOUT_MS, pollMs = DEFAULT_POLL_MS }: Polling,
   attempt: () => Promise<string | null>,
-  onTimeout: () => Error,
+  onTimeout: () => Error | Promise<Error>,
 ): Promise<string> {
   const deadline = Date.now() + timeoutMs;
   do {
@@ -31,7 +31,7 @@ async function poll(
     if (found) return found;
     await sleep(pollMs);
   } while (Date.now() < deadline);
-  throw onTimeout();
+  throw await onTimeout();
 }
 
 const isFresh = (at: Date, since: Date): boolean => at.getTime() >= since.getTime() - CLOCK_SKEW_MS;
@@ -76,7 +76,7 @@ export interface ImapClientLike {
   connect(): Promise<void>;
   logout(): Promise<void>;
   getMailboxLock(path: string): Promise<{ release(): void }>;
-  search(query: { to: string; since: Date }): Promise<number[] | false | undefined>;
+  search(query: { to?: string; since: Date }): Promise<number[] | false | undefined>;
   fetchOne(
     seq: string,
     query: { source: true; internalDate: true },
@@ -96,6 +96,7 @@ const connect = ({ host, user, password }: ImapOptions): ImapClientLike =>
 export class ImapMailbox implements Mailbox {
   private readonly createClient: (options: ImapOptions) => ImapClientLike;
   private readonly polling: Polling;
+  private matched = 0;
 
   constructor(
     private readonly options: ImapOptions,
@@ -113,10 +114,28 @@ export class ImapMailbox implements Mailbox {
       return await poll(
         this.polling,
         () => this.find(client, to, pathPattern, since),
-        () => missing(to, pathPattern),
+        () => this.explainMissing(client, to, pathPattern, since),
       );
     } finally {
       await client.logout().catch(() => undefined);
+    }
+  }
+
+  // Tells apart a search that matches nothing from an inbox where nothing arrived at all.
+  private async explainMissing(
+    client: ImapClientLike,
+    to: string,
+    pathPattern: string,
+    since: Date,
+  ): Promise<Error> {
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      const recent = (await client.search({ since })) || [];
+      return new Error(
+        `${missing(to, pathPattern).message} (IMAP: ${this.matched} matched the address, ${recent.length} arrived in the inbox since ${since.toISOString()})`,
+      );
+    } finally {
+      lock.release();
     }
   }
 
@@ -129,6 +148,7 @@ export class ImapMailbox implements Mailbox {
     const lock = await client.getMailboxLock('INBOX');
     try {
       const found = (await client.search({ to, since })) || [];
+      this.matched = found.length;
       for (const seq of [...found].sort((a, b) => b - a)) {
         const message = await client.fetchOne(String(seq), { source: true, internalDate: true });
         if (!message || !message.source || !message.internalDate) continue;

@@ -162,6 +162,24 @@ describe('ImapMailbox', () => {
     );
   });
 
+  it('says what the inbox held when no link showed up', async () => {
+    const { client, state } = fakeImap([]);
+    client.search = async (query) => {
+      state.searched.push(query);
+      return query.to ? [] : [4, 5, 6];
+    };
+    const mailbox = new ImapMailbox(options, {
+      createClient: () => client,
+      timeoutMs: 20,
+      pollMs: 5,
+    });
+    await expect(mailbox.latestLink('a+admin@gmail.com', LINK_PATH, since)).rejects.toThrow(
+      /reached a\+admin@gmail\.com \(IMAP: 0 matched the address, 3 arrived in the inbox since 2026-10-15T10:00:00\.000Z\)/,
+    );
+    expect(state.searched).toContainEqual({ since });
+    expect(state.released).toBe(state.searched.length);
+  });
+
   it('closes the connection even when the search fails', async () => {
     const { client, state } = fakeImap([]);
     client.search = async () => {
