@@ -5,6 +5,8 @@ import { sleep } from './retry';
 export interface Mailbox {
   // The path and query of the newest link that matches `pathPattern` in an email sent to `to` since `since`.
   latestLink(to: string, pathPattern: string, since: Date): Promise<string>;
+  // Every link already received since `since`, newest first. It does not wait.
+  links(to: string, pathPattern: string, since: Date): Promise<string[]>;
 }
 
 interface Polling {
@@ -41,6 +43,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // `isFresh` apply the exact time.
 const searchFrom = (since: Date): Date => new Date(since.getTime() - DAY_MS);
 
+const ENVELOPE = { envelope: true, internalDate: true } as const;
+
 const isFresh = (at: Date, since: Date): boolean => at.getTime() >= since.getTime() - CLOCK_SKEW_MS;
 
 // Local stack: Mailpit keeps every email the services send.
@@ -63,18 +67,33 @@ export class MailpitMailbox implements Mailbox {
     );
   }
 
+  async links(to: string, pathPattern: string, since: Date): Promise<string[]> {
+    return this.scan(to, pathPattern, since);
+  }
+
   private async find(to: string, pathPattern: string, since: Date): Promise<string | null> {
+    return (await this.scan(to, pathPattern, since, 1))[0] ?? null;
+  }
+
+  private async scan(
+    to: string,
+    pathPattern: string,
+    since: Date,
+    limit = Infinity,
+  ): Promise<string[]> {
     const query = encodeURIComponent(`to:${to}`);
     const search = await this.fetchImpl(`${this.baseUrl}/api/v1/search?query=${query}`);
     const { messages } = (await search.json()) as { messages: { ID: string; Created: string }[] };
+    const found: string[] = [];
     for (const { ID, Created } of messages) {
+      if (found.length >= limit) break;
       if (!isFresh(new Date(Created), since)) continue;
       const message = await this.fetchImpl(`${this.baseUrl}/api/v1/message/${ID}`);
       const { HTML } = (await message.json()) as { HTML: string };
       const link = extractLink(HTML, pathPattern);
-      if (link) return link;
+      if (link) found.push(link);
     }
-    return null;
+    return found;
   }
 }
 
@@ -83,7 +102,17 @@ export interface ImapClientLike {
   connect(): Promise<void>;
   logout(): Promise<void>;
   getMailboxLock(path: string): Promise<{ release(): void }>;
-  search(query: { to?: string; since: Date }): Promise<number[] | false | undefined>;
+  search(query: { since: Date }): Promise<number[] | false | undefined>;
+  fetchAll(
+    range: string,
+    query: { envelope: true; internalDate: true },
+  ): Promise<
+    {
+      seq: number;
+      envelope?: { to?: { address?: string }[] };
+      internalDate?: Date | string;
+    }[]
+  >;
   fetchOne(
     seq: string,
     query: { source: true; internalDate: true },
@@ -103,7 +132,8 @@ const connect = ({ host, user, password }: ImapOptions): ImapClientLike =>
 export class ImapMailbox implements Mailbox {
   private readonly createClient: (options: ImapOptions) => ImapClientLike;
   private readonly polling: Polling;
-  private matched = 0;
+  private addressed = 0;
+  private arrived = 0;
 
   constructor(
     private readonly options: ImapOptions,
@@ -115,55 +145,62 @@ export class ImapMailbox implements Mailbox {
   }
 
   async latestLink(to: string, pathPattern: string, since: Date): Promise<string> {
+    return this.withClient((client) =>
+      poll(
+        this.polling,
+        async () => (await this.scan(client, to, pathPattern, since, 1))[0] ?? null,
+        () =>
+          new Error(
+            `${missing(to, pathPattern).message} (IMAP: ${this.addressed} addressed to it, ${this.arrived} arrived in the inbox since ${since.toISOString()})`,
+          ),
+      ),
+    );
+  }
+
+  links(to: string, pathPattern: string, since: Date): Promise<string[]> {
+    return this.withClient((client) => this.scan(client, to, pathPattern, since));
+  }
+
+  private async withClient<T>(work: (client: ImapClientLike) => Promise<T>): Promise<T> {
     const client = this.createClient(this.options);
     try {
       await client.connect();
-      return await poll(
-        this.polling,
-        () => this.find(client, to, pathPattern, since),
-        () => this.explainMissing(client, to, pathPattern, since),
-      );
+      return await work(client);
     } finally {
       await client.logout().catch(() => undefined);
     }
   }
 
-  // Tells apart a search that matches nothing from an inbox where nothing arrived at all.
-  private async explainMissing(
+  // The recipient is checked here: Gmail's own search by address finds nothing for tagged ones.
+  private async scan(
     client: ImapClientLike,
     to: string,
     pathPattern: string,
     since: Date,
-  ): Promise<Error> {
+    limit = Infinity,
+  ): Promise<string[]> {
     const lock = await client.getMailboxLock('INBOX');
     try {
-      const recent = (await client.search({ since: searchFrom(since) })) || [];
-      return new Error(
-        `${missing(to, pathPattern).message} (IMAP: ${this.matched} matched the address, ${recent.length} arrived in the inbox since ${since.toISOString()})`,
-      );
-    } finally {
-      lock.release();
-    }
-  }
-
-  private async find(
-    client: ImapClientLike,
-    to: string,
-    pathPattern: string,
-    since: Date,
-  ): Promise<string | null> {
-    const lock = await client.getMailboxLock('INBOX');
-    try {
-      const found = (await client.search({ to, since: searchFrom(since) })) || [];
-      this.matched = found.length;
-      for (const seq of [...found].sort((a, b) => b - a)) {
+      const arrived = (await client.search({ since: searchFrom(since) })) || [];
+      this.arrived = arrived.length;
+      const headers = arrived.length > 0 ? await client.fetchAll(arrived.join(','), ENVELOPE) : [];
+      const wanted = to.toLowerCase();
+      const addressed = headers
+        .filter(({ envelope }) =>
+          (envelope?.to ?? []).some(({ address }) => address?.toLowerCase() === wanted),
+        )
+        .sort((a, b) => b.seq - a.seq);
+      this.addressed = addressed.length;
+      const found: string[] = [];
+      for (const { seq } of addressed) {
+        if (found.length >= limit) break;
         const message = await client.fetchOne(String(seq), { source: true, internalDate: true });
         if (!message || !message.source || !message.internalDate) continue;
         if (!isFresh(new Date(message.internalDate), since)) continue;
         const link = extractLink(htmlOf(message.source.toString('utf8')), pathPattern);
-        if (link) return link;
+        if (link) found.push(link);
       }
-      return null;
+      return found;
     } finally {
       lock.release();
     }

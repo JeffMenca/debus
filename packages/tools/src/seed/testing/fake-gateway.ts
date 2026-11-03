@@ -558,4 +558,8 @@ export class FakeMailbox implements Mailbox {
     if (!this.gateway.forgot.includes(to)) throw new Error(`No email reached ${to}`);
     return `/restablecer?token=${encodeURIComponent(to)}`;
   }
+
+  async links(): Promise<string[]> {
+    return [];
+  }
 }

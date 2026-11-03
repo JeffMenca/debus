@@ -76,6 +76,30 @@ describe('MailpitMailbox', () => {
     expect(searches).toBe(3);
   });
 
+  it('lists every link of the window, newest first, without waiting', async () => {
+    const { impl } = mailpit({
+      '/api/v1/search': () =>
+        json({
+          messages: [
+            { ID: 'new', Created: '2026-10-15T10:00:09.000Z' },
+            { ID: 'login', Created: '2026-10-15T10:00:08.000Z' },
+            { ID: 'old', Created: '2026-10-15T10:00:07.000Z' },
+            { ID: 'stale', Created: '2026-10-15T09:00:00.000Z' },
+          ],
+        }),
+      '/api/v1/message/new': () => json({ HTML: '<a href="http://web/restablecer?token=n">x</a>' }),
+      '/api/v1/message/login': () => json({ HTML: '<a href="http://web/login">x</a>' }),
+      '/api/v1/message/old': () =>
+        json({ HTML: '<a href="http://web/crear-contrasena?token=o">x</a>' }),
+      '/api/v1/message/stale': () => {
+        throw new Error('an email from before the window must not be opened');
+      },
+    });
+    await expect(
+      new MailpitMailbox('http://mail:8025', impl).links('a@debus.local', LINK_PATH, since),
+    ).resolves.toEqual(['/restablecer?token=n', '/crear-contrasena?token=o']);
+  });
+
   it('fails when no email arrives in time', async () => {
     const { impl } = mailpit({ '/api/v1/search': () => json({ messages: [] }) });
     const mailbox = new MailpitMailbox('http://mail:8025', impl, { timeoutMs: 20, pollMs: 5 });
@@ -85,12 +109,25 @@ describe('MailpitMailbox', () => {
   });
 });
 
-function fakeImap(messages: { seq: number; date: Date; source: string }[]) {
-  const state = { searched: [] as unknown[], released: 0, closed: 0, connected: 0 };
+interface Stored {
+  seq: number;
+  date: Date;
+  to: string;
+  token?: string;
+}
+
+const NOW = new Date('2026-10-15T10:00:00.000Z');
+
+function fakeImap(stored: Stored[]) {
+  const state = { searched: [] as unknown[], fetched: [] as string[], released: 0, closed: 0 };
+  const sourceOf = ({ token }: Stored) =>
+    [
+      'Content-Type: text/html',
+      '',
+      token ? `<a href="http://web/restablecer?token=${token}">x</a>` : '<p>hola</p>',
+    ].join('\r\n');
   const client: ImapClientLike = {
-    connect: async () => {
-      state.connected += 1;
-    },
+    connect: async () => undefined,
     logout: async () => {
       state.closed += 1;
     },
@@ -104,36 +141,41 @@ function fakeImap(messages: { seq: number; date: Date; source: string }[]) {
     },
     search: async (query) => {
       state.searched.push(query);
-      return messages.map((message) => message.seq);
+      return stored.map((message) => message.seq);
+    },
+    fetchAll: async (range) => {
+      const wanted = range.split(',').map(Number);
+      return stored
+        .filter((message) => wanted.includes(message.seq))
+        .map((message) => ({
+          seq: message.seq,
+          internalDate: message.date,
+          envelope: { to: [{ address: message.to }] },
+        }));
     },
     fetchOne: async (seq) => {
-      const found = messages.find((message) => message.seq === Number(seq));
-      return found ? { source: Buffer.from(found.source), internalDate: found.date } : false;
+      state.fetched.push(seq);
+      const found = stored.find((message) => message.seq === Number(seq));
+      return found ? { source: Buffer.from(sourceOf(found)), internalDate: found.date } : false;
     },
   };
   return { client, state };
 }
-const htmlMessage = (href: string) =>
-  ['Content-Type: text/html', '', `<a href="${href}">x</a>`].join('\r\n');
 
 describe('ImapMailbox', () => {
-  const since = new Date('2026-10-15T10:00:00.000Z');
-  const options = { host: 'imap.test', user: 'equipo@gmail.com', password: 'secret' };
+  const since = NOW;
   // IMAP compares days in the server's time zone, so the search starts a day early.
   const searchFrom = new Date('2026-10-14T10:00:00.000Z');
+  const options = { host: 'imap.test', user: 'equipo@gmail.com', password: 'secret' };
+  const at = (seconds: number) => new Date(NOW.getTime() + seconds * 1000);
+  const mailboxOf = (client: ImapClientLike, polling = {}) =>
+    new ImapMailbox(options, { createClient: () => client, ...polling });
 
-  it('searches the inbox by recipient and date and reads the newest matching link', async () => {
+  it('reads the newest link of the messages addressed to the account', async () => {
     const { client, state } = fakeImap([
-      {
-        seq: 1,
-        date: new Date('2026-10-15T10:00:02.000Z'),
-        source: htmlMessage('http://web/restablecer?token=old'),
-      },
-      {
-        seq: 2,
-        date: new Date('2026-10-15T10:00:06.000Z'),
-        source: htmlMessage('http://web/restablecer?token=new'),
-      },
+      { seq: 1, date: at(2), to: 'equipo+admin@gmail.com', token: 'old' },
+      { seq: 2, date: at(6), to: 'Equipo+Admin@gmail.com', token: 'new' },
+      { seq: 3, date: at(8), to: 'equipo+cajero@gmail.com', token: 'other' },
     ]);
     const factory = jest.fn(() => client);
     const mailbox = new ImapMailbox(options, { createClient: factory });
@@ -141,45 +183,50 @@ describe('ImapMailbox', () => {
       '/restablecer?token=new',
     );
     expect(factory).toHaveBeenCalledWith(options);
-    expect(state.searched[0]).toEqual({ to: 'equipo+admin@gmail.com', since: searchFrom });
+    expect(state.searched).toEqual([{ since: searchFrom }]);
+    expect(state.fetched).toEqual(['2']);
     expect(state.released).toBe(1);
     expect(state.closed).toBe(1);
   });
 
   it('ignores messages from before the request', async () => {
+    const { client } = fakeImap([{ seq: 1, date: at(-3600), to: 'a@gmail.com', token: 'stale' }]);
+    await expect(
+      mailboxOf(client, { timeoutMs: 20, pollMs: 5 }).latestLink('a@gmail.com', LINK_PATH, since),
+    ).rejects.toThrow('No email with a link to');
+  });
+
+  it('lists every link of the window, newest first, without waiting', async () => {
     const { client } = fakeImap([
-      {
-        seq: 1,
-        date: new Date('2026-10-15T09:00:00.000Z'),
-        source: htmlMessage('http://web/restablecer?token=stale'),
-      },
+      { seq: 1, date: at(1), to: 'a@gmail.com', token: 'first' },
+      { seq: 2, date: at(2), to: 'b@gmail.com', token: 'other' },
+      { seq: 3, date: at(3), to: 'a@gmail.com' },
+      { seq: 4, date: at(4), to: 'a@gmail.com', token: 'last' },
     ]);
-    const mailbox = new ImapMailbox(options, {
-      createClient: () => client,
-      timeoutMs: 20,
-      pollMs: 5,
-    });
-    await expect(mailbox.latestLink('a@gmail.com', LINK_PATH, since)).rejects.toThrow(
-      'No email with a link to',
-    );
+    await expect(mailboxOf(client).links('a@gmail.com', LINK_PATH, since)).resolves.toEqual([
+      '/restablecer?token=last',
+      '/restablecer?token=first',
+    ]);
+  });
+
+  it('returns no links when nothing arrived', async () => {
+    const { client } = fakeImap([]);
+    client.search = async () => false;
+    await expect(mailboxOf(client).links('a@gmail.com', LINK_PATH, since)).resolves.toEqual([]);
   });
 
   it('says what the inbox held when no link showed up', async () => {
-    const { client, state } = fakeImap([]);
-    client.search = async (query) => {
-      state.searched.push(query);
-      return query.to ? [] : [4, 5, 6];
-    };
-    const mailbox = new ImapMailbox(options, {
-      createClient: () => client,
-      timeoutMs: 20,
-      pollMs: 5,
-    });
-    await expect(mailbox.latestLink('a+admin@gmail.com', LINK_PATH, since)).rejects.toThrow(
-      /reached a\+admin@gmail\.com \(IMAP: 0 matched the address, 3 arrived in the inbox since 2026-10-15T10:00:00\.000Z\)/,
+    const { client, state } = fakeImap([
+      { seq: 1, date: at(1), to: 'b@gmail.com', token: 'x' },
+      { seq: 2, date: at(2), to: 'a@gmail.com' },
+      { seq: 3, date: at(3), to: 'c@gmail.com', token: 'y' },
+    ]);
+    await expect(
+      mailboxOf(client, { timeoutMs: 20, pollMs: 5 }).latestLink('a@gmail.com', LINK_PATH, since),
+    ).rejects.toThrow(
+      /reached a@gmail\.com \(IMAP: 1 addressed to it, 3 arrived in the inbox since 2026-10-15T10:00:00\.000Z\)/,
     );
-    expect(state.searched).toContainEqual({ since: searchFrom });
-    expect(state.released).toBe(state.searched.length);
+    expect(state.closed).toBe(1);
   });
 
   it('closes the connection even when the search fails', async () => {
@@ -187,8 +234,9 @@ describe('ImapMailbox', () => {
     client.search = async () => {
       throw new Error('boom');
     };
-    const mailbox = new ImapMailbox(options, { createClient: () => client });
-    await expect(mailbox.latestLink('a@gmail.com', LINK_PATH, since)).rejects.toThrow('boom');
+    await expect(mailboxOf(client).latestLink('a@gmail.com', LINK_PATH, since)).rejects.toThrow(
+      'boom',
+    );
     expect(state.closed).toBe(1);
     expect(state.released).toBe(1);
   });
@@ -198,8 +246,7 @@ describe('ImapMailbox', () => {
     client.connect = async () => {
       throw new Error('auth failed');
     };
-    const mailbox = new ImapMailbox(options, { createClient: () => client });
-    await expect(mailbox.latestLink('a@gmail.com', LINK_PATH, since)).rejects.toThrow(
+    await expect(mailboxOf(client).latestLink('a@gmail.com', LINK_PATH, since)).rejects.toThrow(
       'auth failed',
     );
     expect(state.closed).toBe(1);
