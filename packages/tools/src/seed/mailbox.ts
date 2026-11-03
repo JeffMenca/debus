@@ -34,6 +34,13 @@ async function poll(
   throw await onTimeout();
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// IMAP SINCE compares whole days in the server's time zone (Gmail's is behind UTC), so asking
+// from the exact moment would hide today's mail after UTC midnight. Start a day early and let
+// `isFresh` apply the exact time.
+const searchFrom = (since: Date): Date => new Date(since.getTime() - DAY_MS);
+
 const isFresh = (at: Date, since: Date): boolean => at.getTime() >= since.getTime() - CLOCK_SKEW_MS;
 
 // Local stack: Mailpit keeps every email the services send.
@@ -130,7 +137,7 @@ export class ImapMailbox implements Mailbox {
   ): Promise<Error> {
     const lock = await client.getMailboxLock('INBOX');
     try {
-      const recent = (await client.search({ since })) || [];
+      const recent = (await client.search({ since: searchFrom(since) })) || [];
       return new Error(
         `${missing(to, pathPattern).message} (IMAP: ${this.matched} matched the address, ${recent.length} arrived in the inbox since ${since.toISOString()})`,
       );
@@ -147,7 +154,7 @@ export class ImapMailbox implements Mailbox {
   ): Promise<string | null> {
     const lock = await client.getMailboxLock('INBOX');
     try {
-      const found = (await client.search({ to, since })) || [];
+      const found = (await client.search({ to, since: searchFrom(since) })) || [];
       this.matched = found.length;
       for (const seq of [...found].sort((a, b) => b - a)) {
         const message = await client.fetchOne(String(seq), { source: true, internalDate: true });

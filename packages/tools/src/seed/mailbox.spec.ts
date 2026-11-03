@@ -119,6 +119,8 @@ const htmlMessage = (href: string) =>
 describe('ImapMailbox', () => {
   const since = new Date('2026-10-15T10:00:00.000Z');
   const options = { host: 'imap.test', user: 'equipo@gmail.com', password: 'secret' };
+  // IMAP compares days in the server's time zone, so the search starts a day early.
+  const searchFrom = new Date('2026-10-14T10:00:00.000Z');
 
   it('searches the inbox by recipient and date and reads the newest matching link', async () => {
     const { client, state } = fakeImap([
@@ -139,7 +141,7 @@ describe('ImapMailbox', () => {
       '/restablecer?token=new',
     );
     expect(factory).toHaveBeenCalledWith(options);
-    expect(state.searched[0]).toEqual({ to: 'equipo+admin@gmail.com', since });
+    expect(state.searched[0]).toEqual({ to: 'equipo+admin@gmail.com', since: searchFrom });
     expect(state.released).toBe(1);
     expect(state.closed).toBe(1);
   });
@@ -176,7 +178,7 @@ describe('ImapMailbox', () => {
     await expect(mailbox.latestLink('a+admin@gmail.com', LINK_PATH, since)).rejects.toThrow(
       /reached a\+admin@gmail\.com \(IMAP: 0 matched the address, 3 arrived in the inbox since 2026-10-15T10:00:00\.000Z\)/,
     );
-    expect(state.searched).toContainEqual({ since });
+    expect(state.searched).toContainEqual({ since: searchFrom });
     expect(state.released).toBe(state.searched.length);
   });
 
