@@ -84,12 +84,14 @@ describe('profile recovery from republished accounts', () => {
     ).toMatchObject({ fullName: user.fullName });
   });
 
-  it('creates no profile for an account that was deactivated', async () => {
+  it('keeps an account that was deactivated as a hidden profile', async () => {
     const user = account({ active: false });
 
     await bus.deliver('UserUpdated', user);
 
-    expect(await prisma.clientProfile.count({ where: { userId: user.userId } })).toBe(0);
+    expect(
+      await prisma.clientProfile.findUniqueOrThrow({ where: { userId: user.userId } }),
+    ).toMatchObject({ active: false, accountVersion: user.version });
   });
 
   it('completes a recovered profile with the registration that arrives later', async () => {
@@ -141,5 +143,61 @@ describe('profile recovery from republished accounts', () => {
     const row = await prisma.clientProfile.findUniqueOrThrow({ where: { userId } });
     expect(row).toMatchObject({ fullName: 'Nombre Nuevo', email, active: false });
     expect(row.searchText).toContain('nombre nuevo');
+  });
+
+  it('ignores an older state that arrives after the registration', async () => {
+    const userId = randomUUID();
+    profiles.track(userId);
+    const email = testEmail('registro-tardio');
+    const identity = { userId, email, fullName: 'Cliente Nuevo', role: 'CLIENT', branchId: null };
+
+    await bus.deliver('UserRegistered', { ...identity, version: 5, profile: null });
+    await bus.deliver('UserUpdated', { ...identity, active: false, version: 4 });
+
+    expect(await prisma.clientProfile.findUniqueOrThrow({ where: { userId } })).toMatchObject({
+      active: true,
+      accountVersion: 5,
+    });
+  });
+
+  it('keeps hidden an account deactivated before its registration arrives', async () => {
+    const userId = randomUUID();
+    profiles.track(userId);
+    const email = testEmail('baja-temprana');
+    const identity = { userId, email, fullName: 'Cliente Baja', role: 'CLIENT', branchId: null };
+
+    await bus.deliver('UserUpdated', { ...identity, active: false, version: 6 });
+    await bus.deliver('UserRegistered', { ...identity, version: 5, profile: null });
+
+    expect(await prisma.clientProfile.findUniqueOrThrow({ where: { userId } })).toMatchObject({
+      active: false,
+      accountVersion: 6,
+    });
+  });
+
+  it('activates a pending hold when a newer registration arrives', async () => {
+    const userId = randomUUID();
+    profiles.track(userId);
+    const email = testEmail('pendiente');
+    const identity = {
+      userId,
+      email,
+      fullName: 'Cliente Pendiente',
+      role: 'CLIENT',
+      branchId: null,
+    };
+
+    await bus.deliver('UserUpdated', { ...identity, active: false, version: 2 });
+    await bus.deliver('UserRegistered', {
+      ...identity,
+      version: 3,
+      profile: { dpi: '2734519200901', phone: '55123489', nit: null, address: null },
+    });
+
+    expect(await prisma.clientProfile.findUniqueOrThrow({ where: { userId } })).toMatchObject({
+      active: true,
+      accountVersion: 3,
+      dpi: '2734519200901',
+    });
   });
 });

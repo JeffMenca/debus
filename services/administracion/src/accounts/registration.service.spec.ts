@@ -67,6 +67,7 @@ const link = (overrides: object = {}) => ({
     role: 'CLIENT',
     branchId: null,
     status: 'PENDING',
+    version: 1,
     createdById: null,
     pendingProfile: { dpi: '2345678901234', phone: '55554444', nit: null, address: null },
   },
@@ -212,6 +213,20 @@ describe('signUp', () => {
 describe('setPassword', () => {
   const input = { token: 't', password: 'clave-segura-1' };
 
+  it('registers an account with the version it reached when activated', async () => {
+    const { links, events, service, tx } = setup();
+    const pending = link();
+    links.find.mockResolvedValue({ ...pending, user: { ...pending.user, version: 6 } });
+
+    await service.setPassword(input, 'c', now);
+
+    expect(events.userRegistered).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ userId: id, version: 7 }),
+      'c',
+    );
+  });
+
   it('announces an activated branch admin with a higher version, over any snapshot taken while pending', async () => {
     const { tx, links, events, service } = setup();
     const admin = { ...link().user, role: 'BRANCH_ADMIN', branchId: 'b-1', pendingProfile: null };
@@ -261,6 +276,7 @@ describe('setPassword', () => {
         role: 'CLIENT',
         branchId: null,
         profile: { dpi: '2345678901234', phone: '55554444', nit: null, address: null },
+        version: 2,
       },
       'c',
     );

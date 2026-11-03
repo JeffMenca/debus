@@ -1,4 +1,3 @@
-import { GUATEMALA_DEPARTMENTS } from '@debus/contracts';
 import { SEED_BRANCHES } from '../catalog';
 import { SEED_CLIENTS } from '../clients-catalog';
 import { SEED_RENTALS, type RentalTarget } from './rental-catalog';
@@ -50,10 +49,11 @@ describe('SEED_RENTALS', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('uses departments as the places of a counter rental, as the API asks', () => {
+  it('uses departments with a branch as the places of a counter rental, as the screen offers', () => {
+    const departments = SEED_BRANCHES.map((branch) => branch.department as string);
     for (const rental of SEED_RENTALS.filter((r) => r.channel === 'COUNTER')) {
-      expect(GUATEMALA_DEPARTMENTS).toContain(rental.origin);
-      expect(GUATEMALA_DEPARTMENTS).toContain(rental.destination);
+      expect(departments).toContain(rental.origin);
+      expect(departments).toContain(rental.destination);
     }
   });
 

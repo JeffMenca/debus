@@ -171,6 +171,17 @@ describe('the collection against the data it must not touch', () => {
     });
   });
 
+  it('never touches the profile or the wallet of the real admin', () => {
+    for (const name of [
+      'PUT /api/clientes/profile',
+      'POST /api/clientes/wallet/top-ups',
+      'POST /api/ventas/purchases',
+    ]) {
+      const located = generated.find(({ item }) => item.name === name);
+      expect(JSON.stringify(located?.item.request.auth)).toContain('testBranchAccessToken');
+    }
+  });
+
   it('checks every generated request against the codes its operation documents', () => {
     for (const { item } of generated) {
       const test =

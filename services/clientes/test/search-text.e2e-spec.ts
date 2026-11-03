@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { foldSearchText } from '@debus/contracts';
 import type { INestApplication } from '@nestjs/common';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -30,7 +31,8 @@ describe('search_text of the client profiles', () => {
   });
 
   it('holds the name, the email and the NIT with and without its hyphen', async () => {
-    const userId = await profiles.create({ nit: '1234567K' });
+    const digits = String(randomInt(1e8, 1e9));
+    const userId = await profiles.create({ nit: `${digits}K` });
     await prisma.clientProfile.update({
       where: { userId },
       data: { fullName: 'François Ågård' },
@@ -42,7 +44,7 @@ describe('search_text of the client profiles', () => {
 
     expect(searchText).toContain(foldSearchText('François Ågård'));
     expect(searchText).toContain(foldSearchText(email));
-    expect(searchText).toContain('1234567k');
-    expect(searchText).toContain('1234567-k');
+    expect(searchText).toContain(`${digits}k`);
+    expect(searchText).toContain(`${digits}-k`);
   });
 });

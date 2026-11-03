@@ -57,7 +57,7 @@ test.describe('private rentals on a real stack', () => {
     const branchName = `${TEST_BRANCH_PREFIX}${TEST_RUN} alquileres ${stamp}`;
     const branchAdmin = testEmail(`rental-admin-${testInfo.project.name}`);
     const clientEmail = testEmail(`rental-client-${testInfo.project.name}`);
-    const clientName = `Familia ${stamp}`;
+    const clientName = `${TEST_BRANCH_PREFIX}familia ${stamp}`;
     const day = guatemalaAgo(-3 * 24 * 60).day;
     const api = await playwrightRequest.newContext({ baseURL: GATEWAY });
 
@@ -182,10 +182,12 @@ test.describe('private rentals on a real stack', () => {
     );
     await branch.keyboard.press('Escape');
 
+    const beforePaying = await balance();
     await buyer.goto('/cuenta?pestana=alquileres');
     await buyer.getByRole('button', { name: 'Pagar', exact: true }).click();
     await buyer.getByRole('dialog').getByRole('button', { name: 'Pagar con mi cartera' }).click();
     await expect(buyer.getByRole('dialog')).toBeHidden();
+    await expect.poll(balance).toBeLessThan(beforePaying);
     await untilFound(
       'viajes',
       `SELECT id FROM rental_requests WHERE id = '${counterId}'`,
@@ -193,7 +195,6 @@ test.describe('private rentals on a real stack', () => {
     );
 
     // Cancelled by the branch: its money goes back to the wallet.
-    const before = await balance();
     await branch.goto('/sucursal/alquileres?estado=pagados');
     await branch
       .getByRole('row', { name: /En ventanilla/ })
@@ -210,7 +211,7 @@ test.describe('private rentals on a real stack', () => {
       `SELECT id FROM rentals WHERE id = '${counterId}' AND status = 'CANCELLED'`,
       'the cancellation in clientes',
     );
-    await expect.poll(balance, { timeout: 30_000 }).toBeGreaterThan(before);
+    await expect.poll(balance, { timeout: 30_000 }).toBe(beforePaying);
 
     await buyerContext.close();
     await branchContext.close();

@@ -4104,7 +4104,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"fullName\": \"Cliente de prueba\",\n  \"email\": \"{{testSignupEmail}}\",\n  \"dpi\": \"2345678901234\",\n  \"phone\": \"55550000\"\n}",
+                  "raw": "{\n  \"fullName\": \"{{testBranchPrefix}}cliente\",\n  \"email\": \"{{testSignupEmail}}\",\n  \"dpi\": \"2345678901234\",\n  \"phone\": \"55550000\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4338,7 +4338,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"Quetzaltenango\",\n  \"destinationLabel\": \"Sololá\",\n  \"departureAt\": \"{{testRentalDeparture}}\",\n  \"returnAt\": null,\n  \"passengers\": 30,\n  \"distanceKm\": 92,\n  \"clientId\": \"{{testClientId}}\",\n  \"price\": 1500\n}",
+                  "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"Quetzaltenango\",\n  \"destinationLabel\": \"Quetzaltenango\",\n  \"departureAt\": \"{{testRentalDeparture}}\",\n  \"returnAt\": null,\n  \"passengers\": 30,\n  \"distanceKm\": 92,\n  \"clientId\": \"{{testClientId}}\",\n  \"price\": 1500\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -10334,7 +10334,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{accessToken}}",
+                  "value": "{{testBranchAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -11273,7 +11273,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{accessToken}}",
+                  "value": "{{testBranchAccessToken}}",
                   "type": "string"
                 }
               ]
@@ -11802,7 +11802,7 @@
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{accessToken}}",
+                  "value": "{{testBranchAccessToken}}",
                   "type": "string"
                 }
               ]

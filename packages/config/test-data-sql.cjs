@@ -7,6 +7,21 @@ const {
   TEST_SCHEMA_PREFIX,
 } = require('./test-data.cjs');
 
+// People the tests create under a fixed name, in services that only keep a copy of the person: without
+// their email or branch, the name is all that tells them apart. Only a whole-database cleanup uses it.
+const TEST_PERSON_NAMES = [
+  'Admin de Prueba',
+  'Admin de prueba',
+  'Cajero de prueba',
+  'Cajero de prueba editado',
+  'Cliente de prueba',
+  'Colegio de prueba',
+  // What the Postman collection writes as the new name of its test cashier.
+  'texto',
+]
+  .map((name) => `'${name}'`)
+  .join(', ');
+
 const RUN = /^[0-9a-f]{8}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -148,6 +163,7 @@ function cleanupStatements({ run = null, settingsVersionIds = null, branchIds = 
     ),
     whenTablesExist(['client_profiles'], `DELETE FROM client_profiles WHERE email LIKE ${emails}`),
     ...salesStatements(branches),
+    ...(run ? [] : testPeopleStatements()),
     ...fleetAndTrips,
     // A test branch goes unless accounts that are not test data belong to it.
     whenTablesExist(
@@ -158,6 +174,19 @@ function cleanupStatements({ run = null, settingsVersionIds = null, branchIds = 
     whenTableExistsWithout('branches', 'users', `DELETE FROM branches WHERE name LIKE ${branches}`),
     ...copiesStatements(settingsVersionIds),
     ...orphanBranchStatements(branchIds),
+  ];
+}
+
+function testPeopleStatements() {
+  return [
+    whenTablesExist(
+      ['client_nits'],
+      `DELETE FROM client_nits WHERE full_name IN (${TEST_PERSON_NAMES})`,
+    ),
+    whenTablesExist(
+      ['rental_requests'],
+      `DELETE FROM rental_requests WHERE client_name IN (${TEST_PERSON_NAMES}) AND trip_id IS NULL`,
+    ),
   ];
 }
 

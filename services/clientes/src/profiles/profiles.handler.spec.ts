@@ -7,10 +7,15 @@ const payload = {
   fullName: 'Ana Méndez',
   role: 'CLIENT',
   branchId: null,
+  version: 4,
   profile: { dpi: '2734519200901', phone: '55123489', nit: '45218376', address: 'Zona 3' },
 };
 const envelope = createEnvelope('UserRegistered', payload, 'c');
-const created = { nit: '45218376', updated_at: new Date('2026-10-18T15:30:00.000Z') };
+const created = {
+  nit: '45218376',
+  updated_at: new Date('2026-10-18T15:30:00.000Z'),
+  previous_name: 'Ana Méndez',
+};
 const sqlClient = (inserted: unknown[] = [created]) => ({
   $executeRawUnsafe: jest.fn().mockResolvedValue(1),
   $queryRawUnsafe: jest.fn().mockResolvedValue(inserted),
@@ -31,6 +36,17 @@ const account = {
 const updatedEnvelope = createEnvelope('UserUpdated', account, 'c');
 
 describe('ProfilesHandler', () => {
+  it('starts the profile at the version of the registration, which also wakes an older hold', async () => {
+    const tx = sqlClient();
+
+    await handler().registered(payload, envelope, tx);
+
+    const [[profileSql, ...profileValues]] = tx.$queryRawUnsafe.mock.calls;
+    expect(profileValues.at(-1)).toBe(4);
+    expect(profileSql).toContain('account_version');
+    expect(profileSql).toContain('EXCLUDED.account_version > client_profiles.account_version');
+  });
+
   it('creates the profile and an empty wallet once, even if the event comes back', async () => {
     const tx = sqlClient();
 
@@ -49,6 +65,7 @@ describe('ProfilesHandler', () => {
       '55123489',
       '45218376',
       'Zona 3',
+      payload.version,
     ]);
     expect(walletSql).toContain('ON CONFLICT (client_id) DO NOTHING');
     expect(walletUser).toBe(payload.userId);
@@ -117,7 +134,7 @@ describe('ProfilesHandler', () => {
     await handler().registered(payload, envelope, tx);
 
     const sql = tx.$queryRawUnsafe.mock.calls[0][0];
-    expect(sql).toMatch(/WHERE client_profiles\.dpi IS NULL AND EXCLUDED\.dpi IS NOT NULL/);
+    expect(sql).toMatch(/client_profiles\.dpi IS NULL AND EXCLUDED\.dpi IS NOT NULL/);
     expect(sql).toMatch(/COALESCE\(client_profiles\.phone, EXCLUDED\.phone\)/);
   });
 
@@ -139,6 +156,7 @@ describe('ProfilesHandler', () => {
         null,
         null,
         null,
+        0,
       ]);
       expect(walletSql).toContain('ON CONFLICT (client_id) DO NOTHING');
       expect(walletUser).toBe(account.userId);
@@ -178,23 +196,58 @@ describe('ProfilesHandler', () => {
 
       await handler().updated(change, updatedEnvelope, tx);
 
-      const [sql, ...values] = tx.$executeRawUnsafe.mock.calls.find(([text]) =>
+      const [sql, ...values] = tx.$queryRawUnsafe.mock.calls.find(([text]) =>
         String(text).includes('UPDATE client_profiles'),
       ) as unknown[];
       expect(sql).toContain('account_version < $5');
       expect(values).toEqual([account.userId, 'ana@b.com', 'Ana Ruiz', false, account.version]);
     });
 
-    it('creates no profile for a deactivated account, and only marks one that exists', async () => {
-      const tx = sqlClient();
+    it('tells ventas when the name changed, so the tickets use the new one', async () => {
+      const tx = sqlClient([]);
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { nit: '45218376', updated_at: created.updated_at, previous_name: 'Ana Méndez' },
+        ]);
       const queue = outbox();
 
-      await handler({}, queue).updated({ ...account, active: false }, updatedEnvelope, tx);
+      await handler({}, queue).updated({ ...account, fullName: 'Ana Ruiz' }, updatedEnvelope, tx);
 
-      expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
-      expect(tx.$executeRawUnsafe).toHaveBeenCalledTimes(1);
-      expect(tx.$executeRawUnsafe.mock.calls[0]?.[0]).toContain('UPDATE client_profiles');
+      expect(queue.add).toHaveBeenCalledWith(
+        tx,
+        'ProfileUpdated',
+        expect.objectContaining({
+          clientId: account.userId,
+          fullName: 'Ana Ruiz',
+          nit: '45218376',
+        }),
+        updatedEnvelope.correlationId,
+      );
+    });
+
+    it('announces nothing when the name stayed the same', async () => {
+      const tx = sqlClient([]);
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { nit: null, updated_at: created.updated_at, previous_name: account.fullName },
+        ]);
+      const queue = outbox();
+
+      await handler({}, queue).updated(account, updatedEnvelope, tx);
+
       expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('holds a deactivated account that has no profile yet, so its registration stays hidden', async () => {
+      const tx = sqlClient([]);
+
+      await handler().updated({ ...account, active: false }, updatedEnvelope, tx);
+
+      const texts = tx.$queryRawUnsafe.mock.calls.map(([text]) => String(text));
+      expect(texts.some((text) => text.includes('INSERT INTO client_profiles'))).toBe(true);
+      expect(texts.some((text) => text.includes('UPDATE client_profiles'))).toBe(true);
     });
 
     it('falls back to the service client outside the inbox transaction', async () => {
@@ -202,7 +255,7 @@ describe('ProfilesHandler', () => {
 
       await handler(prisma).updated(account, updatedEnvelope);
 
-      expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+      expect(prisma.$queryRawUnsafe).toHaveBeenCalledTimes(2);
     });
 
     it('rejects a malformed payload before writing', async () => {

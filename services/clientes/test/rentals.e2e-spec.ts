@@ -384,28 +384,34 @@ describe('private rentals', () => {
     ]);
   });
 
-  it('refuses a counter rental for a client whose account is deactivated', async () => {
+  it('stops offering a client whose account is deactivated, and offers them again later', async () => {
     const clientId = await profiles.create();
-    await bus.deliver('UserUpdated', {
+    const email = testEmail('desactivado');
+    const account = {
       userId: clientId,
-      email: testEmail('desactivado'),
+      email,
       fullName: 'Cliente desactivado',
       role: 'CLIENT',
       branchId: null,
-      active: false,
-      version: 2,
-    });
+    };
+    const offered = async () => {
+      const { body } = await request(server())
+        .get(`/clients?q=${encodeURIComponent(email)}`)
+        .set(admin)
+        .expect(200);
+      return body.items.map((item: { userId: string }) => item.userId);
+    };
 
+    await bus.deliver('UserUpdated', { ...account, active: true, version: 2 });
+    expect(await offered()).toEqual([clientId]);
+
+    await bus.deliver('UserUpdated', { ...account, active: false, version: 3 });
+    expect(await offered()).toEqual([]);
     await request(server())
       .post('/branch-rentals')
       .set(admin)
       .send({ ...counterTrip(), clientId, price: 2600 })
       .expect(404);
-    const { body } = await request(server())
-      .get(`/clients?q=${encodeURIComponent(testEmail('desactivado'))}`)
-      .set(admin)
-      .expect(200);
-    expect(body.items).toEqual([]);
   });
 
   it('finds a client by the NIT as the profile shows it, with its hyphen', async () => {

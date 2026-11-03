@@ -544,7 +544,7 @@ const STEPS: Step[] = [
     path: '/api/administracion/auth/signup',
     session: 'none',
     body: {
-      fullName: 'Cliente de prueba',
+      fullName: '{{testBranchPrefix}}cliente',
       email: '{{testSignupEmail}}',
       dpi: '2345678901234',
       phone: '55550000',
@@ -588,7 +588,7 @@ const STEPS: Step[] = [
     body: {
       branchId: '{{testBranchId}}',
       originLabel: 'Quetzaltenango',
-      destinationLabel: 'Sololá',
+      destinationLabel: 'Quetzaltenango',
       departureAt: '{{testRentalDeparture}}',
       returnAt: null,
       passengers: 30,

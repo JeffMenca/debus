@@ -178,4 +178,24 @@ describe('the SQL of pnpm test:clean in ventas', () => {
       }),
     ).rejects.toBeInstanceOf(Rollback);
   });
+
+  it('removes the copies of test people, even those named without the branch prefix', async () => {
+    const test = randomUUID();
+    const real = randomUUID();
+    await expect(
+      prisma.$transaction(async (tx) => {
+        const now = new Date();
+        await tx.clientNit.createMany({
+          data: [
+            { clientId: test, nit: null, fullName: 'Admin de Prueba', updatedAt: now },
+            { clientId: real, nit: null, fullName: 'Ana Méndez', updatedAt: now },
+          ],
+        });
+        for (const statement of cleanupStatements()) await tx.$executeRawUnsafe(statement);
+        const left = await tx.clientNit.findMany({ where: { clientId: { in: [test, real] } } });
+        expect(left.map((row) => row.clientId)).toEqual([real]);
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+  });
 });
