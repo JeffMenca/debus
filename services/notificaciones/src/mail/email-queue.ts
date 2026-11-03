@@ -56,7 +56,7 @@ export class EmailQueue {
           status, send_after)
         VALUES (gen_random_uuid(), ${eventId}, ${dedupeKey}, ${message.to}, ${template},
           ${message.subject}, ${message.html}, ${message.text}, 'PENDING',
-          ${sendAfter ?? new Date()})
+          COALESCE(${sendAfter ?? null}::timestamptz, date_trunc('milliseconds', now())))
         ON CONFLICT (dedupe_key, recipient) DO UPDATE SET event_id = EXCLUDED.event_id,
           subject = EXCLUDED.subject, html = EXCLUDED.html, text = EXCLUDED.text,
           status = 'PENDING', send_after = EXCLUDED.send_after, attempts = 0, last_error = NULL,

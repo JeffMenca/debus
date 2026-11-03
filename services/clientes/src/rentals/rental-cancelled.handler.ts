@@ -28,7 +28,7 @@ export class RentalCancelledHandler {
       event.rentalId,
       event.cancelledAt,
     );
-    // A counter rental was paid in cash, which the branch gives back at the counter.
+    // An old counter rental without a client was paid in cash, which the branch gives back.
     if (!rental?.client_id) return;
     await refundDebit(sql, this.outbox, {
       reference: event.rentalId,

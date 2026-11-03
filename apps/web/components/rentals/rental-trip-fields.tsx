@@ -7,6 +7,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { inputRules } from '@/lib/forms/input-rules';
 import type { RentalDraft, RentalProblems } from '@/lib/rentals/rental-form';
 
@@ -16,6 +23,57 @@ interface RentalTripFieldsProps {
   onChange: (patch: Partial<RentalDraft>) => void;
   problems: RentalProblems;
   today: string;
+  // When given, the places are chosen from these departments instead of written.
+  departments?: readonly string[];
+}
+
+interface PlaceFieldProps {
+  id: string;
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  departments?: readonly string[];
+}
+
+function PlaceField({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+  error,
+  departments,
+}: PlaceFieldProps) {
+  return (
+    <Field id={id} label={label} error={error}>
+      {departments ? (
+        <Select value={value} onValueChange={onChange} disabled={departments.length === 0}>
+          <SelectTrigger id={id} {...invalidProps(id, error)}>
+            <SelectValue placeholder="Elige el departamento" />
+          </SelectTrigger>
+          <SelectContent>
+            {departments.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input
+          id={id}
+          icon={MapPin}
+          rule={inputRules.text(120)}
+          placeholder={placeholder}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          {...invalidProps(id, error)}
+        />
+      )}
+    </Field>
+  );
 }
 
 // Where, when and how many: the trip a client asks for, online or at the counter.
@@ -25,33 +83,30 @@ export function RentalTripFields({
   onChange,
   problems,
   today,
+  departments,
 }: RentalTripFieldsProps) {
   const id = (name: string) => `${idPrefix}-${name}`;
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field id={id('origin')} label="Salen de" error={problems.origin}>
-          <Input
-            id={id('origin')}
-            icon={MapPin}
-            rule={inputRules.text(120)}
-            placeholder="Quetzaltenango"
-            value={draft.origin}
-            onChange={(event) => onChange({ origin: event.target.value })}
-            {...invalidProps(id('origin'), problems.origin)}
-          />
-        </Field>
-        <Field id={id('destination')} label="Van a" error={problems.destination}>
-          <Input
-            id={id('destination')}
-            icon={MapPin}
-            rule={inputRules.text(120)}
-            placeholder="Panajachel"
-            value={draft.destination}
-            onChange={(event) => onChange({ destination: event.target.value })}
-            {...invalidProps(id('destination'), problems.destination)}
-          />
-        </Field>
+        <PlaceField
+          id={id('origin')}
+          label="Salen de"
+          placeholder="Quetzaltenango"
+          value={draft.origin}
+          onChange={(origin) => onChange({ origin })}
+          error={problems.origin}
+          departments={departments}
+        />
+        <PlaceField
+          id={id('destination')}
+          label="Van a"
+          placeholder="Panajachel"
+          value={draft.destination}
+          onChange={(destination) => onChange({ destination })}
+          error={problems.destination}
+          departments={departments}
+        />
       </div>
       <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
         <DateField
@@ -125,7 +180,9 @@ export function RentalTripFields({
         </Field>
       </div>
       <p className="text-[13px] text-muted-foreground">
-        Si no sabes la distancia, pon un aproximado. La sucursal la revisa contigo.
+        {departments
+          ? 'Si no conoces la distancia, escribe un aproximado.'
+          : 'Si no sabes la distancia, pon un aproximado. La sucursal la revisa contigo.'}
       </p>
     </div>
   );

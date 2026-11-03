@@ -34,6 +34,8 @@ interface OptionSelectProps {
   searchLabel: string;
   emptyMessage: string;
   error?: string;
+  // Shows the box from the start, for a list people would rather filter than read.
+  alwaysSearch?: boolean;
   // An option the list may not carry, such as the plant driver of a bus when the search leaves them out.
   pinned?: Option;
   // For a filter: an option on top that stands for "no choice" and reports an empty value.
@@ -67,13 +69,15 @@ export function OptionSelect({
   searchLabel,
   emptyMessage,
   error,
+  alwaysSearch = false,
   pinned,
   noneLabel,
 }: OptionSelectProps) {
   // The one picked stays on the list while the search narrows it to others.
   const [picked, setPicked] = useState<Option | null>(null);
   const shown = withSelected(options, value, [pinned, picked]);
-  const showSearch = search !== '' || total > options.length;
+  const showSearch = alwaysSearch || search !== '' || total > options.length;
+  const noMatches = search !== '' && options.length === 0;
 
   return (
     <Field id={id} label={label} error={error}>
@@ -113,9 +117,9 @@ export function OptionSelect({
           ))}
         </SelectContent>
       </Select>
-      {shown.length === 0 && (
+      {(noMatches || shown.length === 0) && (
         <span className="text-xs text-muted-foreground">
-          {search ? 'No encontramos coincidencias.' : emptyMessage}
+          {noMatches ? 'No encontramos coincidencias.' : emptyMessage}
         </span>
       )}
     </Field>

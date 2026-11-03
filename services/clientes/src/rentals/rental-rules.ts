@@ -51,7 +51,7 @@ export function confirmProblem(rental: RentalRow, now: Date): RentalProblem | nu
   return departurePassed(rental.departureAt, now) ? 'departurePassed' : null;
 }
 
-// The client pays an online rental from the wallet; the branch takes the cash of a counter one.
+// A client pays their rental from the wallet; only an old counter rental without one takes cash.
 // A paid rental passes, so a retry with the same key answers what was recorded.
 export function paymentProblem(
   rental: RentalRow,
@@ -59,7 +59,7 @@ export function paymentProblem(
   now: Date,
 ): RentalProblem | null {
   if (rental.status === 'CANCELLED') return 'rentalCancelled';
-  if (rental.channel === 'ONLINE' && actor.role !== 'CLIENT') return 'rentalPaidByClient';
+  if (rental.clientId && actor.role !== 'CLIENT') return 'rentalPaidByClient';
   if (rental.status === 'PAID') return null;
   if (rental.status === 'REQUESTED') return 'rentalNotConfirmed';
   return departurePassed(rental.departureAt, now) ? 'departurePassed' : null;
@@ -72,7 +72,7 @@ export const paymentReplayProblem = (rental: RentalRow, paidOn: string): RentalP
 export const cancelProblem = (rental: RentalRow): RentalProblem | null =>
   rental.status === 'PAID' ? 'rentalAlreadyPaid' : null;
 
-// The counter rentals made with the NIT of the profile belong to its history too.
+// The old counter rentals made with the NIT of the profile belong to its history too.
 export function historyWhere(profile: {
   userId: string;
   nit: string | null;

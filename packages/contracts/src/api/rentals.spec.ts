@@ -7,8 +7,8 @@ import {
   rentalListQuerySchema,
   rentalRequestSchema,
 } from './rentals';
-import { CONSUMER_NIT } from './tickets';
 
+const CLIENT_ID = '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a';
 const request = {
   branchId: '9b2c7a10-1111-4c4c-8888-123456789abc',
   originLabel: 'Quetzaltenango',
@@ -33,31 +33,37 @@ describe('rental contracts', () => {
     ).toBe(false);
   });
 
-  it('records a counter rental with a NIT or the final consumer, a name and its price', () => {
-    const counter = { ...request, nit: 'cf', clientName: 'Colegio San José', price: 2760 };
+  it('takes only departments as the places of a counter rental', () => {
+    const counter = {
+      ...request,
+      destinationLabel: 'Sololá',
+      clientId: CLIENT_ID,
+      price: 2760,
+    };
+    expect(counterRentalRequestSchema.safeParse(counter).success).toBe(true);
+    expect(
+      counterRentalRequestSchema.safeParse({ ...counter, destinationLabel: 'Marte' }).success,
+    ).toBe(false);
+    expect(counterRentalRequestSchema.safeParse({ ...counter, originLabel: 'Marte' }).success).toBe(
+      false,
+    );
+  });
+
+  it('records a counter rental for an existing client, with its price', () => {
+    const counter = { ...request, destinationLabel: 'Sololá', clientId: CLIENT_ID, price: 2760 };
     expect(counterRentalRequestSchema.parse(counter)).toMatchObject({
-      nit: CONSUMER_NIT,
-      clientName: 'Colegio San José',
-      email: null,
+      clientId: CLIENT_ID,
       price: 2760,
     });
     expect(counterRentalRequestSchema.safeParse({ ...counter, price: undefined }).success).toBe(
       false,
     );
-    expect(counterRentalRequestSchema.safeParse({ ...request, nit: 'CF' }).success).toBe(false);
+    expect(counterRentalRequestSchema.safeParse({ ...request, price: 2760 }).success).toBe(false);
+    expect(counterRentalRequestSchema.safeParse({ ...counter, clientId: 'x' }).success).toBe(false);
     expect(
       counterRentalRequestSchema.safeParse({ ...counter, returnAt: '2026-10-23T10:00:00.000Z' })
         .success,
     ).toBe(false);
-  });
-
-  it('keeps the email given at the counter, or none', () => {
-    const counter = { ...request, nit: 'CF', clientName: 'Colegio San José', price: 2760 };
-    expect(
-      counterRentalRequestSchema.parse({ ...counter, email: 'Reservas@Colegio.edu.gt' }).email,
-    ).toBe('reservas@colegio.edu.gt');
-    expect(counterRentalRequestSchema.parse({ ...counter, email: null }).email).toBeNull();
-    expect(counterRentalRequestSchema.safeParse({ ...counter, email: 'no' }).success).toBe(false);
   });
 
   it('confirms with a price, may correct the distance, and pays on a chosen day', () => {

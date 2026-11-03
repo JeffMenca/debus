@@ -19,7 +19,7 @@ export function rentalPaidEmail(rental: RentalPaidPayload & { email: string }): 
   });
 }
 
-// The branch admin confirmed the price of an online rental: the client pays it from the account.
+// The branch admin set the price of a rental: the client pays it from the account.
 export function rentalConfirmedEmail(rental: RentalConfirmedPayload): MailMessage {
   return composeEmail(rental.email, 'Tu cotización está lista', {
     heading: `Hola, ${rental.clientName}`,

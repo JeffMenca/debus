@@ -32,7 +32,7 @@ describe('rentals schema', () => {
     await app.close();
   });
 
-  it('ties an online rental to a client and a counter one to none', async () => {
+  it('requires a client on an online rental and allows one on a counter rental', async () => {
     const clientId = await profiles.create();
 
     expect(
@@ -41,12 +41,8 @@ describe('rentals schema', () => {
         'rentals_channel_client',
       ),
     ).toBe(true);
-    expect(
-      isConstraintViolation(
-        await refusal(rentals.insert({ channel: 'COUNTER', clientId })),
-        'rentals_channel_client',
-      ),
-    ).toBe(true);
+    await expect(rentals.insert({ channel: 'COUNTER', clientId })).resolves.toBeDefined();
+    await expect(rentals.insert({ channel: 'COUNTER' })).resolves.toBeDefined();
     await expect(rentals.insert({ channel: 'ONLINE', clientId })).resolves.toBeDefined();
   });
 

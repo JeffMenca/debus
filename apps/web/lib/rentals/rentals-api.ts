@@ -5,6 +5,8 @@ import {
   type Rental,
   type RentalPage,
   type RentalRequest,
+  MAX_PAGE_SIZE,
+  clientOptionPageSchema,
   rentalEstimateSchema,
   rentalPageSchema,
   rentalSchema,
@@ -19,6 +21,7 @@ const RENTALS_PATH = '/api/clientes/rentals';
 const BRANCH_RENTALS_PATH = '/api/clientes/branch-rentals';
 // A paid rental is cancelled by viajes, which knows whether its trip already left.
 const PAID_RENTALS_PATH = '/api/viajes/rental-requests';
+const CLIENTS_PATH = '/api/clientes/clients';
 const RENTALS_KEY = ['rentals'];
 
 const post = (body?: unknown): RequestInit => ({
@@ -58,7 +61,20 @@ export function useBranchRentals(query: BranchRentalQuery) {
   });
 }
 
-function useRentalChange<V>(send: (value: V) => Promise<unknown>, alsoRefresh: string[][] = []) {
+// The clients a branch admin can record a rental for; the server does the searching.
+export function useClientOptions(q?: string) {
+  return useQuery({
+    queryKey: ['clients', 'options', q],
+    queryFn: () =>
+      apiRequest(
+        `${CLIENTS_PATH}?${toQueryString({ pageSize: MAX_PAGE_SIZE, q })}`,
+        clientOptionPageSchema,
+      ),
+    placeholderData: keepPreviousData,
+  });
+}
+
+function useRentalChange<V, R>(send: (value: V) => Promise<R>, alsoRefresh: string[][] = []) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: send,

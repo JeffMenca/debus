@@ -64,5 +64,9 @@ export function RentalState({
   audience: 'client' | 'branch';
 }) {
   const view = rentalStatusView(rental.status);
-  return <StatusDot tone={view.tone} label={view[audience]} />;
+  // An old counter rental without a client cannot be paid from an account.
+  const atCounter = audience === 'client' && rental.status === 'CONFIRMED' && !rental.clientId;
+  return (
+    <StatusDot tone={view.tone} label={atCounter ? 'Se paga en ventanilla' : view[audience]} />
+  );
 }

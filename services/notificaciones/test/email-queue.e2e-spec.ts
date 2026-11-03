@@ -38,6 +38,50 @@ beforeEach(async () => {
 });
 
 describe('email queue', () => {
+  it('finds an email the moment it is queued, whatever the rounding of its time', async () => {
+    const sent: string[] = [];
+    const queue = queueWith({
+      send: async (message: MailMessage) => {
+        sent.push(message.to);
+      },
+    } as Mailer);
+
+    for (let turn = 0; turn < 50; turn += 1) {
+      const to = testEmail(`queue-round-${turn}`);
+      await queue.enqueue(undefined, [queued(to)]);
+      await queue.flush();
+      expect(sent).toContain(to);
+    }
+  });
+
+  it('can send an email right away even if the clock of the service runs ahead', async () => {
+    const to = testEmail('queue-clock');
+    const sent: string[] = [];
+    const queue = queueWith({
+      send: async (message: MailMessage) => {
+        sent.push(message.to);
+      },
+    } as Mailer);
+    const realNow = Date.now;
+    Date.now = () => realNow() + 60_000;
+    const RealDate = Date;
+    global.Date = class extends RealDate {
+      constructor(...args: unknown[]) {
+        super(...((args.length ? args : [realNow() + 60_000]) as [number]));
+      }
+    } as DateConstructor;
+    try {
+      await queue.enqueue(undefined, [queued(to)]);
+    } finally {
+      global.Date = RealDate;
+      Date.now = realNow;
+    }
+
+    await queue.flush();
+
+    expect(sent).toEqual([to]);
+  });
+
   it('sends an email queued twice under the same key only once', async () => {
     const to = testEmail('queue-once');
     const queue = queueWith(smtp);
@@ -65,7 +109,9 @@ describe('email queue', () => {
 
     // Not due yet: nothing goes out.
     expect(await queueWith(smtp).flush()).toEqual({ sent: 0, failed: 0 });
-    await isolated.client.sentEmail.updateMany({ data: { sendAfter: new Date(Date.now() - 1) } });
+    await isolated.client.sentEmail.updateMany({
+      data: { sendAfter: new Date(Date.now() - 60_000) },
+    });
     expect(await queueWith(smtp).flush()).toEqual({ sent: 1, failed: 0 });
     expect(await findMail(to)).toHaveLength(1);
   });

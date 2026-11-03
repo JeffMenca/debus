@@ -56,8 +56,8 @@ export function RentalHistory({ query, onChange }: RentalHistoryProps) {
           header: () => <span className="sr-only">Acciones</span>,
           cell: ({ row }) => {
             const rental = row.original;
-            // Only what the client asked for online is theirs to pay or cancel.
-            if (rental.channel !== 'ONLINE' || !UNPAID.has(rental.status)) return null;
+            // An old counter rental without a client only appears here by its NIT.
+            if (!rental.clientId || !UNPAID.has(rental.status)) return null;
             return (
               <div className="flex justify-end gap-2">
                 {rental.status === 'CONFIRMED' && (
@@ -80,8 +80,7 @@ export function RentalHistory({ query, onChange }: RentalHistoryProps) {
     return (
       <div className="flex flex-col items-center gap-4 rounded-3xl bg-card px-6 py-10 text-center">
         <p className="text-muted-foreground">
-          Todavía no has alquilado un bus. Si alquilaste uno en ventanilla con tu NIT, también
-          aparecerá aquí.
+          Todavía no has alquilado un bus. Si alquilaste uno en ventanilla, también aparecerá aquí.
         </p>
         <Button asChild variant="secondary">
           <Link href="/alquiler">Pide tu cotización</Link>

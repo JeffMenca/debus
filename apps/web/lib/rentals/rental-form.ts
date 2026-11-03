@@ -1,10 +1,9 @@
 import {
   type CounterRentalRequest,
   type RentalRequest,
-  emailSchema,
   guatemalaDateTime,
+  guatemalaDepartmentSchema,
   isLaterInstant,
-  saleNitSchema,
 } from '@debus/contracts';
 import { parseMoney, parseWholeNumber } from '@/lib/number-input';
 
@@ -30,9 +29,7 @@ export type RentalProblems = Partial<
 >;
 
 export interface CounterDraft {
-  nit: string;
-  clientName: string;
-  email: string;
+  clientId: string;
   price: string;
 }
 
@@ -55,12 +52,7 @@ export const emptyRentalDraft = (today: string): RentalDraft => ({
   distance: '',
 });
 
-export const emptyCounterDraft = (): CounterDraft => ({
-  nit: '',
-  clientName: '',
-  email: '',
-  price: '',
-});
+export const emptyCounterDraft = (): CounterDraft => ({ clientId: '', price: '' });
 
 // Kilometres with one decimal at most, as the contract takes them.
 export function parseDistance(text: string): number | null {
@@ -127,7 +119,7 @@ export function rentalRequestFrom(
   };
 }
 
-// The walk-in client: an empty NIT is the final consumer and an empty email means none.
+// At the counter the places are chosen from a list, and the client from those with an account.
 export function counterRequestFrom(
   draft: RentalDraft,
   counter: CounterDraft,
@@ -135,25 +127,24 @@ export function counterRequestFrom(
 ): { request?: CounterRentalRequest; problems?: RentalProblems & CounterProblems } {
   const trip = rentalRequestFrom(draft, now);
   const problems: RentalProblems & CounterProblems = { ...trip.problems };
-  const nit = saleNitSchema.safeParse(counter.nit.trim() || 'CF');
-  const clientName = label(counter.clientName);
-  const email = counter.email.trim() ? emailSchema.safeParse(counter.email) : null;
+  const origin = guatemalaDepartmentSchema.safeParse(draft.origin);
+  const destination = guatemalaDepartmentSchema.safeParse(draft.destination);
   const price = parseMoney(counter.price);
 
-  if (!nit.success) problems.nit = 'Escribe un NIT válido o déjalo vacío para consumidor final.';
-  if (!clientName) problems.clientName = 'Escribe el nombre del cliente.';
-  if (email && !email.success) problems.email = 'Escribe un correo válido o déjalo vacío.';
+  if (!origin.success) problems.origin = 'Elige el departamento de salida.';
+  if (!destination.success) problems.destination = 'Elige el departamento de destino.';
+  if (!counter.clientId) problems.clientId = 'Elige al cliente que alquila.';
   if (!price) problems.price = 'Escribe un precio mayor a Q 0.';
 
-  if (!trip.request || !nit.success || !clientName || !price || (email && !email.success)) {
+  if (!trip.request || !origin.success || !destination.success || !counter.clientId || !price) {
     return { problems };
   }
   return {
     request: {
       ...trip.request,
-      nit: nit.data,
-      clientName,
-      email: email?.data ?? null,
+      originLabel: origin.data,
+      destinationLabel: destination.data,
+      clientId: counter.clientId,
       price,
     },
   };

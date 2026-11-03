@@ -73,10 +73,22 @@ const saved = (base: RentalRow, data: Record<string, unknown>): RentalRow => {
   return { ...base, ...converted } as RentalRow;
 };
 
+const CLIENT_PROFILE = {
+  userId: CLIENT,
+  role: 'CLIENT',
+  active: true,
+  fullName: 'Ana López',
+  email: 'ana.lopez@correo.com',
+  nit: '45218376',
+};
+
 function setup(current: RentalRow | null = row()) {
   const tx = {
     $queryRawUnsafe: jest.fn().mockResolvedValue([]),
     rental: {
+      create: jest.fn(async ({ data }: { data: Record<string, unknown> }) =>
+        saved(row(), { requestedAt: new Date(), ...data }),
+      ),
       findUnique: jest.fn().mockResolvedValue(current),
       update: jest.fn(async ({ data }: { data: Record<string, unknown> }) =>
         saved(current ?? row(), data),
@@ -88,12 +100,7 @@ function setup(current: RentalRow | null = row()) {
       typeof work === 'function' ? work(tx) : Promise.all(work as Promise<unknown>[]),
     ),
     clientProfile: {
-      findUnique: jest.fn().mockResolvedValue({
-        userId: CLIENT,
-        fullName: 'Ana López',
-        email: 'ana.lopez@correo.com',
-        nit: '45218376',
-      }),
+      findUnique: jest.fn().mockResolvedValue(CLIENT_PROFILE),
     },
     branchCopy: { findUnique: jest.fn().mockResolvedValue({ id: BRANCH, active: true }) },
     rental: {
@@ -206,30 +213,92 @@ describe('RentalsService', () => {
   describe('registerCounter', () => {
     const counter = {
       ...trip,
-      nit: 'CF',
-      clientName: 'Colegio San José',
-      email: null,
+      destinationLabel: 'Sololá' as const,
+      originLabel: 'Quetzaltenango' as const,
+      clientId: CLIENT,
       price: 2600,
     };
 
-    it('records a walk-in rental of the branch already confirmed, without a client', async () => {
-      const { service, prisma } = setup();
+    it('records it confirmed, in the name of the chosen client', async () => {
+      const { service, tx } = setup();
 
-      await service.registerCounter(admin, counter);
+      await service.registerCounter(admin, counter, 'corr');
 
-      expect(dataOf(prisma.rental.create)).toMatchObject({
+      expect(dataOf(tx.rental.create)).toMatchObject({
         channel: 'COUNTER',
         status: 'CONFIRMED',
-        clientId: null,
-        nit: 'CF',
-        clientName: 'Colegio San José',
-        email: null,
+        clientId: CLIENT,
+        nit: '45218376',
+        clientName: 'Ana López',
+        email: 'ana.lopez@correo.com',
         price: 2600,
         estimatedPrice: 2760,
         confirmedById: admin.userId,
         createdById: admin.userId,
         confirmedAt: expect.any(Date),
       });
+    });
+
+    it('tells the client in the same transaction, so they can pay from their wallet', async () => {
+      const { service, tx, outbox } = setup();
+
+      await service.registerCounter(admin, counter, 'corr');
+
+      expect(outbox.add).toHaveBeenCalledWith(
+        tx,
+        'RentalConfirmed',
+        expect.objectContaining({ clientId: CLIENT, email: 'ana.lopez@correo.com', price: 2600 }),
+        'corr',
+      );
+      expect(outbox.flush).toHaveBeenCalled();
+    });
+
+    it('takes the final consumer for a client without a NIT', async () => {
+      const { service, prisma, tx } = setup();
+      prisma.clientProfile.findUnique.mockResolvedValue({
+        ...CLIENT_PROFILE,
+        nit: null,
+      });
+
+      await service.registerCounter(admin, counter);
+
+      expect(dataOf(tx.rental.create)).toMatchObject({ nit: 'CF' });
+    });
+
+    it('refuses a client whose account is deactivated', async () => {
+      const { service, prisma, tx } = setup();
+      prisma.clientProfile.findUnique.mockResolvedValue({ ...CLIENT_PROFILE, active: false });
+
+      await expect(service.registerCounter(admin, counter)).rejects.toThrow(NotFoundException);
+      expect(tx.rental.create).not.toHaveBeenCalled();
+    });
+
+    it('reads the rate before the transaction, which holds its only connection', async () => {
+      const { service, prisma, settings } = setup();
+
+      await service.registerCounter(admin, counter);
+
+      expect(settings.effectiveOn.mock.invocationCallOrder[0]).toBeLessThan(
+        prisma.$transaction.mock.invocationCallOrder[0] as number,
+      );
+    });
+
+    it('refuses a person who is not a client', async () => {
+      const { service, prisma, tx } = setup();
+      prisma.clientProfile.findUnique.mockResolvedValue({
+        ...CLIENT_PROFILE,
+        role: 'CASHIER',
+      });
+
+      await expect(service.registerCounter(admin, counter)).rejects.toThrow(NotFoundException);
+      expect(tx.rental.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses a client that does not exist', async () => {
+      const { service, prisma } = setup();
+      prisma.clientProfile.findUnique.mockResolvedValue(null);
+
+      await expect(service.registerCounter(admin, counter)).rejects.toThrow(NotFoundException);
     });
 
     it('records rentals only for the own branch', async () => {

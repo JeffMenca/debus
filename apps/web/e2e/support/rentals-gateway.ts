@@ -16,6 +16,13 @@ import { fulfillJson } from './session';
 export const RENTAL_BRANCH_ID = '8f9e6679-7425-40de-944b-e07fc1f90ae7';
 const RATE = 30;
 
+export const WALK_IN_CLIENT = {
+  userId: 'c0000000-0000-4000-8000-000000000001',
+  fullName: 'Excursión Los Pérez',
+  email: 'excursion@correo.com',
+  nit: '45218376',
+};
+
 export const sampleRental = (over: Partial<Rental> = {}): Rental => ({
   id: randomUUID(),
   status: 'REQUESTED',
@@ -66,6 +73,10 @@ export async function mockRentalsGateway(page: Page, seed: RentalsSeed = {}) {
     const { skip, take } = pageArgs(query);
     return fulfillJson(route, 200, toPage(items.slice(skip, skip + take), items.length, query));
   };
+
+  await page.route('**/api/clientes/clients?*', (route) =>
+    fulfillJson(route, 200, { items: [WALK_IN_CLIENT], total: 1, page: 1, pageSize: 100 }),
+  );
 
   await page.route('**/api/administracion/branches/locations?*', (route) =>
     fulfillJson(route, 200, {
@@ -125,7 +136,9 @@ export async function mockRentalsGateway(page: Page, seed: RentalsSeed = {}) {
       const created = sampleRental({
         ...counter,
         channel: 'COUNTER',
-        clientId: null,
+        nit: WALK_IN_CLIENT.nit,
+        clientName: WALK_IN_CLIENT.fullName,
+        email: WALK_IN_CLIENT.email,
         status: 'CONFIRMED',
         estimatedPrice: estimateRentalPrice(counter.distanceKm, RATE),
         confirmedAt: new Date().toISOString(),

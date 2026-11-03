@@ -133,6 +133,8 @@ Sirve para alquilar un bus completo con chofer para tu grupo.
 
 ![El formulario para pedir un alquiler](img/clientes/alquiler.png)
 
+Si acordaste el alquiler en una sucursal, te llega un correo y aparece en **Mi cuenta**, en la pestaña **Alquileres**, con el precio listo para pagarlo con tu cartera.
+
 Tu alquiler pasa por estos estados, que ves en la misma pantalla:
 
 | Estado                    | Qué significa                                                      |

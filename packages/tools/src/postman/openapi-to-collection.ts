@@ -104,7 +104,13 @@ const LEFT_OUT: { method: HttpMethod; path: RegExp; reason: string }[] = [
     method: 'post',
     path: /^\/api\/clientes\/(rentals|branch-rentals)\/\{id\}\/(cancel|confirm)$/,
     reason:
-      'el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar',
+      'el recorrido solo crea un alquiler de ventanilla, que nace confirmado; confirmar necesita uno en línea pedido por un cliente y cancelar lo dejaría sin uso',
+  },
+  {
+    method: 'post',
+    path: /^\/api\/clientes\/rentals\/\{id\}\/pay$/,
+    reason:
+      'lo paga el cliente dueño del alquiler con su cartera, y una escritura nunca gasta el saldo de un cliente de demostración',
   },
   {
     method: 'post',
@@ -181,9 +187,10 @@ const isPublic = (path: string, operation: OperationObject): boolean =>
 function authFor(path: string, operation: OperationObject, write: boolean): PostmanAuth {
   if (isPublic(path, operation)) return { type: 'noauth' };
   const roles = rolesOf(operation);
-  if (!roles || roles.includes('SYSTEM_ADMIN')) return bearerAuth('{{accessToken}}');
+  // Any session may do what names no role, so a write goes with an account of the test data.
+  if (roles?.includes('SYSTEM_ADMIN') || (!roles && !write)) return bearerAuth('{{accessToken}}');
   // What only a client can see is read with a client of the demo. A write never uses a demo session.
-  if (!write && roles.every((role) => role === 'CLIENT'))
+  if (!write && roles?.every((role) => role === 'CLIENT'))
     return bearerAuth('{{clientAccessToken}}');
   return bearerAuth(write ? '{{testBranchAccessToken}}' : '{{branchAccessToken}}');
 }

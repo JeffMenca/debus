@@ -1,12 +1,12 @@
 import { z } from 'zod';
 import { isLaterInstant, isoDateSchema } from '../dates';
 import { searchTermSchema } from '../text';
-import { emailSchema, fullNameSchema } from './auth';
 import { pagedDayRangeQuery } from './day-range';
+import { guatemalaDepartmentSchema } from './branches';
 import { distanceKmSchema } from './fleet';
 import { pageSchema } from './pagination';
 import { moneySchema } from './settings';
-import { SALE_CHANNELS, saleNitSchema } from './tickets';
+import { SALE_CHANNELS } from './tickets';
 
 export const RENTAL_STATUSES = ['REQUESTED', 'CONFIRMED', 'PAID', 'CANCELLED'] as const;
 export type RentalStatus = (typeof RENTAL_STATUSES)[number];
@@ -33,12 +33,13 @@ const rentalTripSchema = z.object({
 export const rentalRequestSchema = returnAfterDeparture(rentalTripSchema);
 export type RentalRequest = z.infer<typeof rentalRequestSchema>;
 
-// A walk-in rental is recorded already confirmed: the branch admin sets its price on the spot.
+// A counter rental is recorded already confirmed for an existing client, who pays it from their
+// wallet: the branch admin sets its price on the spot and the rest comes from the client's profile.
 export const counterRentalRequestSchema = returnAfterDeparture(
   rentalTripSchema.extend({
-    nit: saleNitSchema,
-    clientName: fullNameSchema,
-    email: emailSchema.nullable().default(null),
+    originLabel: guatemalaDepartmentSchema,
+    destinationLabel: guatemalaDepartmentSchema,
+    clientId: z.uuid(),
     price: moneySchema,
   }),
 );
@@ -51,8 +52,8 @@ export const confirmRentalRequestSchema = z.object({
 });
 export type ConfirmRentalRequest = z.infer<typeof confirmRentalRequestSchema>;
 
-// Sent with Idempotency-Key = the rental id. An online rental is debited from the wallet; a counter
-// rental records the cash the branch received.
+// Sent with Idempotency-Key = the rental id. A rental with a client is debited from their wallet; an
+// old counter rental without one records the cash the branch received.
 export const payRentalRequestSchema = z.object({ paidOn: isoDateSchema });
 export type PayRentalRequest = z.infer<typeof payRentalRequestSchema>;
 

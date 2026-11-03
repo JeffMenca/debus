@@ -7,6 +7,8 @@ import {
   rentalRequestFrom,
 } from './rental-form';
 
+const CLIENT_ID = '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a';
+
 const draft = (over: Partial<RentalDraft> = {}): RentalDraft => ({
   ...emptyRentalDraft('2026-10-21'),
   branchId: BRANCH_ID,
@@ -80,28 +82,40 @@ describe('rentalRequestFrom', () => {
 });
 
 describe('counterRequestFrom', () => {
-  const counter = { nit: '', clientName: 'Colegio San José', email: '', price: '2,600' };
+  const counter = { clientId: CLIENT_ID, price: '2,600' };
 
-  it('takes the final consumer, no email and the price written at the counter', () => {
-    expect(counterRequestFrom(draft(), counter, NOW).request).toMatchObject({
-      nit: 'CF',
-      clientName: 'Colegio San José',
-      email: null,
+  it('takes the chosen client and the price written at the counter', () => {
+    const places = { origin: 'Quetzaltenango', destination: 'Sololá' };
+    expect(counterRequestFrom(draft(places), counter, NOW).request).toMatchObject({
+      clientId: CLIENT_ID,
       price: 2600,
     });
   });
 
-  it('checks the client, the email and the price too', () => {
+  it('takes only departments as the places', () => {
+    const { problems } = counterRequestFrom(
+      draft({ origin: 'Marte', destination: 'Panajachel' }),
+      counter,
+      NOW,
+    );
+
+    expect(problems).toEqual({
+      origin: 'Elige el departamento de salida.',
+      destination: 'Elige el departamento de destino.',
+    });
+  });
+
+  it('asks to choose the client and the departments, and checks the price', () => {
     const result = counterRequestFrom(
-      draft(),
-      { nit: '12-A', clientName: '', email: 'no', price: '0' },
+      draft({ origin: '', destination: '' }),
+      { clientId: '', price: '0' },
       NOW,
     );
 
     expect(result.problems).toEqual({
-      nit: 'Escribe un NIT válido o déjalo vacío para consumidor final.',
-      clientName: 'Escribe el nombre del cliente.',
-      email: 'Escribe un correo válido o déjalo vacío.',
+      origin: 'Elige el departamento de salida.',
+      destination: 'Elige el departamento de destino.',
+      clientId: 'Elige al cliente que alquila.',
       price: 'Escribe un precio mayor a Q 0.',
     });
   });

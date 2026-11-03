@@ -40,7 +40,7 @@ describe('rentalsArea', () => {
     expect(statusOf(built, byDestination('Parque Nacional Tikal').id)).toBe('CANCELLED');
     expect(byDestination('Chichicastenango').status).toBe('CANCELLED');
     expect(byDestination('Chichicastenango').paidOn).toBeNull();
-    expect(byDestination('Aeropuerto La Aurora').status).toBe('CONFIRMED');
+    expect(byDestination('Guatemala').status).toBe('CONFIRMED');
     expect(rentalsOf(built).filter((rental) => rental.channel === 'COUNTER')).toHaveLength(3);
   });
 
@@ -54,6 +54,24 @@ describe('rentalsArea', () => {
       expect(Date.parse(String(trip.estimatedArrivalAt))).toBeGreaterThan(
         Date.parse(String(trip.departureAt)),
       );
+    }
+  });
+
+  it('pays every paid rental from the wallet of its client', async () => {
+    const built = await world();
+    await rentalsArea.run(built.ctx);
+    const counter = rentalsOf(built).filter((rental) => rental.channel === 'COUNTER');
+
+    expect(counter.every((rental) => rental.clientId)).toBe(true);
+    const paid = counter.filter((rental) => rental.status === 'PAID');
+    expect(paid.length).toBeGreaterThan(0);
+    for (const rental of paid) {
+      const movements = await built.gateway.request<{ items: { reference: string | null }[] }>(
+        [...built.ctx.clientSessions.values()].find((s) => s.user.id === rental.clientId)!,
+        'GET',
+        '/api/clientes/wallet/movements',
+      );
+      expect(movements.items.map((movement) => movement.reference)).toContain(rental.id);
     }
   });
 

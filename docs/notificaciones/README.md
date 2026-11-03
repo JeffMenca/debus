@@ -15,7 +15,7 @@ En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · 
 | Viaje cancelado                           | `TripDeleted`                                  | Cada boleto con correo de ese viaje, tomado de la copia `ticket_copies`                   |
 | Devolución a la cartera                   | `WalletCredited` (`REFUND`)                    | El dueño de la cartera, cuando el dinero ya está acreditado                               |
 | Recarga de saldo                          | `WalletCredited` (`TOP_UP`)                    | El dueño de la cartera                                                                    |
-| Cotización de alquiler lista              | `RentalConfirmed`                              | El cliente que pidió el alquiler en línea, cuando la sucursal fijó el precio              |
+| Cotización de alquiler lista              | `RentalConfirmed`                              | El cliente del alquiler, cuando la sucursal fijó el precio o lo registró en ventanilla    |
 | Alquiler pagado                           | `RentalPaid` con `email`                       | El correo del alquiler, si lo tiene                                                       |
 | Licencia por vencer (30, 15 y 3 días)     | `DriverAdded`, `DriverUpdated` y el job diario | El chofer y los admins activos de su sucursal                                             |
 

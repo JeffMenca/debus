@@ -70,6 +70,23 @@ describe('RentalHistory', () => {
     expect(within(rows[2]!).queryByRole('button', { name: 'Pagar' })).not.toBeInTheDocument();
   });
 
+  it('lets the client pay and cancel a rental recorded for them at the counter', async () => {
+    api({ items: [rental({ channel: 'COUNTER' })] });
+    renderHistory();
+
+    expect(await screen.findByRole('button', { name: 'Pagar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+    expect(screen.getByText('En ventanilla')).toBeInTheDocument();
+  });
+
+  it('sends to the counter an old rental without a client that is still unpaid', async () => {
+    api({ items: [rental({ channel: 'COUNTER', clientId: null })] });
+    renderHistory();
+
+    expect(await screen.findByText('Se paga en ventanilla')).toBeInTheDocument();
+    expect(screen.queryByText('Precio listo, falta pagar')).not.toBeInTheDocument();
+  });
+
   it('pays a confirmed rental from the wallet with the chosen day and its id as key', async () => {
     const sent = api();
     renderHistory();

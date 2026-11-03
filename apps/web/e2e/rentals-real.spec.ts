@@ -46,7 +46,7 @@ test.describe('private rentals on a real stack', () => {
   test.use({ actionTimeout: ACTION_TIMEOUT, navigationTimeout: ACTION_TIMEOUT });
   test.afterAll(() => cleanUpTestRun());
 
-  test('a client asks, the branch prices, the wallet pays and the rental waits for its bus; a walk-in one is paid in cash and cancelled', async ({
+  test('a client asks, the branch prices, the wallet pays and the rental waits for its bus; a counter one is paid from the wallet and refunded when cancelled', async ({
     page,
     baseURL,
     browser,
@@ -57,9 +57,7 @@ test.describe('private rentals on a real stack', () => {
     const branchName = `${TEST_BRANCH_PREFIX}${TEST_RUN} alquileres ${stamp}`;
     const branchAdmin = testEmail(`rental-admin-${testInfo.project.name}`);
     const clientEmail = testEmail(`rental-client-${testInfo.project.name}`);
-    const clientName = `Familia ${stamp}`;
-    const walkInEmail = testEmail(`rental-walkin-${testInfo.project.name}`);
-    const walkInName = `Colegio ${stamp}`;
+    const clientName = `${TEST_BRANCH_PREFIX}familia ${stamp}`;
     const day = guatemalaAgo(-3 * 24 * 60).day;
     const api = await playwrightRequest.newContext({ baseURL: GATEWAY });
 
@@ -142,44 +140,78 @@ test.describe('private rentals on a real stack', () => {
     await branch.goto('/sucursal/viajes?pestana=alquileres');
     await expect(branch.getByText(clientName)).toBeVisible();
 
-    // A walk-in client: recorded at the counter, paid in cash, then cancelled by the branch.
+    // The same client agrees another rental at the counter and pays it from the wallet.
+    const moreFunds = await api.post('/api/clientes/wallet/top-ups', {
+      headers: { ...client.headers, 'idempotency-key': randomUUID() },
+      data: { amount: 4000, paidOn: guatemalaAgo(0).day },
+    });
+    expect(moreFunds.ok()).toBe(true);
     await branch.goto('/sucursal/alquileres/ventanilla');
-    await fillTrip(branch, { destination: 'Semuc Champey', day, km: '100' });
-    await branch.getByLabel('Nombre del cliente').fill(walkInName);
-    await branch.getByLabel(/Correo/).fill(walkInEmail);
+    for (const [label, department] of [
+      ['Salen de', 'Quetzaltenango'],
+      ['Van a', 'Quetzaltenango'],
+    ] as const) {
+      await branch.getByRole('combobox', { name: label }).click();
+      await branch.getByRole('option', { name: department, exact: true }).click();
+    }
+    await branch.getByLabel('Día de salida').fill(guatemalaAgo(-4 * 24 * 60).day);
+    await branch.getByLabel('Pasajeros').fill('30');
+    await branch.getByLabel('Distancia aproximada (km)').fill('100');
+    await branch.getByRole('searchbox', { name: 'Buscar cliente' }).fill(clientEmail);
+    await expect(branch.getByRole('combobox', { name: 'Cliente' })).toBeEnabled();
+    await expect(async () => {
+      await branch.getByRole('combobox', { name: 'Cliente' }).click();
+      await expect(branch.getByRole('option')).toHaveCount(1, { timeout: 1_000 });
+    }).toPass();
+    await branch.getByRole('option', { name: new RegExp(clientName) }).click();
     await expect(branch.getByLabel('Precio acordado')).not.toHaveValue('');
     await branch.getByRole('button', { name: 'Registrar alquiler' }).click();
     await expect(branch).toHaveURL(/estado=esperando-pago/);
-    await rowAction(branch, walkInName, 'Registrar pago en efectivo');
-    await branch.getByRole('dialog').getByRole('button', { name: 'Registrar pago' }).click();
-    await expect(branch.getByRole('dialog')).toBeHidden();
-    const walkInId = await untilFound(
+    const counterId = await untilFound(
       'clientes',
-      `SELECT id FROM rentals WHERE client_name = '${walkInName}' AND status = 'PAID'`,
-      'the walk-in rental paid in cash',
+      `SELECT id FROM rentals WHERE client_id = '${client.clientId}' AND channel = 'COUNTER'`,
+      'the counter rental',
     );
+    await waitForMail(inbox!, clientEmail, /Tu cotización está lista/);
+
+    // The branch can no longer take cash for it: the client pays.
+    await branch.getByRole('button', { name: `Acciones de ${clientName}` }).click();
+    await expect(branch.getByRole('menuitem', { name: 'Cancelar alquiler' })).toBeVisible();
+    await expect(branch.getByRole('menuitem', { name: 'Registrar pago en efectivo' })).toHaveCount(
+      0,
+    );
+    await branch.keyboard.press('Escape');
+
+    const beforePaying = await balance();
+    await buyer.goto('/cuenta?pestana=alquileres');
+    await buyer.getByRole('button', { name: 'Pagar', exact: true }).click();
+    await buyer.getByRole('dialog').getByRole('button', { name: 'Pagar con mi cartera' }).click();
+    await expect(buyer.getByRole('dialog')).toBeHidden();
+    await expect.poll(balance).toBeLessThan(beforePaying);
     await untilFound(
       'viajes',
-      `SELECT id FROM rental_requests WHERE id = '${walkInId}'`,
-      'the walk-in rental in viajes',
+      `SELECT id FROM rental_requests WHERE id = '${counterId}'`,
+      'the counter rental in viajes',
     );
-    await waitForMail(inbox!, walkInEmail, /Tu alquiler está confirmado/);
 
-    await branch.getByRole('tab', { name: 'Pagados' }).click();
-    await rowAction(branch, walkInName, 'Cancelar alquiler');
+    // Cancelled by the branch: its money goes back to the wallet.
+    await branch.goto('/sucursal/alquileres?estado=pagados');
+    await branch
+      .getByRole('row', { name: /En ventanilla/ })
+      .getByRole('button', { name: `Acciones de ${clientName}` })
+      .click();
+    await branch.getByRole('menuitem', { name: 'Cancelar alquiler' }).click();
     const cancel = branch.getByRole('alertdialog');
-    await expect(cancel.getByText(/en efectivo en la ventanilla/)).toBeVisible();
+    await expect(cancel.getByText(/a la cartera del cliente/)).toBeVisible();
     await cancel.getByRole('checkbox').click();
     await cancel.getByRole('button', { name: 'Sí, cancelar alquiler' }).click();
     await expect(cancel).toBeHidden();
     await untilFound(
       'clientes',
-      `SELECT id FROM rentals WHERE id = '${walkInId}' AND status = 'CANCELLED'`,
+      `SELECT id FROM rentals WHERE id = '${counterId}' AND status = 'CANCELLED'`,
       'the cancellation in clientes',
     );
-    expect(
-      queryLocal('viajes', `SELECT status FROM rental_requests WHERE id = '${walkInId}'`),
-    ).toEqual(['CANCELLED']);
+    await expect.poll(balance, { timeout: 30_000 }).toBe(beforePaying);
 
     await buyerContext.close();
     await branchContext.close();

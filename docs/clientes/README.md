@@ -8,30 +8,30 @@ En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · 
 
 ## 1. Para qué sirve y qué reglas cumple
 
-- **Perfil.** Una fila por cuenta, creada cuando `administracion` publica `UserRegistered` (el personal también tiene una, con los datos de cliente vacíos) o, si ese evento se perdió, cuando llega `UserUpdated` de una cuenta activa que no tiene perfil (ver [Recuperar perfiles](#recuperar-perfiles)). La persona puede cambiar su DPI, teléfono, NIT y dirección (`PUT /profile`); eso publica `ProfileUpdated`, que `ventas` copia para vincular las ventas de ventanilla por NIT. El NIT es único entre los perfiles que lo tienen (`409` "ya está en otra cuenta").
+- **Perfil.** Una fila por cuenta, creada cuando `administracion` publica `UserRegistered` (el personal también tiene una, con los datos de cliente vacíos) o, si ese evento se perdió, cuando llega `UserUpdated` de una cuenta que no tiene perfil (si está desactivada, el perfil nace oculto) (ver [Recuperar perfiles](#recuperar-perfiles)). La persona puede cambiar su DPI, teléfono, NIT y dirección (`PUT /profile`); eso publica `ProfileUpdated`, que `ventas` copia para vincular las ventas de ventanilla por NIT. El NIT es único entre los perfiles que lo tienen (`409` "ya está en otra cuenta"). Con cada `UserUpdated` más nuevo (por `version`, que `UserRegistered` también lleva) copia el nombre, el correo y si la cuenta está activa, y si cambió el nombre publica `ProfileUpdated` para `ventas`; una cuenta desactivada ya no se ofrece para alquileres de ventanilla.
 - **Cartera.** Una por perfil, creada junto con él. El saldo **nunca es negativo** (restricción `wallets_balance_non_negative`) y cada movimiento (`TOP_UP`, `TICKET`, `RENTAL`, `REFUND`) guarda el saldo que dejó. Cada operación de dinero lleva un `Idempotency-Key` y su combinación con la cartera es única: repetirla responde lo mismo y **nunca mueve el dinero dos veces**; la misma clave con otros datos responde 409.
 - **Recargar.** `POST /wallet/top-ups` con la clave y `paidOn` (la fecha de pago, que se puede elegir; hasta Q100,000). Publica `WalletCredited` y `notificaciones` manda el correo.
 - **Cobrar.** `POST /internal/wallet/debits` es solo entre servicios (`ventas` lo llama con la clave igual al id del boleto). Bloquea la cartera, revisa si ese cobro ya se aplicó (y entonces responde lo mismo), si el viaje se canceló y se devolvió el boleto (`422`), si ya pasó el plazo `payBy` (`422`) y si alcanza el saldo (`422`).
 - **Devolver.** Al recibir `RefundRequested`, devuelve lo que cobró ese boleto o deja la marca que rechaza un cobro tardío (detalle en la saga de reembolso, abajo).
-- **Alquileres.** Se piden en línea o se registran en ventanilla, se confirman con un precio, se pagan con la cartera o en efectivo y se cancelan; el cliente ve su historial, enlazado también por NIT. Los estados, el precio y las reglas están en [Alquileres](#alquileres).
+- **Alquileres.** Se piden en línea o se registran en ventanilla, se confirman con un precio, se pagan con la cartera y se cancelan; el cliente ve su historial. Los estados, el precio y las reglas están en [Alquileres](#alquileres).
 - **Copias por eventos.** Guarda la copia de las sucursales (`BranchCreated`, `BranchUpdated`) y de la configuración vigente (`SettingsUpdated`, para la tarifa por km), siempre por versión.
 
 ### Alquileres
 
-Un alquiler vive en la tabla `rentals` de `clientes`. Puede ser **en línea** (`ONLINE`), pedido por un cliente con cuenta, o **de ventanilla** (`COUNTER`), registrado por el admin de sucursal para alguien sin cuenta. El de ventanilla guarda el NIT (`CF` si no lo dan), el nombre y, si lo dan, el correo.
+Un alquiler vive en la tabla `rentals` de `clientes`. Puede ser **en línea** (`ONLINE`), pedido por un cliente con cuenta, o **de ventanilla** (`COUNTER`), registrado por el admin de sucursal para un cliente existente, que elige con `GET /clients` (solo clientes activos; busca por nombre, correo o NIT, con guion o sin él). El NIT (`CF` si no tiene), el nombre y el correo salen de su perfil. Solo las filas de ventanilla anteriores a este cambio no tienen cliente.
 
-| Estado      | Qué significa                                          | Lo ve el cliente como     | Lo ve la sucursal como |
-| ----------- | ------------------------------------------------------ | ------------------------- | ---------------------- |
-| `REQUESTED` | El cliente lo pidió; tiene precio estimado             | Esperando precio          | Por confirmar          |
-| `CONFIRMED` | La sucursal fijó el precio                             | Precio listo, falta pagar | Esperando pago         |
-| `PAID`      | Se pagó (cartera o efectivo) y se publicó `RentalPaid` | Pagado                    | Pagado                 |
-| `CANCELLED` | Se canceló antes o después de pagar                    | Cancelado                 | Cancelado              |
+| Estado      | Qué significa                                                                                 | Lo ve el cliente como     | Lo ve la sucursal como |
+| ----------- | --------------------------------------------------------------------------------------------- | ------------------------- | ---------------------- |
+| `REQUESTED` | El cliente lo pidió; tiene precio estimado                                                    | Esperando precio          | Por confirmar          |
+| `CONFIRMED` | La sucursal fijó el precio                                                                    | Precio listo, falta pagar | Esperando pago         |
+| `PAID`      | Se pagó con la cartera (en filas antiguas sin cliente, en efectivo) y se publicó `RentalPaid` | Pagado                    | Pagado                 |
+| `CANCELLED` | Se canceló antes o después de pagar                                                           | Cancelado                 | Cancelado              |
 
 - **Precio estimado**: km que escribe el cliente × tarifa por km vigente ese día (copia local de `SettingsUpdated`). La tarifa queda guardada en el alquiler (`rate_per_km`), así un cambio de configuración no mueve el estimado.
 - **Sucursal**: `clientes` guarda una copia de las sucursales (tabla `branches`, alimentada por `BranchCreated` y `BranchUpdated`). Un alquiler en línea solo se pide a una sucursal que existe y está activa; si no, responde 422.
 - **Confirmación**: solo desde `REQUESTED` y antes de la salida (después responde 422, porque ese precio ya no se podría pagar). El admin puede corregir los km (importan para la depreciación del bus en `viajes`) y deja el estimado o escribe otro precio. Si es en línea, publica `RentalConfirmed` y `notificaciones` manda "Tu cotización está lista".
-- **Ventanilla**: se registra ya `CONFIRMED`, con el precio acordado ahí. Después se cobra en efectivo con el mismo `POST /rentals/{id}/pay`, sin tocar ninguna cartera.
-- **Historial por NIT**: un cliente ve sus alquileres en línea y los de ventanilla hechos con el NIT de su perfil (nunca con `CF`), aunque sean de antes de crear la cuenta. Se consulta en el momento, sin copiar filas, así sigue al NIT si el cliente lo cambia.
+- **Ventanilla**: se registra ya `CONFIRMED`, con el precio acordado ahí, y publica `RentalConfirmed` en la misma transacción para avisarle al cliente por correo. Lo paga el cliente con su cartera desde su cuenta (`POST /rentals/{id}/pay`), porque nadie más puede gastar ese saldo. El admin solo cobra en efectivo las filas antiguas sin cliente.
+- **Historial**: un cliente ve los alquileres a su nombre y las filas antiguas de ventanilla sin cliente hechas con el NIT de su perfil (nunca con `CF`). Se consulta en el momento, sin copiar filas, así sigue al NIT si el cliente lo cambia.
 
 #### Pago con la cartera: una transacción, no una saga
 
@@ -81,6 +81,9 @@ classDiagram
     class PrismaService
   }
   namespace profiles {
+    class ClientsController {
+      +list()
+    }
     class ProfilesController {
       +get()
       +update()
@@ -90,6 +93,7 @@ classDiagram
       +updated()
     }
     class ProfilesService {
+      +clientOptions()
       +get()
       +update()
     }
@@ -151,6 +155,7 @@ classDiagram
   }
   BranchesHandler --> PrismaService
   BranchRentalsController --> RentalsService
+  ClientsController --> ProfilesService
   InternalWalletController --> WalletService
   ProfilesController --> ProfilesService
   ProfilesHandler --> PrismaService
@@ -201,6 +206,9 @@ erDiagram
     text phone
     text nit
     text address
+    boolean active
+    int account_version
+    text search_text
     timestamptz created_at
     timestamptz updated_at
   }
@@ -331,11 +339,11 @@ Es la saga coreografiada de [ventas](../ventas/README.md#viaje-eliminado-y-reemb
 
 Un alquiler sin pagar se cancela aquí mismo y nadie más se entera. Uno **pagado** ya está en `viajes` (esperando bus o con su viaje) y en los reportes, así que cancelarlo toca tres servicios. Lo hace una saga **coreografiada**, solo con eventos:
 
-| Paso | Servicio                                       | Tipo             | Qué hace                                                                                                                                                                                                                                                                         |
-| ---- | ---------------------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | `viajes` (`POST /rental-requests/{id}/cancel`) | **Pivote**       | En una transacción: si el alquiler tiene viaje y ese viaje ya salió, rechaza con 409 y no cambia nada. Si no, borra el viaje (publica `TripDeleted`, `flota` libera el bus), deja la solicitud `CANCELLED` y publica `RentalCancelled`                                           |
-| 2    | `clientes` (`RentalCancelled`)                 | **Reintentable** | Marca el alquiler `CANCELLED`. Si se pagó con la cartera, devuelve lo que tomó el débito (`refunds` con la referencia del alquiler, movimiento `REFUND` y `WalletCredited`, que manda el correo de devolución). Si fue en efectivo, solo marca: la ventanilla devuelve el dinero |
-| 3    | `reportes` (`RentalCancelled`)                 | **Reintentable** | Guarda una tumba en `branch_report_rental_cancellations`; "Ingresos por alquiler" ya no cuenta ese alquiler                                                                                                                                                                      |
+| Paso | Servicio                                       | Tipo             | Qué hace                                                                                                                                                                                                                                                                                                |
+| ---- | ---------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `viajes` (`POST /rental-requests/{id}/cancel`) | **Pivote**       | En una transacción: si el alquiler tiene viaje y ese viaje ya salió, rechaza con 409 y no cambia nada. Si no, borra el viaje (publica `TripDeleted`, `flota` libera el bus), deja la solicitud `CANCELLED` y publica `RentalCancelled`                                                                  |
+| 2    | `clientes` (`RentalCancelled`)                 | **Reintentable** | Marca el alquiler `CANCELLED`. Si se pagó con la cartera, devuelve lo que tomó el débito (`refunds` con la referencia del alquiler, movimiento `REFUND` y `WalletCredited`, que manda el correo de devolución). Si es una fila antigua pagada en efectivo, solo marca: la ventanilla devuelve el dinero |
+| 3    | `reportes` (`RentalCancelled`)                 | **Reintentable** | Guarda una tumba en `branch_report_rental_cancellations`; "Ingresos por alquiler" ya no cuenta ese alquiler                                                                                                                                                                                             |
 
 - **Compensación**: antes del pivote no hay nada que deshacer (el rechazo es inmediato). Después del pivote no se vuelve atrás: los pasos 2 y 3 solo pueden terminar bien, y se repiten hasta lograrlo.
 - **Idempotencia**: inbox por `eventId` en cada consumidor, la clave primaria de `refunds` (una devolución por alquiler) y la de la tumba. Un evento repetido no devuelve dos veces.
@@ -374,14 +382,15 @@ No hay llamadas síncronas nuevas: todo lo que cruza servicios va por eventos, a
 
 ### Recuperar perfiles
 
-El perfil solo nacía con `UserRegistered`; si ese evento no llegaba (una cuenta anterior al servicio, una base nueva), `/perfil` quedaba en "Estamos preparando tu cuenta" para siempre. Ahora `clientes` también escucha `UserUpdated`: con una cuenta **activa** sin perfil crea el perfil (con los datos de cliente vacíos), su cartera y publica `ProfileUpdated`, todo con `ON CONFLICT DO NOTHING` y el inbox por `eventId`, así que repetirlo no duplica ni vuelve a anunciar nada. Una cuenta desactivada no recibe perfil.
+El perfil solo nacía con `UserRegistered`; si ese evento no llegaba (una cuenta anterior al servicio, una base nueva), `/perfil` quedaba en "Estamos preparando tu cuenta" para siempre. Ahora `clientes` también escucha `UserUpdated`: con una cuenta sin perfil crea el perfil, oculto si está desactivada, (con los datos de cliente vacíos), su cartera y publica `ProfileUpdated`, todo con `ON CONFLICT DO NOTHING` y el inbox por `eventId`, así que repetirlo no duplica ni vuelve a anunciar nada. Una cuenta desactivada no recibe perfil.
 
 Si `UserUpdated` llega antes que `UserRegistered` de un cliente, el registro **completa** el perfil vacío (DPI, teléfono, dirección y NIT, solo los que siguen en blanco) y nunca pisa uno que ya tiene datos. Un cliente que perdió su `UserRegistered` del todo recupera perfil y cartera, pero sin DPI ni teléfono: los escribe de nuevo en su perfil.
 
 Para reenviar todas las cuentas:
 
 - Después de un despliegue: correr el workflow `republish` con el objetivo `administracion/users`.
-- En local: `curl -X POST localhost:4001/internal/users/republish` (acepta `?branchId=` para limitarlo a una sucursal). Cada cuenta sale con la versión subida; al terminar, `SELECT count(*) FROM client_profiles` en `clientes` es igual a las cuentas activas de `administracion` (las pendientes y las desactivadas no tienen perfil).
+- En local: `curl -X POST localhost:4001/internal/users/republish` (acepta `?branchId=` para limitarlo a una sucursal). Cada cuenta sale con la versión subida; al terminar, `SELECT count(*) FROM client_profiles WHERE active` en `clientes` es igual a las cuentas activas de `administracion`.
+- **Después de desplegar la migración `20261102000002_client_account_state`** hay que republicar las cuentas con el workflow `republish` (`administracion/users`): una cuenta desactivada antes de esa migración sigue activa en `clientes` hasta entonces, y se le podría registrar un alquiler que no puede pagar.
 
 No hay llamadas síncronas nuevas ni estado en más de un servicio que haya que deshacer (cada copia se actualiza sola por evento), así que no aplican la saga ni el circuit breaker.
 
@@ -394,8 +403,9 @@ Todas las rutas pasan por el gateway con el prefijo `/api/clientes` (aquí apare
 | Método | Ruta | Qué hace | Roles |
 | --- | --- | --- | --- |
 | `GET` | `/branch-rentals` | Lista los alquileres de la sucursal | BRANCH_ADMIN |
-| `POST` | `/branch-rentals` | Registra un alquiler de ventanilla con su precio | BRANCH_ADMIN |
+| `POST` | `/branch-rentals` | Registra un alquiler de ventanilla para un cliente, con su precio | BRANCH_ADMIN |
 | `POST` | `/branch-rentals/{id}/confirm` | Confirma o cambia el precio (y los km) de un alquiler | BRANCH_ADMIN |
+| `GET` | `/clients` | Busca entre los clientes para registrarles un alquiler | BRANCH_ADMIN |
 | `GET` | `/dead-letters` | Lista los mensajes que fallaron y quedaron en la cola de errores | SYSTEM_ADMIN |
 | `DELETE` | `/dead-letters/{messageId}` | Descarta un mensaje de la cola de errores | SYSTEM_ADMIN |
 | `POST` | `/dead-letters/{messageId}/replay` | Vuelve a entregar un mensaje de la cola de errores | SYSTEM_ADMIN |
@@ -404,9 +414,9 @@ Todas las rutas pasan por el gateway con el prefijo `/api/clientes` (aquí apare
 | `PUT` | `/profile` | Cambia el DPI, el teléfono, el NIT o la dirección del perfil | Cualquier sesión |
 | `POST` | `/rentals` | Pide un alquiler en línea | CLIENT |
 | `GET` | `/rentals/estimate` | Calcula el precio estimado de un alquiler con la tarifa vigente | CLIENT, BRANCH_ADMIN |
-| `GET` | `/rentals/mine` | Lista los alquileres del cliente, también los de ventanilla con su NIT | CLIENT |
+| `GET` | `/rentals/mine` | Lista los alquileres del cliente, también los antiguos de ventanilla con su NIT | CLIENT |
 | `POST` | `/rentals/{id}/cancel` | Cancela un alquiler que todavía no está pagado | CLIENT, BRANCH_ADMIN |
-| `POST` | `/rentals/{id}/pay` | Paga un alquiler confirmado: con la cartera o, en ventanilla, en efectivo | CLIENT, BRANCH_ADMIN |
+| `POST` | `/rentals/{id}/pay` | Paga un alquiler confirmado con la cartera; si es antiguo y sin cliente, en efectivo | CLIENT, BRANCH_ADMIN |
 | `GET` | `/wallet` | Consulta el saldo de la cartera | Cualquier sesión |
 | `GET` | `/wallet/movements` | Lista los movimientos de la cartera | Cualquier sesión |
 | `POST` | `/wallet/top-ups` | Recarga la cartera (la clave evita recargar dos veces) | Cualquier sesión |

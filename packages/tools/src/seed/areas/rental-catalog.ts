@@ -18,10 +18,8 @@ export interface SeedRental {
   channel: 'ONLINE' | 'COUNTER';
   // The branch that takes the rental.
   branch: string;
-  // The client of the catalog that asks online.
-  client?: number;
-  // Who rents at the counter.
-  walkIn?: { clientName: string; nit: string };
+  // The client of the catalog who rents, online or at the counter, and pays from their wallet.
+  client: number;
   origin: string;
   destination: string;
   distanceKm: number;
@@ -136,9 +134,9 @@ export const SEED_RENTALS: readonly SeedRental[] = [
     key: 'colegio-puerto',
     channel: 'COUNTER',
     branch: 'GUA',
-    walkIn: { clientName: 'Colegio San José de los Infantes', nit: '2174839' },
-    origin: 'Ciudad de Guatemala',
-    destination: 'Puerto San José',
+    client: 8,
+    origin: 'Guatemala',
+    destination: 'Sacatepéquez',
     distanceKm: 110,
     passengers: 40,
     daysAhead: 16,
@@ -150,9 +148,9 @@ export const SEED_RENTALS: readonly SeedRental[] = [
     key: 'club-xelaju',
     channel: 'COUNTER',
     branch: 'XEL',
-    walkIn: { clientName: 'Asociación Deportiva Xelajú', nit: '5039214K' },
+    client: 2,
     origin: 'Quetzaltenango',
-    destination: 'Ciudad de Guatemala',
+    destination: 'Huehuetenango',
     distanceKm: 200,
     passengers: 38,
     daysAhead: 18,
@@ -164,9 +162,9 @@ export const SEED_RENTALS: readonly SeedRental[] = [
     key: 'hotel-aeropuerto',
     channel: 'COUNTER',
     branch: 'ANT',
-    walkIn: { clientName: 'Hotel Casa Santo Domingo', nit: '1096734' },
-    origin: 'Antigua Guatemala',
-    destination: 'Aeropuerto La Aurora',
+    client: 3,
+    origin: 'Sacatepéquez',
+    destination: 'Guatemala',
     distanceKm: 45,
     passengers: 30,
     daysAhead: 20,

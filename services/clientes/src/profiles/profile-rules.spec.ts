@@ -18,6 +18,7 @@ describe('toProfileRow', () => {
       fullName: base.fullName,
       role: 'CLIENT',
       ...profile,
+      accountVersion: 0,
     });
   });
 
@@ -29,6 +30,12 @@ describe('toProfileRow', () => {
       nit: null,
       address: null,
     });
+  });
+});
+
+it('starts at the version of the registration', () => {
+  expect(toProfileRow({ ...base, role: 'CASHIER', profile: null, version: 4 })).toMatchObject({
+    accountVersion: 4,
   });
 });
 
@@ -51,11 +58,15 @@ describe('toRecoveredProfileRow', () => {
       phone: null,
       nit: null,
       address: null,
+      accountVersion: 0,
     });
   });
 
-  it('recovers nothing for an account that was deactivated', () => {
-    expect(toRecoveredProfileRow({ ...account, active: false })).toBeNull();
+  it('holds a row for a deactivated account too, without taking its version yet', () => {
+    expect(toRecoveredProfileRow({ ...account, active: false })).toMatchObject({
+      userId: base.userId,
+      accountVersion: 0,
+    });
   });
 });
 

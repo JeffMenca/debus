@@ -19,17 +19,23 @@ const TRIPS_CLOSING = 'tiene viajes programados o en camino';
 const MAX_ATTEMPTS = 25;
 const WAIT_MS = 2000;
 
-function tryAgainWhilePending(checks: string[], pendingPattern = PENDING): string[] {
+function tryAgainWhile(condition: string, checks: string[]): string[] {
   return [
-    `var pending = /${pendingPattern}/;`,
     "var attemptsKey = 'retry ' + pm.info.requestName;",
     'var attempts = Number(pm.collectionVariables.get(attemptsKey) || 0);',
-    `if (pm.response.code === 409 && pending.test(pm.response.text()) && attempts < ${MAX_ATTEMPTS}) {`,
+    `if (${condition} && attempts < ${MAX_ATTEMPTS}) {`,
     '  pm.collectionVariables.set(attemptsKey, attempts + 1);',
     `  setTimeout(function () { postman.setNextRequest(pm.info.requestName); }, ${WAIT_MS});`,
     '} else {',
     ...checks.map((line) => `  ${line}`),
     '}',
+  ];
+}
+
+function tryAgainWhilePending(checks: string[], pendingPattern = PENDING): string[] {
+  return [
+    `var pending = /${pendingPattern}/;`,
+    ...tryAgainWhile('pm.response.code === 409 && pending.test(pm.response.text())', checks),
   ];
 }
 
@@ -144,6 +150,44 @@ const act = (
   test: status(code),
 });
 
+// An account is activated from the link of its email, which reaches the local mailbox a little later.
+const readsLink = (name: string, emailVariable: string, tokenVariable: string): Step => ({
+  name,
+  method: 'GET',
+  path: '/api/v1/search',
+  base: 'mailpitUrl',
+  query: `query=to:{{${emailVariable}}}`,
+  session: 'none',
+  // The invitation is an email: it reaches the mailbox of the local stack a few seconds later.
+  prerequest: [
+    "var mailbox = pm.variables.get('mailpitUrl');",
+    `var address = pm.variables.get('${emailVariable}');`,
+    'var tries = 0;',
+    'function again() {',
+    '  if (tries < 45) { setTimeout(poll, 2000); }',
+    '}',
+    'function poll() {',
+    '  tries++;',
+    "  pm.sendRequest(mailbox + '/api/v1/search?query=' + encodeURIComponent('to:' + address), function (error, found) {",
+    '    var messages = (!error && found.json().messages) || [];',
+    '    if (messages.length === 0) { return again(); }',
+    "    pm.sendRequest(mailbox + '/api/v1/message/' + messages[0].ID, function (failure, message) {",
+    "      var html = (!failure && message.json().HTML) || '';",
+    '      var link = /href="[^"]*crear-contrasena\\?token=([^"&]+)/.exec(html);',
+    `      if (link) { pm.collectionVariables.set('${tokenVariable}', decodeURIComponent(link[1])); } else { again(); }`,
+    '    });',
+    '  });',
+    '}',
+    'poll();',
+  ],
+  test: [
+    ...status(200),
+    ...pmTest('Guarda el token del enlace', [
+      `pm.expect(!!pm.collectionVariables.get('${tokenVariable}')).to.be.true;`,
+    ]),
+  ],
+});
+
 const STEPS: Step[] = [
   {
     name: 'Crear sucursal de prueba (origen)',
@@ -195,42 +239,7 @@ const STEPS: Step[] = [
     200,
     { address: 'Calle de prueba 4-56' },
   ),
-  {
-    name: 'Leer el enlace de activación',
-    method: 'GET',
-    path: '/api/v1/search',
-    base: 'mailpitUrl',
-    query: 'query=to:{{testAdminEmail}}',
-    session: 'none',
-    // The invitation is an email: it reaches the mailbox of the local stack a few seconds later.
-    prerequest: [
-      "var mailbox = pm.variables.get('mailpitUrl');",
-      "var address = pm.variables.get('testAdminEmail');",
-      'var tries = 0;',
-      'function again() {',
-      '  if (tries < 45) { setTimeout(poll, 2000); }',
-      '}',
-      'function poll() {',
-      '  tries++;',
-      "  pm.sendRequest(mailbox + '/api/v1/search?query=' + encodeURIComponent('to:' + address), function (error, found) {",
-      '    var messages = (!error && found.json().messages) || [];',
-      '    if (messages.length === 0) { return again(); }',
-      "    pm.sendRequest(mailbox + '/api/v1/message/' + messages[0].ID, function (failure, message) {",
-      "      var html = (!failure && message.json().HTML) || '';",
-      '      var link = /href="[^"]*crear-contrasena\\?token=([^"&]+)/.exec(html);',
-      "      if (link) { pm.collectionVariables.set('testToken', decodeURIComponent(link[1])); } else { again(); }",
-      '    });',
-      '  });',
-      '}',
-      'poll();',
-    ],
-    test: [
-      ...status(200),
-      ...pmTest('Guarda el token del enlace', [
-        "pm.expect(!!pm.collectionVariables.get('testToken')).to.be.true;",
-      ]),
-    ],
-  },
+  readsLink('Leer el enlace de activación', 'testAdminEmail', 'testToken'),
   {
     name: 'Consultar el enlace de activación',
     method: 'POST',
@@ -530,6 +539,47 @@ const STEPS: Step[] = [
     204,
   ),
   {
+    name: 'Registrarse como cliente de prueba',
+    method: 'POST',
+    path: '/api/administracion/auth/signup',
+    session: 'none',
+    body: {
+      fullName: '{{testBranchPrefix}}cliente',
+      email: '{{testSignupEmail}}',
+      dpi: '2345678901234',
+      phone: '55550000',
+    },
+    test: status(202),
+  },
+  readsLink('Leer el enlace del cliente de prueba', 'testSignupEmail', 'testClientToken'),
+  {
+    name: 'Activar la cuenta del cliente de prueba',
+    method: 'POST',
+    path: '/api/administracion/auth/password',
+    session: 'none',
+    body: { token: '{{testClientToken}}', password: '{{testPassword}}' },
+    test: status(204),
+  },
+  {
+    name: 'Buscar el cliente de prueba',
+    method: 'GET',
+    path: '/api/clientes/clients',
+    query: 'q={{testSignupEmail}}',
+    session: 'test',
+    // The profile comes from an event, and the rental of this chain never uses a client of the demo.
+    test: [
+      json,
+      ...tryAgainWhile('json.items.length === 0', [
+        ...status(200),
+        ...pmTest('Guarda testClientId', [
+          json,
+          "pm.expect(json.items[0].email).to.eql(pm.variables.get('testSignupEmail'));",
+          keep('testClientId', 'json.items[0].userId'),
+        ]),
+      ]),
+    ],
+  },
+  {
     name: 'Registrar un alquiler de ventanilla',
     method: 'POST',
     path: '/api/clientes/branch-rentals',
@@ -538,14 +588,12 @@ const STEPS: Step[] = [
     body: {
       branchId: '{{testBranchId}}',
       originLabel: 'Quetzaltenango',
-      destinationLabel: 'Panajachel',
+      destinationLabel: 'Quetzaltenango',
       departureAt: '{{testRentalDeparture}}',
       returnAt: null,
       passengers: 30,
       distanceKm: 92,
-      nit: 'CF',
-      clientName: TEST_NAME,
-      email: null,
+      clientId: '{{testClientId}}',
       price: 1500,
     },
     test: made(201, 'testRentalId'),
@@ -615,19 +663,6 @@ const STEPS: Step[] = [
     'admin',
     204,
   ),
-  {
-    name: 'Registrarse como cliente de prueba',
-    method: 'POST',
-    path: '/api/administracion/auth/signup',
-    session: 'none',
-    body: {
-      fullName: 'Cliente de prueba',
-      email: '{{testSignupEmail}}',
-      dpi: '2345678901234',
-      phone: '55550000',
-    },
-    test: status(202),
-  },
   {
     name: 'Pedir restablecer la contraseña',
     method: 'POST',

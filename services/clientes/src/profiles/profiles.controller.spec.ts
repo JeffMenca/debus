@@ -1,3 +1,4 @@
+import { ClientsController } from './clients.controller';
 import { ProfilesController } from './profiles.controller';
 
 const actor = {
@@ -17,5 +18,15 @@ describe('ProfilesController', () => {
 
     expect(profiles.get).toHaveBeenCalledWith(actor.userId);
     expect(profiles.update).toHaveBeenCalledWith(actor.userId, body, 'c-1');
+  });
+});
+
+describe('ClientsController', () => {
+  it('lists the clients a branch admin may choose from', async () => {
+    const profiles = { clientOptions: jest.fn().mockResolvedValue('page') };
+    const query = { page: 1, pageSize: 20 };
+
+    expect(await new ClientsController(profiles as never).list(query)).toBe('page');
+    expect(profiles.clientOptions).toHaveBeenCalledWith(query);
   });
 });

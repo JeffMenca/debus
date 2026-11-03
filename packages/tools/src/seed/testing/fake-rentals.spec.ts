@@ -226,34 +226,57 @@ describe('the fake online rentals', () => {
 });
 
 describe('the fake counter rentals', () => {
-  const COUNTER = {
-    ...RENTAL,
-    nit: 'CF',
-    clientName: 'Agencia Los Cerritos',
-    email: null,
-    price: 2_000,
-  };
+  const counterFor = (clientId: string) => ({ ...RENTAL, clientId, price: 2_000 });
 
-  it('are recorded confirmed and paid in cash by the branch admin', async () => {
+  it('are recorded confirmed for a client, who pays from the wallet', async () => {
     const { gateway } = world();
-    const rental = await ask(gateway, ADMIN, 'POST', '/api/clientes/branch-rentals', COUNTER);
-    expect(rental).toMatchObject({ status: 'CONFIRMED', channel: 'COUNTER', price: 2_000 });
-    const paid = await pay(gateway, ADMIN, rental.id);
+    const session = await client(gateway, 5_000);
+    const rental = await ask(
+      gateway,
+      ADMIN,
+      'POST',
+      '/api/clientes/branch-rentals',
+      counterFor(session.user.id),
+    );
+    expect(rental).toMatchObject({
+      status: 'CONFIRMED',
+      channel: 'COUNTER',
+      clientId: session.user.id,
+      nit: FORM.nit,
+      price: 2_000,
+    });
+    await expect(pay(gateway, ADMIN, rental.id)).rejects.toMatchObject({ status: 404 });
+    const paid = await pay(gateway, session, rental.id);
     expect(paid).toMatchObject({ status: 'PAID', paidOn: '2026-10-20' });
+    expect(gateway.clients.balanceOf(session.user.id)).toBe(3_000);
     const listed = await ask(
       gateway,
       ADMIN,
       'GET',
-      '/api/clientes/branch-rentals?status=PAID&q=cerritos',
+      `/api/clientes/branch-rentals?status=PAID&q=${FORM.nit}`,
     );
     expect(listed.items.map((item) => item.id)).toEqual([rental.id]);
   });
 
   it('are recorded only for the branch of the admin', async () => {
     const { gateway } = world();
+    const session = await client(gateway, 0);
     await expect(
-      ask(gateway, OTHER_ADMIN, 'POST', '/api/clientes/branch-rentals', COUNTER),
+      ask(
+        gateway,
+        OTHER_ADMIN,
+        'POST',
+        '/api/clientes/branch-rentals',
+        counterFor(session.user.id),
+      ),
     ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('are refused for someone without a client profile', async () => {
+    const { gateway } = world();
+    await expect(
+      ask(gateway, ADMIN, 'POST', '/api/clientes/branch-rentals', counterFor(BUS)),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });
 

@@ -1,8 +1,38 @@
-import { clientProfileSchema, updateProfileRequestSchema } from './profile';
+import {
+  clientOptionQuerySchema,
+  clientOptionSchema,
+  clientProfileSchema,
+  updateProfileRequestSchema,
+} from './profile';
 
 const update = { dpi: '2734 51920 0901', phone: '5512-3489', nit: '4521837-6', address: 'Zona 3' };
 
 describe('profile contracts', () => {
+  it('searches the clients to choose from without accents, one page at a time', () => {
+    expect(clientOptionQuerySchema.parse({ q: ' Méndez ' })).toEqual({
+      q: 'mendez',
+      page: 1,
+      pageSize: 20,
+    });
+    expect(clientOptionQuerySchema.safeParse({ pageSize: 101 }).success).toBe(false);
+  });
+
+  it('shows of a client only what is needed to recognize them', () => {
+    const option = {
+      userId: '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a',
+      fullName: 'Ana Méndez',
+      email: 'ana@correo.com',
+      nit: null,
+      dpi: '2734519200901',
+    };
+    expect(clientOptionSchema.parse(option)).toEqual({
+      userId: option.userId,
+      fullName: option.fullName,
+      email: option.email,
+      nit: null,
+    });
+  });
+
   it('normalizes the DPI, phone and NIT the way the signup does', () => {
     expect(updateProfileRequestSchema.parse(update)).toEqual({
       dpi: '2734519200901',

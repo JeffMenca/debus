@@ -38,6 +38,8 @@ export const userRegisteredPayloadSchema = z.object({
       address: z.string().nullable(),
     })
     .nullable(),
+  // The version the account reached when activated; absent in events queued before it existed.
+  version: z.number().int().positive().optional(),
 });
 export type UserRegisteredPayload = z.infer<typeof userRegisteredPayloadSchema>;
 

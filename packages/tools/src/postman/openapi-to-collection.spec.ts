@@ -186,6 +186,14 @@ const OPENAPI: OpenApiDocument = {
         responses: { '200': {} },
       },
     },
+    '/api/clientes/open-write': {
+      post: {
+        tags: ['clientes · rentals'],
+        security: bearer,
+        parameters: [],
+        responses: { '201': {} },
+      },
+    },
     '/api/clientes/rentals/{id}/pay': {
       post: {
         tags: ['clientes · rentals'],
@@ -404,6 +412,10 @@ describe('toCollection', () => {
       expect(tokenOf('POST /api/clientes/rentals/:id/pay')).toBe('{{testBranchAccessToken}}');
     });
 
+    it('never writes with the real admin what any session may write', () => {
+      expect(tokenOf('POST /api/clientes/open-write')).toBe('{{testBranchAccessToken}}');
+    });
+
     it('writes with the test branch admin, never with the session of the demo branch', () => {
       expect(tokenOf('POST /api/flota/buses')).toBe('{{testBranchAccessToken}}');
       expect(tokenOf('DELETE /api/flota/buses/:id')).toBe('{{testBranchAccessToken}}');
@@ -545,6 +557,7 @@ describe('leftOutReason', () => {
     ['put', '/api/flota/drivers/{id}/photo'],
     ['post', '/api/viajes/rental-requests/{id}/assignment'],
     ['post', '/api/clientes/rentals'],
+    ['post', '/api/clientes/rentals/{id}/pay'],
     ['post', '/api/flota/dead-letters/{messageId}/replay'],
     ['delete', '/api/notificaciones/dead-letters/{messageId}'],
   ] as const)('leaves out %s %s with a reason', (method, path) => {

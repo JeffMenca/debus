@@ -124,8 +124,8 @@ export class RegistrationService {
         registeredPayload(user, profile && { ...profile, nit }),
         correlationId,
       );
-      // UserRegistered carries no version: a branch admin edited while pending was announced as
-      // inactive, and only a higher version tells the copies it is active now.
+      // notificaciones takes no version from UserRegistered: a branch admin edited while pending was
+      // announced as inactive, and only a higher version tells its copy it is active now.
       if (user.role === 'BRANCH_ADMIN') {
         const active = await tx.user.findUniqueOrThrow({ where: { id: user.id } });
         await this.events.userUpdated(tx, toUserUpdated(active), correlationId);
@@ -210,5 +210,7 @@ function registeredPayload(user: User, profile: ClientProfile | null): UserRegis
     role: user.role,
     branchId: user.branchId,
     profile,
+    // The update that activated it raised the version by one.
+    version: user.version + 1,
   };
 }

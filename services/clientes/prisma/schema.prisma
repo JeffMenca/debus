@@ -32,20 +32,26 @@ model OutboxEvent {
 // One per user, created from UserRegistered. Staff get one too, with the client fields empty.
 // The NIT is unique only when present (partial index in the migration).
 model ClientProfile {
-  userId    String   @id @map("user_id") @db.Uuid
-  email     String
-  fullName  String   @map("full_name")
-  role      String
-  dpi       String?
-  phone     String?
-  nit       String?
-  address   String?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
-  wallet    Wallet?
-  refunds   Refund[]
-  rentals   Rental[]
+  userId         String   @id @map("user_id") @db.Uuid
+  email          String
+  fullName       String   @map("full_name")
+  role           String
+  dpi            String?
+  phone          String?
+  nit            String?
+  address        String?
+  // Follow the account through UserUpdated; only a newer version is applied.
+  active         Boolean  @default(true)
+  accountVersion Int      @default(0) @map("account_version")
+  // Filled by the trigger client_profiles_search_text.
+  searchText     String   @default("") @map("search_text")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  wallet         Wallet?
+  refunds        Refund[]
+  rentals        Rental[]
 
+  @@index([role, fullName, userId])
   @@map("client_profiles")
 }
 

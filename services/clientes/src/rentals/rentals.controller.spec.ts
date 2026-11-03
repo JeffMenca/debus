@@ -63,8 +63,8 @@ describe('BranchRentalsController', () => {
 
     await controller.list(admin, query);
     expect(service.branchList).toHaveBeenLastCalledWith(admin, query);
-    await controller.registerCounter(admin, counter);
-    expect(service.registerCounter).toHaveBeenLastCalledWith(admin, counter);
+    await controller.registerCounter(admin, counter, 'c-1');
+    expect(service.registerCounter).toHaveBeenLastCalledWith(admin, counter, 'c-1');
     await controller.confirm(admin, 'r', { price: 2500 }, 'c');
     expect(service.confirm).toHaveBeenLastCalledWith(admin, 'r', { price: 2500 }, 'c');
   });

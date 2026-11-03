@@ -65,6 +65,23 @@ describe('refunds of the tickets of a deleted trip', () => {
     await app.close();
   });
 
+  it('lists a refund after its debit even if the clock of the debit ran ahead', async () => {
+    const clientId = await profiles.create({ balance: 100 });
+    const ticketId = randomUUID();
+    await debit(clientId, ticketId).expect(200);
+    await prisma.walletMovement.updateMany({
+      where: { clientId, reference: ticketId },
+      data: { createdAt: new Date(Date.now() + 5_000) },
+    });
+
+    await bus.deliver('RefundRequested', refundRequested(clientId, ticketId));
+
+    expect((await movementsOf(clientId, ticketId)).map((m) => m.kind)).toEqual([
+      'TICKET',
+      'REFUND',
+    ]);
+  });
+
   it('gives back what the ticket cost, once, however many times it is asked', async () => {
     const clientId = await profiles.create({ balance: 100 });
     const ticketId = randomUUID();

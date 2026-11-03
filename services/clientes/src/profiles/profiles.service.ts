@@ -1,4 +1,12 @@
-import type { ClientProfile, UpdateProfileRequest } from '@debus/contracts';
+import {
+  type ClientOptionPage,
+  type ClientOptionQuery,
+  type ClientProfile,
+  type UpdateProfileRequest,
+  escapeLikePattern,
+  pageArgs,
+  toPage,
+} from '@debus/contracts';
 import { Outbox, REQUEST_FLUSH } from '@debus/messaging';
 import { isRecordMissing, isUniqueViolation } from '@debus/server';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
@@ -32,6 +40,27 @@ export class ProfilesService {
     // The profile is created by UserRegistered, which may still be on its way.
     if (!row) throw new NotFoundException(MESSAGES.profilePending);
     return toProfile(row);
+  }
+
+  async clientOptions(query: ClientOptionQuery): Promise<ClientOptionPage> {
+    const where = {
+      role: 'CLIENT',
+      active: true,
+      ...(query.q && { searchText: { contains: escapeLikePattern(query.q) } }),
+    };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.clientProfile.findMany({
+        where,
+        orderBy: [{ fullName: 'asc' }, { userId: 'asc' }],
+        ...pageArgs(query),
+      }),
+      this.prisma.clientProfile.count({ where }),
+    ]);
+    return toPage(
+      rows.map(({ userId, fullName, email, nit }) => ({ userId, fullName, email, nit })),
+      total,
+      query,
+    );
   }
 
   async update(

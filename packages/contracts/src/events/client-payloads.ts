@@ -42,8 +42,8 @@ export const rentalPaidPayloadSchema = returnAfterDeparture(
 );
 export type RentalPaidPayload = z.infer<typeof rentalPaidPayloadSchema>;
 
-// clientes publishes it when the branch admin confirms the price of an online rental, so
-// notificaciones can tell the client it is ready to be paid. Counter rentals never send it.
+// clientes publishes it when the branch admin confirms the price of an online rental or records a
+// counter rental for a client, so notificaciones can tell the client it is ready to be paid.
 export const rentalConfirmedPayloadSchema = returnAfterDeparture(
   z.object({
     rentalId: z.uuid(),

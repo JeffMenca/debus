@@ -5,6 +5,7 @@ import {
   useBranchRentals,
   useCancelPaidRental,
   useCancelRental,
+  useClientOptions,
   useConfirmRental,
   useMyRentals,
   usePayRental,
@@ -207,7 +208,13 @@ describe('rental changes', () => {
     const { wrapper } = queryWrapper();
     const confirm = renderHook(() => useConfirmRental(), { wrapper });
     const counter = renderHook(() => useRegisterCounterRental(), { wrapper });
-    const walkIn = { ...trip, nit: 'CF', clientName: 'Colegio', email: null, price: 2600 };
+    const walkIn = {
+      ...trip,
+      destinationLabel: 'Sololá' as const,
+      originLabel: 'Quetzaltenango' as const,
+      clientId: rental().clientId as string,
+      price: 2600,
+    };
 
     await mutate(() =>
       confirm.result.current.mutateAsync({ id: RENTAL_ID, request: { price: 2500 } }),
@@ -222,5 +229,22 @@ describe('rental changes', () => {
       `${API}/clientes/branch-rentals`,
       expect.objectContaining({ method: 'POST', body: JSON.stringify(walkIn) }),
     );
+  });
+});
+
+describe('useClientOptions', () => {
+  it('asks for the biggest page and passes the search on', async () => {
+    const answer = { userId: rental().clientId, fullName: 'Ana', email: 'a@b.com', nit: null };
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockImplementation(async () =>
+        Response.json({ items: [answer], total: 1, page: 1, pageSize: 100 }),
+      );
+    const { wrapper } = queryWrapper();
+
+    const { result } = renderHook(() => useClientOptions('ana'), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.items).toEqual([answer]));
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(`${API}/clientes/clients?pageSize=100&q=ana`);
   });
 });
