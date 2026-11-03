@@ -382,6 +382,38 @@ describe('runOperations', () => {
       expect(report.counts.repairs?.created).toBe(gateway.expenses.length);
     });
 
+    it('brings back a category someone deactivated, as the system admin', async () => {
+      const { gateway, ctx } = await ready();
+      const oil = gateway.categories.find((category) => category.name === 'Cambio de aceite');
+      if (!oil) throw new Error('the fake has no Cambio de aceite');
+      oil.active = false;
+      await runOperations(ctx);
+      expect(oil.active).toBe(true);
+      const fixes = gateway.requests.filter(
+        (request) => request.method !== 'GET' && request.path.includes('expense-categories'),
+      );
+      expect(fixes.map((request) => `${request.method} ${request.email}`)).toEqual([
+        'PATCH admin@debus.local',
+      ]);
+      expect(gateway.expenses.length).toBeGreaterThan(0);
+    });
+
+    it('creates again a category someone deleted', async () => {
+      const { gateway, ctx } = await ready();
+      const index = gateway.categories.findIndex(
+        (category) => category.name === 'Cambio de aceite',
+      );
+      gateway.categories.splice(index, 1);
+      await runOperations(ctx);
+      expect(
+        gateway.categories.filter((category) => category.name === 'Cambio de aceite'),
+      ).toHaveLength(1);
+      const lines = gateway.expenses.flatMap(
+        (expense) => expense.lines as { categoryName: string }[],
+      );
+      expect(lines.some((line) => line.categoryName === 'Cambio de aceite')).toBe(true);
+    });
+
     it('waits while the bus has not reached the expenses service', async () => {
       const { gateway, ctx } = await ready();
       gateway.failNext(

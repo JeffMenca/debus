@@ -1,7 +1,7 @@
 import { EXPENSE_CATEGORIES } from '../catalog';
 import { GatewayError, type Gateway, type Session } from '../gateway-client';
 import type { Mailbox } from '../mailbox';
-import { guatemalaDayRange } from '@debus/contracts';
+import { guatemalaDayRange, type ExpenseCategory } from '@debus/contracts';
 import type { z } from 'zod';
 import { FakeClients } from './fake-clients';
 import { FakeRentals } from './fake-rentals';
@@ -9,6 +9,7 @@ import { FakeSales } from './fake-sales';
 import {
   NO_ROUTE,
   conflict,
+  notFound,
   page,
   uuid,
   type Body,
@@ -52,7 +53,7 @@ export class FakeGateway implements Gateway {
   readonly forgot: string[] = [];
   private next = 1;
   private readonly failures: { pattern: RegExp; error: GatewayError; times: number }[] = [];
-  private readonly categories = EXPENSE_CATEGORIES.map((name, index) => ({
+  readonly categories: ExpenseCategory[] = EXPENSE_CATEGORIES.map((name, index) => ({
     id: uuid(9_000 + index),
     name,
     active: true,
@@ -155,7 +156,12 @@ export class FakeGateway implements Gateway {
       [/^POST \/api\/administracion\/branches$/, () => this.addBranch(body)],
       [/^GET \/api\/administracion\/users$/, () => this.listUsers(q)],
       [/^POST \/api\/administracion\/users$/, () => this.addUser(body)],
-      [/^GET \/api\/administracion\/expense-categories$/, () => page(this.categories, undefined)],
+      [/^GET \/api\/administracion\/expense-categories$/, () => this.listCategories(q)],
+      [/^POST \/api\/administracion\/expense-categories$/, () => this.addCategory(body)],
+      [
+        /^PATCH \/api\/administracion\/expense-categories\/[^/]+$/,
+        () => this.updateCategory(id, body),
+      ],
       [/^GET \/api\/administracion\/repair-expenses$/, () => this.listExpenses(session, q)],
       [/^POST \/api\/administracion\/repair-expenses$/, () => this.addExpense(session, body)],
       [/^GET \/api\/flota\/drivers$/, () => this.listDrivers(session, q)],
@@ -508,6 +514,27 @@ export class FakeGateway implements Gateway {
     const bus = this.buses.find((candidate) => candidate.id === trip.busId);
     if (bus) bus.mileageKm = body.endMileageKm;
     return this.tripDetail(id);
+  }
+
+  private listCategories(q: URLSearchParams) {
+    const status = q.get('status') ?? 'active';
+    const shown = this.categories.filter(
+      (category) => status === 'all' || category.active === (status === 'active'),
+    );
+    return page(shown, undefined);
+  }
+
+  private addCategory(body: Body) {
+    const category = { id: uuid(this.next++), name: String(body.name), active: true, inUse: false };
+    this.categories.push(category);
+    return category;
+  }
+
+  private updateCategory(id: string | undefined, body: Body) {
+    const category = this.categories.find((row) => row.id === id);
+    if (!category) throw notFound('No encontramos esa categoría.');
+    if (typeof body.active === 'boolean') category.active = body.active;
+    return category;
   }
 
   private listExpenses(session: Session | null, q: URLSearchParams) {

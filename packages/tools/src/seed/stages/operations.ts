@@ -1,5 +1,6 @@
 import {
   expenseCategoryPageSchema,
+  expenseCategorySchema,
   guatemalaDateTime,
   repairExpensePageSchema,
   repairExpenseSchema,
@@ -11,7 +12,7 @@ import {
   type TripDetail,
 } from '@debus/contracts';
 import { ADMINISTRACION, PAGE, VIAJES, withQuery } from '../api';
-import { SEED_BRANCHES, repairsFor, routesFrom } from '../catalog';
+import { EXPENSE_CATEGORIES, SEED_BRANCHES, repairsFor, routesFrom } from '../catalog';
 import type { SeedContext } from '../context';
 import { HOUR_MS, MINUTE_MS, addDays } from '../dates';
 import type { Session } from '../gateway-client';
@@ -310,24 +311,61 @@ async function completeToday(
   }
 }
 
+type CategoryIds = Map<string, string>;
+
+// The catalog is the system admin's to manage and may have changed since the migration filled it:
+// a category the repairs use is reactivated if someone turned it off, or created again if deleted.
+// The branch admin reads; the system admin only steps in when something has to be fixed.
+async function ensureCategories(ctx: SeedContext, session: Session): Promise<CategoryIds> {
+  const categories = await ctx.client.request(
+    session,
+    'GET',
+    withQuery(`${ADMINISTRACION}/expense-categories`, { ...PAGE, status: 'all' }),
+    undefined,
+    expenseCategoryPageSchema,
+  );
+  const ids: CategoryIds = new Map();
+  for (const name of EXPENSE_CATEGORIES) {
+    const found = categories.items.find((category) => category.name === name);
+    if (found && !found.active) {
+      await ctx.client.request(
+        ctx.admin,
+        'PATCH',
+        `${ADMINISTRACION}/expense-categories/${found.id}`,
+        { active: true },
+        expenseCategorySchema,
+      );
+      ctx.log(`Reactivated the expense category ${name}`);
+    }
+    const id =
+      found?.id ??
+      (
+        await ctx.client.request(
+          ctx.admin,
+          'POST',
+          `${ADMINISTRACION}/expense-categories`,
+          { name },
+          expenseCategorySchema,
+        )
+      ).id;
+    if (!found) ctx.log(`Created the expense category ${name}`);
+    ids.set(name, id);
+  }
+  return ids;
+}
+
 // One or two repairs per bus, dated in the past: workshop expenses are recorded after the fact.
 async function addRepairs(
   ctx: SeedContext,
   tally: Tally,
   session: Session,
   fleet: BranchFleet,
+  categoryIds: CategoryIds,
 ): Promise<void> {
-  const categories = await ctx.client.request(
-    session,
-    'GET',
-    withQuery(`${ADMINISTRACION}/expense-categories`, { ...PAGE, status: 'active' }),
-    undefined,
-    expenseCategoryPageSchema,
-  );
   const categoryId = (name: string): string => {
-    const found = categories.items.find((category) => category.name === name);
-    if (!found) throw new Error(`The expense category ${name} does not exist`);
-    return found.id;
+    const id = categoryIds.get(name);
+    if (!id) throw new Error(`The expense category ${name} is not in the seed catalog`);
+    return id;
   };
   for (const [number, bus] of fleet.buses.entries()) {
     const saved = await ctx.client.request(
@@ -374,14 +412,16 @@ async function addRepairs(
 export async function runOperations(ctx: SeedContext): Promise<SeedReport> {
   const tally = new Tally('operations');
   await resolveBranchIds(ctx);
+  let categoryIds: CategoryIds | undefined;
   for (const { code } of SEED_BRANCHES) {
     const session = await branchAdminSession(ctx, code);
+    categoryIds ??= await ensureCategories(ctx, session);
     const fleet = await loadFleet(ctx, session);
     ctx.log(`Operations of ${code}: ${fleet.buses.length} buses, ${fleet.routes.length} routes`);
     await removePastTrips(ctx, tally, session, fleet, code);
     await scheduleAhead(ctx, tally, session, fleet);
     await completeToday(ctx, tally, session, fleet);
-    await addRepairs(ctx, tally, session, fleet);
+    await addRepairs(ctx, tally, session, fleet, categoryIds);
   }
   return tally.report();
 }
