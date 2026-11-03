@@ -87,3 +87,15 @@ describe('with an error', () => {
     expect(trigger).not.toHaveAttribute('aria-describedby');
   });
 });
+
+it('offers the search box when asked to, even if the whole list fits', () => {
+  setup({ alwaysSearch: true });
+
+  expect(screen.getByRole('searchbox', { name: 'Buscar categoría' })).toBeInTheDocument();
+});
+
+it('keeps the box away when the whole list fits and nobody asked for it', () => {
+  setup();
+
+  expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+});

@@ -56,8 +56,8 @@ export function RentalHistory({ query, onChange }: RentalHistoryProps) {
           header: () => <span className="sr-only">Acciones</span>,
           cell: ({ row }) => {
             const rental = row.original;
-            // Only what the client asked for online is theirs to pay or cancel.
-            if (rental.channel !== 'ONLINE' || !UNPAID.has(rental.status)) return null;
+            // An old counter rental without a client only appears here by its NIT.
+            if (!rental.clientId || !UNPAID.has(rental.status)) return null;
             return (
               <div className="flex justify-end gap-2">
                 {rental.status === 'CONFIRMED' && (

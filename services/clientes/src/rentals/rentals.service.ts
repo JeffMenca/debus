@@ -24,7 +24,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import type { Prisma, Rental as RentalRow } from '../generated/prisma/client';
+import type { ClientProfile, Prisma, Rental as RentalRow } from '../generated/prisma/client';
 import { MESSAGES } from '../messages';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsCopyService } from '../settings/settings-copy.service';
@@ -70,6 +70,15 @@ type Party = Pick<
 > &
   Partial<Pick<Prisma.RentalUncheckedCreateInput, 'price' | 'confirmedAt' | 'confirmedById'>>;
 
+const clientFields = (
+  profile: ClientProfile,
+): Pick<Party, 'clientId' | 'nit' | 'clientName' | 'email'> => ({
+  clientId: profile.userId,
+  nit: profile.nit ?? CONSUMER_NIT,
+  clientName: profile.fullName,
+  email: profile.email,
+});
+
 @Injectable()
 export class RentalsService {
   constructor(
@@ -93,36 +102,51 @@ export class RentalsService {
     if (!profile) throw new NotFoundException(MESSAGES.profilePending);
     const branch = await this.prisma.branchCopy.findUnique({ where: { id: request.branchId } });
     if (!branch?.active) throw new UnprocessableEntityException(MESSAGES.branchUnavailable);
-    return this.create(request, {
-      channel: 'ONLINE',
-      status: 'REQUESTED',
-      branchId: request.branchId,
-      clientId: actor.userId,
-      nit: profile.nit ?? CONSUMER_NIT,
-      clientName: profile.fullName,
-      email: profile.email,
-      createdById: actor.userId,
-    });
+    return toRental(
+      await this.create(request, {
+        channel: 'ONLINE',
+        status: 'REQUESTED',
+        branchId: request.branchId,
+        ...clientFields(profile),
+        createdById: actor.userId,
+      }),
+    );
   }
 
-  // A walk-in rental is agreed at the counter, so it starts confirmed with the price given there.
-  async registerCounter(actor: Identity, request: CounterRentalRequest): Promise<Rental> {
+  // Agreed at the counter, so it starts confirmed with the price given there. The client is told at
+  // once, because they pay it from their own wallet.
+  async registerCounter(
+    actor: Identity,
+    request: CounterRentalRequest,
+    correlationId?: string,
+  ): Promise<Rental> {
     if (request.branchId !== requireBranch(actor)) {
       throw new ForbiddenException(MESSAGES.otherBranch);
     }
-    return this.create(request, {
-      channel: 'COUNTER',
-      status: 'CONFIRMED',
-      branchId: request.branchId,
-      clientId: null,
-      nit: request.nit,
-      clientName: request.clientName,
-      email: request.email,
-      createdById: actor.userId,
-      price: request.price,
-      confirmedAt: new Date(),
-      confirmedById: actor.userId,
+    const profile = await this.prisma.clientProfile.findUnique({
+      where: { userId: request.clientId },
     });
+    if (profile?.role !== 'CLIENT') throw new NotFoundException(MESSAGES.clientNotFound);
+    const row = await this.prisma.$transaction(async (tx) => {
+      const created = await this.create(
+        request,
+        {
+          channel: 'COUNTER',
+          status: 'CONFIRMED',
+          branchId: request.branchId,
+          ...clientFields(profile),
+          createdById: actor.userId,
+          price: request.price,
+          confirmedAt: new Date(),
+          confirmedById: actor.userId,
+        },
+        tx,
+      );
+      await this.outbox.add(tx, 'RentalConfirmed', toRentalConfirmed(created), correlationId);
+      return created;
+    });
+    await this.outbox.flush(REQUEST_FLUSH);
+    return toRental(row);
   }
 
   async confirm(
@@ -236,13 +260,17 @@ export class RentalsService {
     return toPage(rows.map(toRental), total, query);
   }
 
-  private async create(trip: RentalTrip, party: Party): Promise<Rental> {
+  private async create(
+    trip: RentalTrip,
+    party: Party,
+    client: Prisma.TransactionClient = this.prisma,
+  ): Promise<RentalRow> {
     const departureAt = new Date(trip.departureAt);
     if (departurePassed(departureAt, new Date())) {
       throw new UnprocessableEntityException(MESSAGES.departurePassed);
     }
     const { rentalRatePerKm } = await this.rateToday();
-    const row = await this.prisma.rental.create({
+    return client.rental.create({
       data: {
         id: randomUUID(),
         ...party,
@@ -257,7 +285,6 @@ export class RentalsService {
         searchText: rentalSearchText({ ...trip, clientName: party.clientName, nit: party.nit }),
       },
     });
-    return toRental(row);
   }
 
   private async rateToday() {

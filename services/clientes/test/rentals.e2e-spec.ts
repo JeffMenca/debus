@@ -214,20 +214,60 @@ describe('private rentals', () => {
     expect(await rentals.announced(id, 'RentalPaid')).toEqual([]);
   });
 
-  it('records a walk-in rental, takes its cash and shows it to the client of that NIT', async () => {
+  it('records a counter rental for a client, who pays it from their wallet', async () => {
     const nit = uniqueNit();
+    const clientId = await profiles.create({ nit, balance: 3000 });
     const { body: counter } = await request(server())
       .post('/branch-rentals')
       .set(admin)
-      .send({ ...trip(), nit, clientName: 'Colegio San José', email: null, price: 2600 })
+      .send({ ...trip(), clientId, price: 2600 })
       .expect(201);
     rentals.track(counter.id);
-    expect(counter).toMatchObject({ status: 'CONFIRMED', channel: 'COUNTER', clientId: null });
+    expect(counter).toMatchObject({
+      status: 'CONFIRMED',
+      channel: 'COUNTER',
+      clientId,
+      nit,
+      clientName: 'Cliente de prueba',
+    });
+    expect(await rentals.announced(counter.id, 'RentalConfirmed')).toEqual([
+      expect.objectContaining({ clientId, price: 2600 }),
+    ]);
 
-    const { body: paid } = await pay(counter.id, admin).expect(201);
+    // Only the owner of the wallet can spend it.
+    await pay(counter.id, admin).expect(409);
+    expect(await balanceOf(clientId)).toBe(3000);
+
+    const { body: history } = await request(server())
+      .get('/rentals/mine')
+      .set(identityHeaders(clientId))
+      .expect(200);
+    expect(history.items.map((rental: Rental) => rental.id)).toEqual([counter.id]);
+
+    const { body: paid } = await pay(counter.id, identityHeaders(clientId)).expect(201);
     expect(paid.status).toBe('PAID');
+    expect(await balanceOf(clientId)).toBe(400);
     expect(await rentals.announced(counter.id, 'RentalPaid')).toEqual([
-      expect.objectContaining({ clientId: null, email: null, nit, price: 2600 }),
+      expect.objectContaining({ clientId, nit, price: 2600 }),
+    ]);
+  });
+
+  it('refuses a counter rental for someone who has no client profile', async () => {
+    await request(server())
+      .post('/branch-rentals')
+      .set(admin)
+      .send({ ...trip(), clientId: randomUUID(), price: 2600 })
+      .expect(404);
+  });
+
+  it('keeps taking the cash of an old counter rental without a client', async () => {
+    const nit = uniqueNit();
+    const id = await rentals.insert({ branchId, status: 'CONFIRMED', price: 2600, nit });
+
+    const { body: paid } = await pay(id, admin).expect(201);
+    expect(paid.status).toBe('PAID');
+    expect(await rentals.announced(id, 'RentalPaid')).toEqual([
+      expect.objectContaining({ clientId: null, nit, price: 2600 }),
     ]);
 
     const clientId = await profiles.create({ nit });
@@ -235,12 +275,26 @@ describe('private rentals', () => {
       .get('/rentals/mine')
       .set(identityHeaders(clientId))
       .expect(200);
-    expect(history.items.map((rental: Rental) => rental.id)).toEqual([counter.id]);
-    // It can see it but not act on it: the branch took the cash.
+    expect(history.items.map((rental: Rental) => rental.id)).toEqual([id]);
     await request(server())
-      .post(`/rentals/${counter.id}/cancel`)
+      .post(`/rentals/${id}/cancel`)
       .set(identityHeaders(clientId))
       .expect(404);
+  });
+
+  it('lets a branch admin find clients by name without accents, and nobody else', async () => {
+    const clientId = await profiles.create();
+    const unique = `Peñáte${randomInt(1e8)}`;
+    await prisma.clientProfile.update({ where: { userId: clientId }, data: { fullName: unique } });
+
+    const { body } = await request(server())
+      .get(`/clients?q=${encodeURIComponent(unique.replace('á', 'a'))}`)
+      .set(admin)
+      .expect(200);
+    expect(body.items).toEqual([expect.objectContaining({ userId: clientId, fullName: unique })]);
+    expect(body.items[0]).not.toHaveProperty('dpi');
+
+    await request(server()).get('/clients').set(identityHeaders(clientId)).expect(403);
   });
 
   it('lists the rentals of the branch and keeps them from other branches', async () => {

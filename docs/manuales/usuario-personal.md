@@ -134,7 +134,7 @@ El bus y el chofer deben estar activos, ser de tu sucursal y estar libres a esa 
 
 ### Alquileres
 
-Aquí llegan los pedidos de los clientes. Revisa cada uno y confirma su precio; puedes corregir los kilómetros. Con **Registrar alquiler de ventanilla** anotas uno pedido en persona, con el precio acordado.
+Aquí llegan los pedidos de los clientes. Revisa cada uno y confirma su precio; puedes corregir los kilómetros. Con **Registrar alquiler de ventanilla** anotas uno pedido en persona: eliges el departamento de salida y el de destino (solo aparecen los que tienen sucursal), buscas al cliente entre los que tienen cuenta y escribes el precio acordado. El cliente recibe un correo y lo paga con su cartera desde su cuenta.
 
 Cuando esté pagado, asígnale bus y chofer desde **Viajes**, en **Alquileres por asignar**.
 

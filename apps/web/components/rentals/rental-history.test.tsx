@@ -70,6 +70,15 @@ describe('RentalHistory', () => {
     expect(within(rows[2]!).queryByRole('button', { name: 'Pagar' })).not.toBeInTheDocument();
   });
 
+  it('lets the client pay and cancel a rental recorded for them at the counter', async () => {
+    api({ items: [rental({ channel: 'COUNTER' })] });
+    renderHistory();
+
+    expect(await screen.findByRole('button', { name: 'Pagar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+    expect(screen.getByText('En ventanilla')).toBeInTheDocument();
+  });
+
   it('pays a confirmed rental from the wallet with the chosen day and its id as key', async () => {
     const sent = api();
     renderHistory();

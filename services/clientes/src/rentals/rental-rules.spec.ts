@@ -103,9 +103,15 @@ describe('rental rules', () => {
       expect(paymentProblem(row(), client, NOW)).toBeNull();
     });
 
-    it('lets the branch admin take the cash of a confirmed counter rental', () => {
+    it('lets the branch admin take the cash of an old counter rental without a client', () => {
       const counter = row({ channel: 'COUNTER', clientId: null });
       expect(paymentProblem(counter, admin, NOW)).toBeNull();
+    });
+
+    it('leaves a counter rental with a client to that client', () => {
+      const counter = row({ channel: 'COUNTER' });
+      expect(paymentProblem(counter, admin, NOW)).toBe('rentalPaidByClient');
+      expect(paymentProblem(counter, client, NOW)).toBeNull();
     });
 
     it('leaves an online rental to its client', () => {

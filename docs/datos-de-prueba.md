@@ -44,7 +44,7 @@ Los cargan las áreas `clients`, `sales` y `rentals`, siempre por la API públic
 | Recargas de cartera   | 24 o más | De una a tres por cliente (de Q100 a Q800), fechadas en los 14 días anteriores a la carga; si una compra o un pago no alcanza, se recarga solo lo que falta |
 | Boletos en línea      | unos 16  | Pagados con la cartera sobre los viajes de los días 4 a 7 posteriores a la carga; las rutas más pedidas (Guatemala con Antigua y Quetzaltenango) venden más |
 | Boletos de ventanilla | unos 24  | Vendidos en efectivo por el cajero de la sucursal de origen; algunos con el NIT de un cliente, para que salgan en su historial, y alguno con correo         |
-| Alquileres            | 10       | Siete pedidos por clientes y tres de ventanilla; salen de 9 a 20 días después de la carga                                                                   |
+| Alquileres            | 10       | Siete pedidos por clientes y tres de ventanilla a nombre de un cliente, todos pagados con su cartera; salen de 9 a 20 días después de la carga              |
 
 Los alquileres llegan cada uno a un punto distinto, para que se vean todos los estados:
 

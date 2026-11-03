@@ -43,13 +43,14 @@ export class BranchRentalsController {
 
   @Post()
   @apiSuccess(201)
-  @apiErrors(400, 422)
+  @apiErrors(400, 404, 422)
   @apiBody(counterRentalRequestSchema)
   registerCounter(
     @CurrentIdentity() actor: Identity,
     @Body(new ZodBody(counterRentalRequestSchema)) body: CounterRentalRequest,
+    @Headers(CORRELATION_HEADER) correlationId?: string,
   ): Promise<Rental> {
-    return this.rentals.registerCounter(actor, body);
+    return this.rentals.registerCounter(actor, body, correlationId);
   }
 
   @Post(':id/confirm')

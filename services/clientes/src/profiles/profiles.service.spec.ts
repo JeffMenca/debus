@@ -23,12 +23,49 @@ describe('ProfilesService', () => {
       clientProfile: {
         findUnique: jest.fn().mockResolvedValue(row),
         update: tx.clientProfile.update,
+        findMany: jest.fn().mockResolvedValue([row]),
+        count: jest.fn().mockResolvedValue(1),
       },
-      $transaction: jest.fn((work: (client: typeof tx) => Promise<unknown>) => work(tx)),
+      $transaction: jest.fn((work: unknown) =>
+        typeof work === 'function' ? work(tx) : Promise.all(work as Promise<unknown>[]),
+      ),
     };
     const outbox = { add: jest.fn().mockResolvedValue({}), flush: jest.fn().mockResolvedValue({}) };
     return { prisma, tx, outbox, service: new ProfilesService(prisma as never, outbox as never) };
   };
+
+  describe('clientOptions', () => {
+    it('pages the clients by name, with only what identifies each one', async () => {
+      const { service, prisma } = setup();
+
+      const page = await service.clientOptions({ page: 2, pageSize: 10 });
+
+      expect(page).toEqual({
+        items: [{ userId, fullName: row.fullName, email: row.email, nit: null }],
+        total: 1,
+        page: 2,
+        pageSize: 10,
+      });
+      expect(prisma.clientProfile.findMany).toHaveBeenCalledWith({
+        where: { role: 'CLIENT' },
+        orderBy: [{ fullName: 'asc' }, { userId: 'asc' }],
+        skip: 10,
+        take: 10,
+      });
+    });
+
+    it('searches the folded text, taking wildcards as plain characters', async () => {
+      const { service, prisma } = setup();
+
+      await service.clientOptions({ page: 1, pageSize: 20, q: '50%' });
+
+      const where = { role: 'CLIENT', searchText: { contains: '50\\%' } };
+      expect(prisma.clientProfile.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where }),
+      );
+      expect(prisma.clientProfile.count).toHaveBeenCalledWith({ where });
+    });
+  });
 
   it('answers the profile without internal fields', async () => {
     const { service } = setup();

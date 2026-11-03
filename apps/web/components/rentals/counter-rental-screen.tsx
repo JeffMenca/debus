@@ -1,15 +1,17 @@
 'use client';
 
-import { todayInGuatemala, FULL_NAME_MAX } from '@debus/contracts';
-import { Mail, ReceiptText, User } from 'lucide-react';
+import { type ClientOption, type Rental, todayInGuatemala } from '@debus/contracts';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { toast } from 'sonner';
 import { FormAlert } from '@/components/auth/form-alert';
+import { OptionSelect } from '@/components/forms/option-select';
+import { useOptionSearch } from '@/components/forms/option-search';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Field, invalidProps } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { useBranchDepartments } from '@/hooks/use-branch-locations';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useOwnBranch } from '@/hooks/use-own-branch';
 import { messageOf } from '@/lib/api/client';
@@ -26,11 +28,18 @@ import {
   parseDistance,
 } from '@/lib/rentals/rental-form';
 import { branchRentalsHref } from '@/lib/rentals/rental-list-params';
-import { useRegisterCounterRental, useRentalEstimate } from '@/lib/rentals/rentals-api';
+import {
+  useClientOptions,
+  useRegisterCounterRental,
+  useRentalEstimate,
+} from '@/lib/rentals/rentals-api';
 import { RentalEstimate } from './rental-estimate';
 import { RentalTripFields } from './rental-trip-fields';
 
-// A walk-in client agrees the trip and the price at the counter; the cash is taken afterwards.
+const clientLabel = ({ fullName, email, nit }: ClientOption): string =>
+  [fullName, email, nit && `NIT ${nit}`].filter(Boolean).join(' · ');
+
+// A client agrees the trip and the price at the counter, then pays from their own wallet.
 export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: string }) {
   const router = useRouter();
   const branchId = useSession()?.user.branchId ?? '';
@@ -40,6 +49,9 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
   const [counter, setCounter] = useState<CounterDraft>(emptyCounterDraft);
   const [priceTouched, setPriceTouched] = useState(false);
   const [problems, setProblems] = useState<RentalProblems & CounterProblems>({});
+  const departments = useBranchDepartments();
+  const [clientSearch, setClientSearch, clientTerm] = useOptionSearch();
+  const clients = useClientOptions(clientTerm);
   const estimate = useRentalEstimate(useDebouncedValue(parseDistance(draft.distance))).data;
   // The price starts on the estimate until the admin writes another one.
   const price = priceTouched ? counter.price : String(estimate?.estimatedPrice ?? '');
@@ -62,13 +74,14 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
       setProblems(result.problems ?? {});
       return;
     }
+    let rental: Rental;
     try {
-      await register.mutateAsync(result.request);
+      rental = await register.mutateAsync(result.request);
     } catch {
       return;
     }
     toast.success(
-      `Registramos el alquiler de ${result.request.clientName}. Cuando pague, registra el pago en efectivo.`,
+      `Registramos el alquiler de ${rental.clientName}. Le avisamos por correo para que lo pague con su cartera.`,
     );
     router.push(branchRentalsHref('CONFIRMED'));
   }
@@ -97,7 +110,11 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
             onChange={changeTrip}
             problems={problems}
             today={today}
+            departments={departments.data ?? []}
           />
+          {departments.isError && (
+            <FormAlert tone="error">No pudimos cargar los departamentos.</FormAlert>
+          )}
         </section>
         <section
           aria-labelledby="counter-client-title"
@@ -109,42 +126,28 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
           >
             El cliente y el precio
           </h2>
-          <Field id="counter-rental-nit" label="NIT" optional error={problems.nit}>
-            <Input
-              id="counter-rental-nit"
-              rule={inputRules.nitOrCf}
-              icon={ReceiptText}
-              placeholder="Vacío para consumidor final"
-              value={counter.nit}
-              onChange={(event) => changeCounter({ nit: event.target.value })}
-              className="bg-card font-mono"
-              {...invalidProps('counter-rental-nit', problems.nit)}
-            />
-          </Field>
-          <Field id="counter-rental-name" label="Nombre del cliente" error={problems.clientName}>
-            <Input
-              id="counter-rental-name"
-              icon={User}
-              rule={inputRules.text(FULL_NAME_MAX)}
-              value={counter.clientName}
-              onChange={(event) => changeCounter({ clientName: event.target.value })}
-              className="bg-card"
-              {...invalidProps('counter-rental-name', problems.clientName)}
-            />
-          </Field>
-          <Field id="counter-rental-email" label="Correo" optional error={problems.email}>
-            <Input
-              id="counter-rental-email"
-              icon={Mail}
-              type="email"
-              rule={inputRules.email}
-              placeholder="Para enviarle la confirmación"
-              value={counter.email}
-              onChange={(event) => changeCounter({ email: event.target.value })}
-              className="bg-card"
-              {...invalidProps('counter-rental-email', problems.email)}
-            />
-          </Field>
+          <OptionSelect
+            id="counter-rental-client"
+            label="Cliente"
+            placeholder="Elige al cliente"
+            options={(clients.data?.items ?? []).map((client) => ({
+              value: client.userId,
+              label: clientLabel(client),
+            }))}
+            total={clients.data?.total ?? 0}
+            value={counter.clientId}
+            onChange={(clientId) => changeCounter({ clientId })}
+            search={clientSearch}
+            onSearchChange={setClientSearch}
+            searchLabel="Buscar cliente"
+            emptyMessage="Todavía no hay clientes con cuenta."
+            error={problems.clientId}
+            alwaysSearch
+          />
+          {clients.isError && <FormAlert tone="error">No pudimos cargar los clientes.</FormAlert>}
+          <p className="text-[13px] text-coral-700">
+            El cliente lo paga con su cartera digital, desde su cuenta. Le avisamos por correo.
+          </p>
           <RentalEstimate distance={draft.distance} />
           <Field id="counter-rental-price" label="Precio acordado" error={problems.price}>
             <Input

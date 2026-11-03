@@ -5886,7 +5886,16 @@
       "post": {
         "description": "Allowed roles: BRANCH_ADMIN.",
         "operationId": "clientes_BranchRentalsController_registerCounter",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "x-correlation-id",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5937,20 +5946,10 @@
                     "exclusiveMinimum": 0,
                     "maximum": 2000
                   },
-                  "nit": {
-                    "type": "string"
-                  },
-                  "clientName": {
+                  "clientId": {
                     "type": "string",
-                    "minLength": 2,
-                    "maxLength": 120
-                  },
-                  "email": {
-                    "default": null,
-                    "type": [
-                      "string",
-                      "null"
-                    ]
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   },
                   "price": {
                     "type": "number",
@@ -5966,8 +5965,7 @@
                   "returnAt",
                   "passengers",
                   "distanceKm",
-                  "nit",
-                  "clientName",
+                  "clientId",
                   "price"
                 ]
               }
@@ -5986,6 +5984,9 @@
           },
           "403": {
             "description": "The role does not allow this action."
+          },
+          "404": {
+            "description": "The requested resource does not exist."
           },
           "422": {
             "description": "The request was understood but cannot be carried out in the current state."
@@ -6078,6 +6079,55 @@
         "summary": "",
         "tags": [
           "clientes · branch-rentals"
+        ]
+      }
+    },
+    "/api/clientes/clients": {
+      "get": {
+        "description": "Allowed roles: BRANCH_ADMIN.",
+        "operationId": "clientes_ClientsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done."
+          },
+          "400": {
+            "description": "Invalid data or invalid link."
+          },
+          "401": {
+            "description": "Missing session or wrong credentials."
+          },
+          "403": {
+            "description": "The role does not allow this action."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "clientes · clients"
         ]
       }
     },
@@ -8894,6 +8944,9 @@
     },
     {
       "name": "clientes · branch-rentals"
+    },
+    {
+      "name": "clientes · clients"
     },
     {
       "name": "clientes · profile"

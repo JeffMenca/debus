@@ -153,7 +153,37 @@ describe('BranchRentalsScreen', () => {
     expect(sent).toEqual([]);
   });
 
-  it('takes the cash of a counter rental on the chosen day', async () => {
+  it('leaves a counter rental with a client to pay from their wallet', async () => {
+    api([{ ...counterConfirmed, clientId: rental().clientId }]);
+    renderScreen();
+    const user = userEvent.setup();
+
+    const row = await rowOf('Colegio San José');
+    await user.click(within(row).getByRole('button', { name: 'Acciones de Colegio San José' }));
+
+    expect(await screen.findByRole('menuitem', { name: 'Cancelar alquiler' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitem', { name: 'Registrar pago en efectivo' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('returns to the wallet what a client paid for a counter rental', async () => {
+    api([
+      {
+        ...counterConfirmed,
+        clientId: rental().clientId,
+        status: 'PAID',
+        paidOn: '2026-10-20',
+        paidAt: '2026-10-20T15:00:00Z',
+      },
+    ]);
+    renderScreen();
+    await act('Colegio San José', 'Cancelar alquiler');
+
+    expect(await screen.findByText(/Devolveremos Q\s?2,600\.00 a la cartera/)).toBeInTheDocument();
+  });
+
+  it('takes the cash of an old counter rental without a client', async () => {
     const sent = api();
     renderScreen();
     const user = await act('Colegio San José', 'Registrar pago en efectivo');

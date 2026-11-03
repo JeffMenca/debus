@@ -52,10 +52,9 @@ const EMPTY: Record<BranchRentalStatus, string> = {
 function cancellationText(rental: Rental): string {
   if (rental.status !== 'PAID') return 'Todavía no está pagado, así que no hay nada que devolver.';
   const amount = formatQuetzales(rentalPriceShown(rental).amount);
-  const refund =
-    rental.channel === 'ONLINE'
-      ? `Devolveremos ${amount} a la cartera del cliente.`
-      : `Devuelve ${amount} en efectivo en la ventanilla.`;
+  const refund = rental.clientId
+    ? `Devolveremos ${amount} a la cartera del cliente.`
+    : `Devuelve ${amount} en efectivo en la ventanilla.`;
   return `${refund} Si ya tiene bus asignado, ese viaje también se elimina.`;
 }
 
@@ -128,7 +127,7 @@ export function BranchRentalsScreen() {
                     {
                       label: 'Registrar pago en efectivo',
                       onSelect: () => setCollecting(rental),
-                      hidden: rental.status !== 'CONFIRMED' || rental.channel !== 'COUNTER',
+                      hidden: rental.status !== 'CONFIRMED' || Boolean(rental.clientId),
                     },
                     {
                       label: 'Cancelar alquiler',
@@ -248,7 +247,7 @@ export function BranchRentalsScreen() {
           }
           await cancelPaid.mutateAsync(cancelling.id);
           toast.success(
-            cancelling.channel === 'ONLINE'
+            cancelling.clientId
               ? 'Cancelamos el alquiler. La devolución llega a la cartera del cliente en unos segundos.'
               : 'Cancelamos el alquiler. Devuelve el efectivo en la ventanilla.',
           );

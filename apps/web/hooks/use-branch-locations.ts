@@ -54,15 +54,26 @@ export function parseLocations(value: unknown): PublicBranchLocationPage {
   };
 }
 
+const locationsQuery = {
+  queryKey: ['branches', 'locations'],
+  queryFn: () =>
+    apiRequest(`${LOCATIONS_PATH}?${toQueryString({ pageSize: PAGE_SIZE })}`, {
+      parse: parseLocations,
+    }),
+  staleTime: FIVE_MINUTES,
+};
+
 // Where the active branches are, for the map of the home page. Anybody may ask: no session needed.
 export function useBranchLocations() {
-  return useQuery({
-    queryKey: ['branches', 'locations'],
-    queryFn: () =>
-      apiRequest(`${LOCATIONS_PATH}?${toQueryString({ pageSize: PAGE_SIZE })}`, {
-        parse: parseLocations,
-      }),
-    select: (page) => page.items,
-    staleTime: FIVE_MINUTES,
-  });
+  return useQuery({ ...locationsQuery, select: (page) => page.items });
+}
+
+export const departmentsWithBranches = (locations: readonly PublicBranchLocation[]): string[] =>
+  [...new Set(locations.map((location) => location.department))].sort((a, b) =>
+    a.localeCompare(b, 'es'),
+  );
+
+// The departments where a rental can start or end at the counter.
+export function useBranchDepartments() {
+  return useQuery({ ...locationsQuery, select: (page) => departmentsWithBranches(page.items) });
 }

@@ -31,8 +31,10 @@ const STILL_PAYING = 'Todavía estamos registrando el pago de este alquiler.';
 
 interface Actors {
   admin: Session;
-  // Who asks for the rental: the client, or the admin when it is a walk-in.
+  // Who asks for the rental: the client, or the admin when it is agreed at the counter.
   asker: Session;
+  // Who rents and pays from their wallet.
+  client: Session;
 }
 
 const departureOf = (ctx: SeedContext, spec: SeedRental): string =>
@@ -64,7 +66,7 @@ async function findRental(
     withQuery(`${CLIENTES}/${online ? 'rentals/mine' : 'branch-rentals'}`, {
       ...PAGE,
       status: 'all',
-      q: online ? spec.destination : (spec.walkIn?.clientName ?? spec.destination),
+      q: spec.destination,
     }),
     undefined,
     rentalPageSchema,
@@ -74,7 +76,7 @@ async function findRental(
       rental.originLabel === spec.origin &&
       rental.destinationLabel === spec.destination &&
       rental.passengers === spec.passengers &&
-      (online || rental.clientName === spec.walkIn?.clientName),
+      rental.clientId === actors.client.user.id,
   );
 }
 
@@ -107,9 +109,7 @@ async function create(
     {
       branchId,
       ...trip(ctx, spec),
-      nit: spec.walkIn?.nit,
-      clientName: spec.walkIn?.clientName,
-      email: null,
+      clientId: actors.client.user.id,
       price: estimate.estimatedPrice,
     },
     rentalSchema,
@@ -119,18 +119,14 @@ async function create(
 async function pay(
   ctx: SeedContext,
   tally: Tally,
-  spec: SeedRental,
   actors: Actors,
   rental: Rental,
 ): Promise<Rental> {
-  if (
-    spec.channel === 'ONLINE' &&
-    (await ensureBalance(ctx, actors.asker, actors.asker.user.email, rental.price ?? 0))
-  ) {
+  if (await ensureBalance(ctx, actors.client, actors.client.user.email, rental.price ?? 0)) {
     tally.created('top-ups');
   }
   const paid = await ctx.client.request(
-    spec.channel === 'ONLINE' ? actors.asker : actors.admin,
+    actors.client,
     'POST',
     `${CLIENTES}/rentals/${rental.id}/pay`,
     { paidOn: paidOnFor(ctx.today, rental.id) },
@@ -225,7 +221,7 @@ async function advance(
     tally.created('confirmations');
   }
   if (rental.status === 'CONFIRMED' && !['REQUESTED', 'CONFIRMED'].includes(spec.target)) {
-    rental = await pay(ctx, tally, spec, actors, rental);
+    rental = await pay(ctx, tally, actors, rental);
   }
   if (rental.status === 'CANCELLED') {
     // Cancelled is where the rental that is cancelled after paying ends; anything else was cancelled by someone.
@@ -248,13 +244,13 @@ async function advance(
 
 async function actorsOf(ctx: SeedContext, spec: SeedRental): Promise<Actors> {
   const admin = await branchAdminSession(ctx, spec.branch);
-  if (spec.channel === 'COUNTER') return { admin, asker: admin };
-  return { admin, asker: await clientSession(ctx, seedClient(spec.client)) };
+  const client = await clientSession(ctx, seedClient(spec.client));
+  return { admin, asker: spec.channel === 'COUNTER' ? admin : client, client };
 }
 
 // Rentals of buses at every stage: asked for, priced, paid, with their bus, and cancelled before
-// and after paying. Online ones are asked for by the clients of the demo and paid from their
-// wallets; the others are agreed at the counter and paid in cash.
+// and after paying. All are paid from the wallets of the clients of the demo; some are asked for
+// online and the others are agreed at the counter by the branch admin.
 async function runRentals(ctx: SeedContext) {
   const tally = new Tally('rentals');
   const branchIds = await resolveBranchIds(ctx);

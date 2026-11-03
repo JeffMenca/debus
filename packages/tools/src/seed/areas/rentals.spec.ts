@@ -57,6 +57,24 @@ describe('rentalsArea', () => {
     }
   });
 
+  it('pays every paid rental from the wallet of its client', async () => {
+    const built = await world();
+    await rentalsArea.run(built.ctx);
+    const counter = rentalsOf(built).filter((rental) => rental.channel === 'COUNTER');
+
+    expect(counter.every((rental) => rental.clientId)).toBe(true);
+    const paid = counter.filter((rental) => rental.status === 'PAID');
+    expect(paid.length).toBeGreaterThan(0);
+    for (const rental of paid) {
+      const movements = await built.gateway.request<{ items: { reference: string | null }[] }>(
+        [...built.ctx.clientSessions.values()].find((s) => s.user.id === rental.clientId)!,
+        'GET',
+        '/api/clientes/wallet/movements',
+      );
+      expect(movements.items.map((movement) => movement.reference)).toContain(rental.id);
+    }
+  });
+
   it('pays online rentals from the wallet and gives the money back for the cancelled one', async () => {
     const built = await world();
     await rentalsArea.run(built.ctx);

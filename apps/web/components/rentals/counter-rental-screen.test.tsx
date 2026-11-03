@@ -12,9 +12,32 @@ jest.mock('sonner', () => ({ toast: { success: jest.fn() } }));
 const push = jest.fn();
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
+const CLIENT_ID = '7d6c5b4a-3f2e-4d1c-8b0a-9f8e7d6c5b4a';
+const ANA = { userId: CLIENT_ID, fullName: 'Ana Méndez', email: 'ana@correo.com', nit: '45218376' };
+const place = (department: string) => ({
+  id: BRANCH_ID,
+  name: `Sucursal ${department}`,
+  municipality: department,
+  department,
+  latitude: 14.8,
+  longitude: -91.5,
+});
+
 function api(answer = () => Response.json(rental({ channel: 'COUNTER' }), { status: 201 })) {
   const sent: unknown[] = [];
+  const searches: (string | null)[] = [];
   mockApi({
+    'GET /api/administracion/branches/locations': () =>
+      Response.json({
+        items: [place('Sololá'), place('Quetzaltenango'), place('Quetzaltenango')],
+        total: 3,
+        page: 1,
+        pageSize: 100,
+      }),
+    'GET /api/clientes/clients': (_init, url) => {
+      searches.push(url.searchParams.get('q'));
+      return Response.json({ items: [ANA], total: 1, page: 1, pageSize: 100 });
+    },
     'GET /api/clientes/rentals/estimate': (_init, url) =>
       Response.json({
         ratePerKm: 30,
@@ -26,7 +49,7 @@ function api(answer = () => Response.json(rental({ channel: 'COUNTER' }), { stat
       return answer();
     },
   });
-  return sent;
+  return Object.assign(sent, { searches });
 }
 
 beforeEach(() => {
@@ -51,55 +74,95 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+async function choose(user: ReturnType<typeof userEvent.setup>, label: string, option: string) {
+  await user.click(screen.getByRole('combobox', { name: label }));
+  await user.click(await screen.findByRole('option', { name: option }));
+}
+
 async function fillTrip() {
-  const user = userEvent.setup();
-  await user.type(screen.getByLabelText('Salen de'), 'Quetzaltenango');
-  await user.type(screen.getByLabelText('Van a'), 'Panajachel');
+  const user = userEvent.setup({ pointerEventsCheck: 0 });
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Salen de' })).toBeEnabled());
+  await choose(user, 'Salen de', 'Quetzaltenango');
+  await choose(user, 'Van a', 'Sololá');
   await user.clear(screen.getByLabelText('Día de salida'));
   await user.type(screen.getByLabelText('Día de salida'), '2030-10-24');
   await user.type(screen.getByLabelText('Pasajeros'), '35');
   await user.type(screen.getByLabelText('Distancia aproximada (km)'), '92');
-  await user.type(screen.getByLabelText('Nombre del cliente'), 'Colegio San José');
+  await screen.findByRole('searchbox', { name: 'Buscar cliente' });
   return user;
 }
 
+const ANA_LABEL = 'Ana Méndez · ana@correo.com · NIT 45218376';
+
 describe('CounterRentalScreen', () => {
-  it('starts the price on the estimate and records the walk-in rental of the branch', async () => {
+  it('offers only the departments that have a branch, once each', async () => {
+    api();
+    render(<CounterRentalScreen today="2026-10-21" />, { wrapper: queryWrapper().wrapper });
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Van a' })).toBeEnabled());
+    await user.click(screen.getByRole('combobox', { name: 'Van a' }));
+
+    expect((await screen.findAllByRole('option')).map((option) => option.textContent)).toEqual([
+      'Quetzaltenango',
+      'Sololá',
+    ]);
+  });
+
+  it('records the rental for the chosen client, with the price on the estimate', async () => {
     const sent = api();
     render(<CounterRentalScreen today="2026-10-21" />, { wrapper: queryWrapper().wrapper });
     const user = await fillTrip();
 
+    await choose(user, 'Cliente', ANA_LABEL);
     await waitFor(() => expect(screen.getByLabelText('Precio acordado')).toHaveValue('2760'));
-    await user.type(screen.getByLabelText(/Correo/), 'reservas@colegio.edu.gt');
     await user.click(screen.getByRole('button', { name: 'Registrar alquiler' }));
 
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]).toMatchObject({
       branchId: BRANCH_ID,
-      nit: 'CF',
-      clientName: 'Colegio San José',
-      email: 'reservas@colegio.edu.gt',
+      clientId: CLIENT_ID,
+      originLabel: 'Quetzaltenango',
+      destinationLabel: 'Sololá',
       price: 2760,
       distanceKm: 92,
     });
     expect(push).toHaveBeenCalledWith('/sucursal/alquileres?estado=esperando-pago');
   });
 
-  it('keeps the price the admin wrote and checks the client before sending', async () => {
+  it('asks the server for the clients that match what is typed', async () => {
     const sent = api();
     render(<CounterRentalScreen today="2026-10-21" />, { wrapper: queryWrapper().wrapper });
     const user = await fillTrip();
 
-    await user.type(screen.getByLabelText(/NIT/), 'k');
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar cliente' }), 'Méndez');
+
+    await waitFor(() => expect(sent.searches).toContain('Méndez'));
+  });
+
+  it('asks for the client and keeps the price the admin wrote', async () => {
+    const sent = api();
+    render(<CounterRentalScreen today="2026-10-21" />, { wrapper: queryWrapper().wrapper });
+    const user = await fillTrip();
+
     await user.clear(screen.getByLabelText('Precio acordado'));
     await user.type(screen.getByLabelText('Precio acordado'), '2500');
     await user.click(screen.getByRole('button', { name: 'Registrar alquiler' }));
 
-    expect(
-      screen.getByText('Escribe un NIT válido o déjalo vacío para consumidor final.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Elige al cliente que alquila.')).toBeInTheDocument();
     expect(screen.getByLabelText('Precio acordado')).toHaveValue('2500');
-    expect(sent).toEqual([]);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('says so when the departments or the clients cannot be loaded', async () => {
+    mockApi({
+      'GET /api/administracion/branches/locations': () => new Response(null, { status: 500 }),
+      'GET /api/clientes/clients': () => new Response(null, { status: 500 }),
+    });
+    render(<CounterRentalScreen today="2026-10-21" />, { wrapper: queryWrapper().wrapper });
+
+    expect(await screen.findByText('No pudimos cargar los departamentos.')).toBeInTheDocument();
+    expect(await screen.findByText('No pudimos cargar los clientes.')).toBeInTheDocument();
   });
 
   it('shows what the service answers', async () => {
@@ -116,6 +179,7 @@ describe('CounterRentalScreen', () => {
     render(<CounterRentalScreen today="2026-10-21" />, { wrapper: queryWrapper().wrapper });
     const user = await fillTrip();
 
+    await choose(user, 'Cliente', ANA_LABEL);
     await user.clear(screen.getByLabelText('Precio acordado'));
     await user.type(screen.getByLabelText('Precio acordado'), '2500');
     await user.click(screen.getByRole('button', { name: 'Registrar alquiler' }));

@@ -112,38 +112,32 @@ test.describe('private rentals', () => {
     await expectNoHorizontalScroll(page);
   });
 
-  test('the branch admin records a walk-in rental, takes the cash and cancels it', async ({
+  test('the branch admin records a counter rental for a client, who pays it from the wallet', async ({
     page,
     baseURL,
   }) => {
     await asBranchAdmin(page, baseURL);
     await page.goto('/sucursal/alquileres/ventanilla');
 
-    await page.getByLabel('Salen de').fill('Quetzaltenango');
-    await page.getByLabel('Van a').fill('Semuc Champey');
+    await page.getByRole('combobox', { name: 'Salen de' }).click();
+    await expect(page.getByRole('option')).toHaveText(['Quetzaltenango']);
+    await page.getByRole('option', { name: 'Quetzaltenango' }).click();
+    await page.getByRole('combobox', { name: 'Van a' }).click();
+    await page.getByRole('option', { name: 'Quetzaltenango' }).click();
     await page.getByLabel('Día de salida').fill('2030-11-02');
     await page.getByLabel('Pasajeros').fill('20');
     await page.getByLabel('Distancia aproximada (km)').fill('100');
-    await page.getByLabel('Nombre del cliente').fill('Excursión Los Pérez');
+    await page.getByRole('searchbox', { name: 'Buscar cliente' }).fill('Pérez');
+    await page.getByRole('combobox', { name: 'Cliente' }).click();
+    await page.getByRole('option', { name: /Excursión Los Pérez/ }).click();
     await expect(page.getByLabel('Precio acordado')).toHaveValue('3000');
     await expectNoHorizontalScroll(page);
     await page.getByRole('button', { name: 'Registrar alquiler' }).click();
 
     await expect(page).toHaveURL(/\/sucursal\/alquileres\?estado=esperando-pago/);
     await page.getByRole('button', { name: 'Acciones de Excursión Los Pérez' }).click();
-    await page.getByRole('menuitem', { name: 'Registrar pago en efectivo' }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Registrar pago' }).click();
-    await page.getByRole('tab', { name: 'Pagados' }).click();
-    await page.getByRole('button', { name: 'Acciones de Excursión Los Pérez' }).click();
-    await page.getByRole('menuitem', { name: 'Cancelar alquiler' }).click();
-    const confirm = page.getByRole('alertdialog');
-    await expect(confirm.getByText(/en efectivo en la ventanilla/)).toBeVisible();
-    await confirm.getByRole('checkbox').click();
-    await confirm.getByRole('button', { name: 'Sí, cancelar alquiler' }).click();
-
-    await expect(page.getByText(/Devuelve el efectivo en la ventanilla/)).toBeVisible();
-    await expect(page.getByText('Cancelado', { exact: true })).toBeVisible();
-    await expect(page.getByText('No hay alquileres pagados.')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('menuitem', { name: 'Cancelar alquiler' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Registrar pago en efectivo' })).toHaveCount(0);
   });
 
   test('a list that fails offers to try again', async ({ page, baseURL }) => {

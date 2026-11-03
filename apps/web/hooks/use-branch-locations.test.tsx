@@ -1,7 +1,12 @@
+import type { PublicBranchLocation } from '@debus/contracts';
 import { renderHook, waitFor } from '@testing-library/react';
 import { queryWrapper } from '../test-support/query-wrapper';
 import { publicBranchLocationPageSchema } from '@debus/contracts';
-import { parseLocations, useBranchLocations } from './use-branch-locations';
+import {
+  departmentsWithBranches,
+  parseLocations,
+  useBranchLocations,
+} from './use-branch-locations';
 
 const location = {
   id: '9b2c7a10-1111-4c4c-8888-123456789abc',
@@ -77,5 +82,21 @@ describe('parseLocations', () => {
   ])('refuses %s, as the contract does', (_label, value) => {
     expect(publicBranchLocationPageSchema.safeParse(value).success).toBe(false);
     expect(() => parseLocations(value)).toThrow();
+  });
+});
+
+describe('departmentsWithBranches', () => {
+  it('gives each department with a branch once, in alphabetical order', () => {
+    const at = (department: string) => ({ department }) as PublicBranchLocation;
+
+    expect(
+      departmentsWithBranches([
+        at('Sololá'),
+        at('Petén'),
+        at('Sacatepéquez'),
+        at('Petén'),
+        at('Quiché'),
+      ]),
+    ).toEqual(['Petén', 'Quiché', 'Sacatepéquez', 'Sololá']);
   });
 });

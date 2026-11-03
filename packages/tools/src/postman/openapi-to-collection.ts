@@ -104,7 +104,13 @@ const LEFT_OUT: { method: HttpMethod; path: RegExp; reason: string }[] = [
     method: 'post',
     path: /^\/api\/clientes\/(rentals|branch-rentals)\/\{id\}\/(cancel|confirm)$/,
     reason:
-      'el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar',
+      'el recorrido solo crea un alquiler de ventanilla, que nace confirmado; confirmar necesita uno en línea pedido por un cliente y cancelar lo dejaría sin uso',
+  },
+  {
+    method: 'post',
+    path: /^\/api\/clientes\/rentals\/\{id\}\/pay$/,
+    reason:
+      'lo paga el cliente dueño del alquiler con su cartera, y una escritura nunca gasta el saldo de un cliente de demostración',
   },
   {
     method: 'post',

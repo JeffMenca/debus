@@ -530,6 +530,17 @@ const STEPS: Step[] = [
     204,
   ),
   {
+    name: 'Buscar un cliente para el alquiler',
+    method: 'GET',
+    path: '/api/clientes/clients',
+    query: 'pageSize=1',
+    session: 'test',
+    test: [
+      ...status(200),
+      ...pmTest('Guarda testClientId', [json, keep('testClientId', 'json.items[0].userId')]),
+    ],
+  },
+  {
     name: 'Registrar un alquiler de ventanilla',
     method: 'POST',
     path: '/api/clientes/branch-rentals',
@@ -543,9 +554,7 @@ const STEPS: Step[] = [
       returnAt: null,
       passengers: 30,
       distanceKm: 92,
-      nit: 'CF',
-      clientName: TEST_NAME,
-      email: null,
+      clientId: '{{testClientId}}',
       price: 1500,
     },
     test: made(201, 'testRentalId'),

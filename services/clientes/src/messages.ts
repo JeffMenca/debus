@@ -8,6 +8,7 @@ export const MESSAGES = {
   keyReused: 'Esta operación ya se hizo con otros datos. Recarga la página e intenta de nuevo.',
   keyMissing: 'No pudimos identificar la operación. Recarga la página e intenta de nuevo.',
   topUpDescription: 'Recarga de saldo',
+  clientNotFound: 'No encontramos a ese cliente.',
   rentalNotFound: 'No encontramos ese alquiler.',
   noRentalRate: 'Todavía no hay tarifa de alquiler configurada. Intenta más tarde.',
   departurePassed: 'La fecha de salida ya pasó. Elige otra fecha.',

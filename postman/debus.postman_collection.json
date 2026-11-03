@@ -4078,6 +4078,57 @@
               ]
             },
             {
+              "name": "Buscar un cliente para el alquiler",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/clientes/clients?pageSize=1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "clientes",
+                    "clients"
+                  ],
+                  "query": [
+                    {
+                      "key": "pageSize",
+                      "value": "1"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{testBranchAccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Guarda testClientId\", function () {",
+                      "  var json = pm.response.json();",
+                      "  pm.collectionVariables.set(\"testClientId\", json.items[0].userId);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "Registrar un alquiler de ventanilla",
               "request": {
                 "method": "POST",
@@ -4110,7 +4161,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"Quetzaltenango\",\n  \"destinationLabel\": \"Panajachel\",\n  \"departureAt\": \"{{testRentalDeparture}}\",\n  \"returnAt\": null,\n  \"passengers\": 30,\n  \"distanceKm\": 92,\n  \"nit\": \"CF\",\n  \"clientName\": \"{{testBranchPrefix}}Postman {{runId}}\",\n  \"email\": null,\n  \"price\": 1500\n}",
+                  "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"Quetzaltenango\",\n  \"destinationLabel\": \"Panajachel\",\n  \"departureAt\": \"{{testRentalDeparture}}\",\n  \"returnAt\": null,\n  \"passengers\": 30,\n  \"distanceKm\": 92,\n  \"clientId\": \"{{testClientId}}\",\n  \"price\": 1500\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -10808,6 +10859,10 @@
             "method": "POST",
             "header": [
               {
+                "key": "x-correlation-id",
+                "value": "{{$guid}}"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
@@ -10835,14 +10890,14 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"texto\",\n  \"destinationLabel\": \"texto\",\n  \"departureAt\": \"{{$isoTimestamp}}\",\n  \"returnAt\": \"{{$isoTimestamp}}\",\n  \"passengers\": 1,\n  \"distanceKm\": 1,\n  \"nit\": \"texto\",\n  \"clientName\": \"texto\",\n  \"price\": 1\n}",
+              "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"texto\",\n  \"destinationLabel\": \"texto\",\n  \"departureAt\": \"{{$isoTimestamp}}\",\n  \"returnAt\": \"{{$isoTimestamp}}\",\n  \"passengers\": 1,\n  \"distanceKm\": 1,\n  \"clientId\": \"{{testClientId}}\",\n  \"price\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 422.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
+            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 422.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
           },
           "event": [
             {
@@ -10863,8 +10918,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Responde con un código documentado (201, 400, 422)\", function () {",
-                  "  pm.expect([201, 400, 422]).to.include(pm.response.code);",
+                  "pm.test(\"Responde con un código documentado (201, 400, 404, 422)\", function () {",
+                  "  pm.expect([201, 400, 404, 422]).to.include(pm.response.code);",
                   "});"
                 ]
               }
@@ -10923,7 +10978,7 @@
                 }
               }
             },
-            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar."
+            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: el recorrido solo crea un alquiler de ventanilla, que nace confirmado; confirmar necesita uno en línea pedido por un cliente y cancelar lo dejaría sin uso."
           },
           "event": [
             {
@@ -10931,7 +10986,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Not run: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar",
+                  "// Not run: el recorrido solo crea un alquiler de ventanilla, que nace confirmado; confirmar necesita uno en línea pedido por un cliente y cancelar lo dejaría sin uso",
                   "pm.execution.skipRequest();"
                 ]
               }
@@ -10943,6 +10998,70 @@
                 "exec": [
                   "pm.test(\"Responde con un código documentado (201, 400, 404, 409)\", function () {",
                   "  pm.expect([201, 400, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "clientes · clients",
+      "item": [
+        {
+          "name": "GET /api/clientes/clients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "clients"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{branchAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Roles permitidos: BRANCH_ADMIN.\n\nRespuestas: 200, 400, 401, 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde con un código documentado (200, 400)\", function () {",
+                  "  pm.expect([200, 400]).to.include(pm.response.code);",
                   "});"
                 ]
               }
@@ -11299,7 +11418,7 @@
                 }
               ]
             },
-            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar."
+            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409.\n\nNo se ejecuta: el recorrido solo crea un alquiler de ventanilla, que nace confirmado; confirmar necesita uno en línea pedido por un cliente y cancelar lo dejaría sin uso."
           },
           "event": [
             {
@@ -11307,7 +11426,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Not run: el recorrido solo crea un alquiler de ventanilla, que nace confirmado y queda pagado; confirmar necesita uno en línea pedido por un cliente y cancelar, uno sin pagar",
+                  "// Not run: el recorrido solo crea un alquiler de ventanilla, que nace confirmado; confirmar necesita uno en línea pedido por un cliente y cancelar lo dejaría sin uso",
                   "pm.execution.skipRequest();"
                 ]
               }
@@ -11381,7 +11500,7 @@
                 }
               }
             },
-            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409, 422.\n\nSolo corre contra una pila local y usa solo los datos de prueba del recorrido."
+            "description": "Roles permitidos: CLIENT, BRANCH_ADMIN.\n\nRespuestas: 201, 400, 401, 403, 404, 409, 422.\n\nNo se ejecuta: lo paga el cliente dueño del alquiler con su cartera, y una escritura nunca gasta el saldo de un cliente de demostración."
           },
           "event": [
             {
@@ -11389,11 +11508,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Changes data: it only runs against a stack on this machine.",
-                  "var base = pm.variables.get('baseUrl') || '';",
-                  "if (!/^https?:\\/\\/(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?(\\/|$)/.test(base)) {",
-                  "  pm.execution.skipRequest();",
-                  "}"
+                  "// Not run: lo paga el cliente dueño del alquiler con su cartera, y una escritura nunca gasta el saldo de un cliente de demostración",
+                  "pm.execution.skipRequest();"
                 ]
               }
             },

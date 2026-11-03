@@ -76,12 +76,14 @@ export const ACTIONS: Readonly<Record<string, string>> = {
   RentalsController_estimate: 'Calcula el precio estimado de un alquiler con la tarifa vigente',
   RentalsController_request: 'Pide un alquiler en línea',
   RentalsController_history:
-    'Lista los alquileres del cliente, también los de ventanilla con su NIT',
+    'Lista los alquileres del cliente, también los antiguos de ventanilla con su NIT',
   RentalsController_pay:
-    'Paga un alquiler confirmado: con la cartera o, en ventanilla, en efectivo',
+    'Paga un alquiler confirmado con la cartera; si es antiguo y sin cliente, en efectivo',
   RentalsController_cancel: 'Cancela un alquiler que todavía no está pagado',
   BranchRentalsController_list: 'Lista los alquileres de la sucursal',
-  BranchRentalsController_registerCounter: 'Registra un alquiler de ventanilla con su precio',
+  BranchRentalsController_registerCounter:
+    'Registra un alquiler de ventanilla para un cliente, con su precio',
+  ClientsController_list: 'Busca entre los clientes para registrarles un alquiler',
   BranchRentalsController_confirm: 'Confirma o cambia el precio (y los km) de un alquiler',
 
   CounterController_trips: 'Lista los viajes de la sucursal que están a la venta en ventanilla',

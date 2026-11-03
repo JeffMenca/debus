@@ -545,6 +545,7 @@ describe('leftOutReason', () => {
     ['put', '/api/flota/drivers/{id}/photo'],
     ['post', '/api/viajes/rental-requests/{id}/assignment'],
     ['post', '/api/clientes/rentals'],
+    ['post', '/api/clientes/rentals/{id}/pay'],
     ['post', '/api/flota/dead-letters/{messageId}/replay'],
     ['delete', '/api/notificaciones/dead-letters/{messageId}'],
   ] as const)('leaves out %s %s with a reason', (method, path) => {

@@ -151,13 +151,16 @@ export class FakeRentals implements FakeExtension {
     if (body.branchId !== this.branchOf(session)) {
       throw new GatewayError(403, 'Solo puedes registrar alquileres de tu sucursal.');
     }
+    const clientId = body.clientId as string;
+    const profile = this.gateway.clients.profileOf(clientId);
+    if (!profile) throw notFound('No encontramos a ese cliente.');
     return this.create(body, {
       status: 'CONFIRMED',
       channel: 'COUNTER',
-      clientId: null,
-      nit: body.nit,
-      clientName: body.clientName,
-      email: body.email ?? null,
+      clientId,
+      nit: (profile.nit as string | null) ?? CONSUMER,
+      clientName: profile.fullName,
+      email: profile.email,
       price: body.price,
       confirmedAt: this.gateway.now().toISOString(),
     });
@@ -173,14 +176,9 @@ export class FakeRentals implements FakeExtension {
   }
 
   private mine(session: Session | null, url: URL) {
-    const nit = this.gateway.clients.profileOf(session?.user.id ?? '')?.nit;
-    const items = [...this.rentals.values()]
-      .filter(
-        (rental) =>
-          rental.clientId === session?.user.id ||
-          (rental.channel === 'COUNTER' && nit && rental.nit === nit),
-      )
-      .filter((rental) => this.matches(rental, url));
+    const items = [...this.rentals.values()].filter(
+      (rental) => rental.clientId === session?.user.id && this.matches(rental, url),
+    );
     return paged(items, url.searchParams);
   }
 
@@ -208,12 +206,7 @@ export class FakeRentals implements FakeExtension {
     if (keyOf(request) !== id) throw badRequest('Datos no válidos.');
     const { paidOn } = request.body as { paidOn: string };
     const rental = this.find(id);
-    const online = rental.channel === 'ONLINE';
-    if (
-      online ? rental.clientId !== session?.user.id : rental.branchId !== this.branchOf(session)
-    ) {
-      throw notFound(NOT_FOUND);
-    }
+    if (rental.clientId !== session?.user.id) throw notFound(NOT_FOUND);
     if (rental.status === 'CANCELLED') throw conflict('Este alquiler fue cancelado.');
     if (rental.status === 'PAID') {
       if (rental.paidOn !== paidOn) throw conflict(KEY_REUSED);
@@ -222,15 +215,13 @@ export class FakeRentals implements FakeExtension {
     if (rental.status === 'REQUESTED')
       throw conflict('El precio de este alquiler aún no está listo.');
     if (this.departed(rental)) throw unprocessable(DEPARTURE_PASSED);
-    if (online) {
-      this.gateway.clients.debit(rental.clientId as string, {
-        kind: 'RENTAL',
-        amount: rental.price as number,
-        reference: id,
-        description: `Alquiler ${String(rental.originLabel)} a ${String(rental.destinationLabel)}`,
-        occurredOn: paidOn,
-      });
-    }
+    this.gateway.clients.debit(rental.clientId as string, {
+      kind: 'RENTAL',
+      amount: rental.price as number,
+      reference: id,
+      description: `Alquiler ${String(rental.originLabel)} a ${String(rental.destinationLabel)}`,
+      occurredOn: paidOn,
+    });
     rental.status = 'PAID';
     rental.paidOn = paidOn;
     rental.paidAt = this.gateway.now().toISOString();
@@ -358,9 +349,7 @@ export class FakeRentals implements FakeExtension {
     request.tripId = null;
     rental.status = 'CANCELLED';
     rental.cancelledAt = this.gateway.now().toISOString();
-    if (rental.channel === 'ONLINE') {
-      this.gateway.clients.refund(rental.clientId as string, id, 'Devolución: alquiler cancelado');
-    }
+    this.gateway.clients.refund(rental.clientId as string, id, 'Devolución: alquiler cancelado');
     return this.view(id);
   }
 }

@@ -5,7 +5,7 @@ import type {
 } from '@debus/contracts';
 import type { ClientProfile } from '../generated/prisma/client';
 
-export type NewProfile = Omit<ClientProfile, 'createdAt' | 'updatedAt'>;
+export type NewProfile = Omit<ClientProfile, 'searchText' | 'createdAt' | 'updatedAt'>;
 
 // Staff sign up without the client fields; they start empty and the person can fill them in.
 export function toProfileRow({
