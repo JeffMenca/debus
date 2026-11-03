@@ -232,21 +232,22 @@ describe('profile and wallet API', () => {
         .set(identityHeaders(clientId))
         .send({ dpi: '2734 51920 0901', phone: '5512-3489', nit, address: 'Zona 1' });
 
-    const saved = await edit('1234567-k').expect(200);
+    const own = `8${Date.now()}`.slice(0, 11);
+    const saved = await edit(`${own}-k`).expect(200);
     const conflict = await edit(taken).expect(409);
 
     expect(saved.body).toMatchObject({
       dpi: '2734519200901',
       phone: '55123489',
-      nit: '1234567K',
+      nit: `${own}K`,
       address: 'Zona 1',
     });
     expect(conflict.body.message).toBe('Ese NIT ya está registrado en otra cuenta.');
     const profile = await request(server()).get('/profile').set(identityHeaders(clientId));
-    expect(profile.body.nit).toBe('1234567K');
+    expect(profile.body.nit).toBe(`${own}K`);
     // Only the saved edit reaches ventas; the refused one leaves nothing behind.
     expect(await profiles.announced(clientId)).toEqual([
-      expect.objectContaining({ clientId, nit: '1234567K' }),
+      expect.objectContaining({ clientId, nit: `${own}K` }),
     ]);
   });
 });

@@ -25,6 +25,7 @@ const writes = FLOW.item.find(
 const failed = (results: { passed: boolean }[]) => results.filter((result) => !result.passed);
 
 const MAILPIT_STEP = 'Leer el enlace de activación';
+const MAILPIT_STEPS = [MAILPIT_STEP, 'Leer el enlace del cliente de prueba'];
 
 const LOGIN = {
   accessToken: 'jwt-admin',
@@ -141,7 +142,7 @@ describe('FLOW', () => {
     });
 
     it('goes through the base URL and checks the status of every step', () => {
-      for (const item of all.filter((entry) => entry.name !== MAILPIT_STEP)) {
+      for (const item of all.filter((entry) => !MAILPIT_STEPS.includes(entry.name))) {
         expect(item.request.url.raw.startsWith('{{baseUrl}}/')).toBe(true);
         expect(execOf(item, 'test')).toContain('pm.test(');
       }
@@ -424,6 +425,19 @@ describe('FLOW', () => {
           .matchAll(/(?:collectionVariables|variables)\.set\(\s*["']([^"']+)["']/g),
       ].map((match) => match[1] ?? '');
 
+    it('records the counter rental for its own test client, never for a client of the demo', () => {
+      const rental = stepNamed('Registrar un alquiler de ventanilla');
+      const search = stepNamed('Buscar el cliente de prueba');
+
+      expect(JSON.stringify(rental.request.body)).toContain('{{testClientId}}');
+      expect(JSON.stringify(search.request.url)).toContain('{{testSignupEmail}}');
+      expect(execOf(search, 'test')).toContain("pm.variables.get('testSignupEmail')");
+      const names = steps.map((step) => step.name);
+      expect(names.indexOf('Registrarse como cliente de prueba')).toBeLessThan(
+        names.indexOf('Buscar el cliente de prueba'),
+      );
+    });
+
     it('creates test branches, an administrator, a driver, a bus, a route, trips and a repair, in that order', () => {
       expect(steps.map((step) => step.name)).toEqual([
         'Crear sucursal de prueba (origen)',
@@ -464,7 +478,10 @@ describe('FLOW', () => {
         'Reactivar el chofer de prueba',
         'Abrir una ruta sin viajes',
         'Eliminar la ruta sin viajes',
-        'Buscar un cliente para el alquiler',
+        'Registrarse como cliente de prueba',
+        'Leer el enlace del cliente de prueba',
+        'Activar la cuenta del cliente de prueba',
+        'Buscar el cliente de prueba',
         'Registrar un alquiler de ventanilla',
         'Crear cajero de prueba',
         'Consultar el cajero de prueba',
@@ -474,7 +491,6 @@ describe('FLOW', () => {
         'Reactivar el cajero de prueba',
         'Desactivar la sucursal de destino',
         'Reactivar la sucursal de destino',
-        'Registrarse como cliente de prueba',
         'Pedir restablecer la contraseña',
         'Enviar un aviso de prueba',
         'Consultar el aviso de prueba',
@@ -549,7 +565,7 @@ describe('FLOW', () => {
 
     it('goes through the base URL, apart from the mailbox of the local stack', () => {
       for (const step of steps) {
-        const root = step.name === MAILPIT_STEP ? '{{mailpitUrl}}/' : '{{baseUrl}}/';
+        const root = MAILPIT_STEPS.includes(step.name) ? '{{mailpitUrl}}/' : '{{baseUrl}}/';
         expect(step.request.url.raw.startsWith(root)).toBe(true);
       }
     });

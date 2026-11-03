@@ -32,11 +32,14 @@ const CREDIT = `
   RETURNING w.balance::float8 AS balance, p.email, p.full_name`;
 
 // now() is when the transaction began, which can be before the debit it returns committed;
-// clock_timestamp() is taken after the wallet lock, so the refund always lists after that debit.
+// clock_timestamp() is taken after the wallet lock. The debit may carry the clock of the service, so
+// a refund also goes past the last movement of the wallet and always lists after that debit.
 const INSERT_MOVEMENT = `
   INSERT INTO wallet_movements (id, client_id, kind, amount, balance_after, reference, description,
     occurred_on, idempotency_key, fingerprint, created_at)
-  VALUES ($1::uuid, $2::uuid, 'REFUND', $3, $4, $5::uuid, $6, $7::date, $1::uuid, $8, clock_timestamp())`;
+  VALUES ($1::uuid, $2::uuid, 'REFUND', $3, $4, $5::uuid, $6, $7::date, $1::uuid, $8,
+    GREATEST(clock_timestamp(), (SELECT max(created_at) + interval '1 millisecond'
+      FROM wallet_movements WHERE client_id = $2::uuid)))`;
 
 const SETTLE = 'UPDATE refunds SET movement_id = $2::uuid, amount = $3 WHERE reference = $1::uuid';
 

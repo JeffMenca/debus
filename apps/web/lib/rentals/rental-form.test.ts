@@ -85,9 +85,23 @@ describe('counterRequestFrom', () => {
   const counter = { clientId: CLIENT_ID, price: '2,600' };
 
   it('takes the chosen client and the price written at the counter', () => {
-    expect(counterRequestFrom(draft(), counter, NOW).request).toMatchObject({
+    const places = { origin: 'Quetzaltenango', destination: 'Sololá' };
+    expect(counterRequestFrom(draft(places), counter, NOW).request).toMatchObject({
       clientId: CLIENT_ID,
       price: 2600,
+    });
+  });
+
+  it('takes only departments as the places', () => {
+    const { problems } = counterRequestFrom(
+      draft({ origin: 'Marte', destination: 'Panajachel' }),
+      counter,
+      NOW,
+    );
+
+    expect(problems).toEqual({
+      origin: 'Elige el departamento de salida.',
+      destination: 'Elige el departamento de destino.',
     });
   });
 

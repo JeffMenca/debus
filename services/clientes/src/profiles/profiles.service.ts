@@ -45,6 +45,7 @@ export class ProfilesService {
   async clientOptions(query: ClientOptionQuery): Promise<ClientOptionPage> {
     const where = {
       role: 'CLIENT',
+      active: true,
       ...(query.q && { searchText: { contains: escapeLikePattern(query.q) } }),
     };
     const [rows, total] = await this.prisma.$transaction([

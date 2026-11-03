@@ -1,4 +1,5 @@
 import { randomInt, randomUUID } from 'node:crypto';
+import { testEmail } from '@debus/config/test-data';
 import { type Rental, exampleBranch, exampleRentalCancelled } from '@debus/contracts';
 import { InMemoryEventBus } from '@debus/messaging';
 import type { INestApplication } from '@nestjs/common';
@@ -24,6 +25,7 @@ describe('private rentals', () => {
   const paidOn = '2026-10-21';
 
   const trip = () => ({ branchId, ...RENTAL_TRIP, departureAt: futureDeparture(), returnAt: null });
+  const counterTrip = () => ({ ...trip(), destinationLabel: 'Sololá' });
   const uniqueNit = () => `7${randomInt(1e10).toString().padStart(10, '0')}`;
   const balanceOf = async (clientId: string) =>
     (await prisma.wallet.findUniqueOrThrow({ where: { clientId } })).balance.toNumber();
@@ -220,7 +222,7 @@ describe('private rentals', () => {
     const { body: counter } = await request(server())
       .post('/branch-rentals')
       .set(admin)
-      .send({ ...trip(), clientId, price: 2600 })
+      .send({ ...counterTrip(), clientId, price: 2600 })
       .expect(201);
     rentals.track(counter.id);
     expect(counter).toMatchObject({
@@ -256,7 +258,7 @@ describe('private rentals', () => {
     await request(server())
       .post('/branch-rentals')
       .set(admin)
-      .send({ ...trip(), clientId: randomUUID(), price: 2600 })
+      .send({ ...counterTrip(), clientId: randomUUID(), price: 2600 })
       .expect(404);
   });
 
@@ -350,6 +352,70 @@ describe('private rentals', () => {
     expect(await profiles.announced(clientId, 'WalletCredited')).toEqual([
       expect.objectContaining({ kind: 'REFUND', amount: 2500 }),
     ]);
+  });
+
+  it('gives a counter rental paid from the wallet back once, even told twice at a time', async () => {
+    const clientId = await profiles.create({ balance: 3000 });
+    const { body: counter } = await request(server())
+      .post('/branch-rentals')
+      .set(admin)
+      .send({ ...counterTrip(), clientId, price: 2600 })
+      .expect(201);
+    rentals.track(counter.id);
+    await pay(counter.id, identityHeaders(clientId)).expect(201);
+    expect(await balanceOf(clientId)).toBe(400);
+    const cancelled = { ...exampleRentalCancelled, rentalId: counter.id, branchId };
+
+    await Promise.all([
+      bus.deliver('RentalCancelled', cancelled),
+      bus.deliver('RentalCancelled', cancelled),
+    ]);
+
+    expect(await prisma.rental.findUniqueOrThrow({ where: { id: counter.id } })).toMatchObject({
+      status: 'CANCELLED',
+    });
+    expect(await balanceOf(clientId)).toBe(3000);
+    const refunds = await prisma.walletMovement.findMany({
+      where: { reference: counter.id, kind: 'REFUND' },
+    });
+    expect(refunds.map((movement) => movement.amount.toNumber())).toEqual([2600]);
+    expect(await profiles.announced(clientId, 'WalletCredited')).toEqual([
+      expect.objectContaining({ kind: 'REFUND', amount: 2600 }),
+    ]);
+  });
+
+  it('refuses a counter rental for a client whose account is deactivated', async () => {
+    const clientId = await profiles.create();
+    await bus.deliver('UserUpdated', {
+      userId: clientId,
+      email: testEmail('desactivado'),
+      fullName: 'Cliente desactivado',
+      role: 'CLIENT',
+      branchId: null,
+      active: false,
+      version: 2,
+    });
+
+    await request(server())
+      .post('/branch-rentals')
+      .set(admin)
+      .send({ ...counterTrip(), clientId, price: 2600 })
+      .expect(404);
+    const { body } = await request(server())
+      .get(`/clients?q=${encodeURIComponent(testEmail('desactivado'))}`)
+      .set(admin)
+      .expect(200);
+    expect(body.items).toEqual([]);
+  });
+
+  it('finds a client by the NIT as the profile shows it, with its hyphen', async () => {
+    const nit = uniqueNit();
+    const clientId = await profiles.create({ nit });
+    const shown = `${nit.slice(0, -1)}-${nit.slice(-1)}`;
+
+    const { body } = await request(server()).get(`/clients?q=${shown}`).set(admin).expect(200);
+
+    expect(body.items.map((item: { userId: string }) => item.userId)).toEqual([clientId]);
   });
 
   it('only marks a cancelled counter rental: its cash goes back at the counter', async () => {

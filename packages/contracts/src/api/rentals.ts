@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { isLaterInstant, isoDateSchema } from '../dates';
 import { searchTermSchema } from '../text';
 import { pagedDayRangeQuery } from './day-range';
+import { guatemalaDepartmentSchema } from './branches';
 import { distanceKmSchema } from './fleet';
 import { pageSchema } from './pagination';
 import { moneySchema } from './settings';
@@ -36,6 +37,8 @@ export type RentalRequest = z.infer<typeof rentalRequestSchema>;
 // wallet: the branch admin sets its price on the spot and the rest comes from the client's profile.
 export const counterRentalRequestSchema = returnAfterDeparture(
   rentalTripSchema.extend({
+    originLabel: guatemalaDepartmentSchema,
+    destinationLabel: guatemalaDepartmentSchema,
     clientId: z.uuid(),
     price: moneySchema,
   }),

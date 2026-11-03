@@ -77,6 +77,7 @@ export function OptionSelect({
   const [picked, setPicked] = useState<Option | null>(null);
   const shown = withSelected(options, value, [pinned, picked]);
   const showSearch = alwaysSearch || search !== '' || total > options.length;
+  const noMatches = search !== '' && options.length === 0;
 
   return (
     <Field id={id} label={label} error={error}>
@@ -116,9 +117,9 @@ export function OptionSelect({
           ))}
         </SelectContent>
       </Select>
-      {shown.length === 0 && (
+      {(noMatches || shown.length === 0) && (
         <span className="text-xs text-muted-foreground">
-          {search ? 'No encontramos coincidencias.' : emptyMessage}
+          {noMatches ? 'No encontramos coincidencias.' : emptyMessage}
         </span>
       )}
     </Field>

@@ -102,8 +102,9 @@ export class RentalsService {
     if (!profile) throw new NotFoundException(MESSAGES.profilePending);
     const branch = await this.prisma.branchCopy.findUnique({ where: { id: request.branchId } });
     if (!branch?.active) throw new UnprocessableEntityException(MESSAGES.branchUnavailable);
+    const { rentalRatePerKm } = await this.rateToday();
     return toRental(
-      await this.create(request, {
+      await this.create(request, rentalRatePerKm, {
         channel: 'ONLINE',
         status: 'REQUESTED',
         branchId: request.branchId,
@@ -126,10 +127,15 @@ export class RentalsService {
     const profile = await this.prisma.clientProfile.findUnique({
       where: { userId: request.clientId },
     });
-    if (profile?.role !== 'CLIENT') throw new NotFoundException(MESSAGES.clientNotFound);
+    if (profile?.role !== 'CLIENT' || !profile.active) {
+      throw new NotFoundException(MESSAGES.clientNotFound);
+    }
+    // Read first: the transaction holds a connection of a small pool while it lasts.
+    const { rentalRatePerKm } = await this.rateToday();
     const row = await this.prisma.$transaction(async (tx) => {
       const created = await this.create(
         request,
+        rentalRatePerKm,
         {
           channel: 'COUNTER',
           status: 'CONFIRMED',
@@ -170,7 +176,7 @@ export class RentalsService {
           confirmedById: actor.userId,
         },
       });
-      // Only an online client waits at home for the price; a walk-in one is at the counter.
+      // A counter rental told its client when it was recorded, already confirmed.
       if (confirmed.channel === 'ONLINE') {
         await this.outbox.add(tx, 'RentalConfirmed', toRentalConfirmed(confirmed), correlationId);
       }
@@ -262,6 +268,7 @@ export class RentalsService {
 
   private async create(
     trip: RentalTrip,
+    rentalRatePerKm: number,
     party: Party,
     client: Prisma.TransactionClient = this.prisma,
   ): Promise<RentalRow> {
@@ -269,7 +276,6 @@ export class RentalsService {
     if (departurePassed(departureAt, new Date())) {
       throw new UnprocessableEntityException(MESSAGES.departurePassed);
     }
-    const { rentalRatePerKm } = await this.rateToday();
     return client.rental.create({
       data: {
         id: randomUUID(),

@@ -33,8 +33,24 @@ describe('rental contracts', () => {
     ).toBe(false);
   });
 
+  it('takes only departments as the places of a counter rental', () => {
+    const counter = {
+      ...request,
+      destinationLabel: 'Sololá',
+      clientId: CLIENT_ID,
+      price: 2760,
+    };
+    expect(counterRentalRequestSchema.safeParse(counter).success).toBe(true);
+    expect(
+      counterRentalRequestSchema.safeParse({ ...counter, destinationLabel: 'Marte' }).success,
+    ).toBe(false);
+    expect(counterRentalRequestSchema.safeParse({ ...counter, originLabel: 'Marte' }).success).toBe(
+      false,
+    );
+  });
+
   it('records a counter rental for an existing client, with its price', () => {
-    const counter = { ...request, clientId: CLIENT_ID, price: 2760 };
+    const counter = { ...request, destinationLabel: 'Sololá', clientId: CLIENT_ID, price: 2760 };
     expect(counterRentalRequestSchema.parse(counter)).toMatchObject({
       clientId: CLIENT_ID,
       price: 2760,

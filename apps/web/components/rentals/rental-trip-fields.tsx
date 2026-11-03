@@ -180,7 +180,9 @@ export function RentalTripFields({
         </Field>
       </div>
       <p className="text-[13px] text-muted-foreground">
-        Si no sabes la distancia, pon un aproximado. La sucursal la revisa contigo.
+        {departments
+          ? 'Si no conoces la distancia, escribe un aproximado.'
+          : 'Si no sabes la distancia, pon un aproximado. La sucursal la revisa contigo.'}
       </p>
     </div>
   );

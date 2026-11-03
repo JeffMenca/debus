@@ -119,4 +119,27 @@ describe('profile recovery from republished accounts', () => {
     ).toMatchObject({ dpi: '2734519200901', phone: '55123489' });
     expect(await profiles.announced(user.userId)).toHaveLength(1);
   });
+
+  it('follows the account: name, email and state, and never goes back to an older version', async () => {
+    const userId = await profiles.create();
+    const email = testEmail('renombrado');
+    const change = { userId, email, role: 'CLIENT', branchId: null };
+
+    await bus.deliver('UserUpdated', {
+      ...change,
+      fullName: 'Nombre Nuevo',
+      active: false,
+      version: 5,
+    });
+    await bus.deliver('UserUpdated', {
+      ...change,
+      fullName: 'Nombre Viejo',
+      active: true,
+      version: 4,
+    });
+
+    const row = await prisma.clientProfile.findUniqueOrThrow({ where: { userId } });
+    expect(row).toMatchObject({ fullName: 'Nombre Nuevo', email, active: false });
+    expect(row.searchText).toContain('nombre nuevo');
+  });
 });

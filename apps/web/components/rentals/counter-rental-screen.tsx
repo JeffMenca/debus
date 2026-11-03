@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { useBranchDepartments } from '@/hooks/use-branch-locations';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useOwnBranch } from '@/hooks/use-own-branch';
+import { formatNit } from '@/lib/account/formats';
 import { messageOf } from '@/lib/api/client';
 import { useSession } from '@/lib/auth/session-store';
 import { inputRules } from '@/lib/forms/input-rules';
@@ -33,11 +34,13 @@ import {
   useRegisterCounterRental,
   useRentalEstimate,
 } from '@/lib/rentals/rentals-api';
-import { RentalEstimate } from './rental-estimate';
+import { AT_COUNTER, RentalEstimate } from './rental-estimate';
 import { RentalTripFields } from './rental-trip-fields';
 
-const clientLabel = ({ fullName, email, nit }: ClientOption): string =>
-  [fullName, email, nit && `NIT ${nit}`].filter(Boolean).join(' · ');
+const clientContact = ({ email, nit }: ClientOption): string =>
+  [email, nit && `NIT ${formatNit(nit)}`].filter(Boolean).join(' · ');
+const clientLabel = (client: ClientOption): string =>
+  `${client.fullName} · ${clientContact(client)}`;
 
 // A client agrees the trip and the price at the counter, then pays from their own wallet.
 export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: string }) {
@@ -52,6 +55,8 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
   const departments = useBranchDepartments();
   const [clientSearch, setClientSearch, clientTerm] = useOptionSearch();
   const clients = useClientOptions(clientTerm);
+  // Kept apart from the list: a later search may leave the chosen client out of it.
+  const [client, setClient] = useState<ClientOption | null>(null);
   const estimate = useRentalEstimate(useDebouncedValue(parseDistance(draft.distance))).data;
   // The price starts on the estimate until the admin writes another one.
   const price = priceTouched ? counter.price : String(estimate?.estimatedPrice ?? '');
@@ -130,13 +135,16 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
             id="counter-rental-client"
             label="Cliente"
             placeholder="Elige al cliente"
-            options={(clients.data?.items ?? []).map((client) => ({
-              value: client.userId,
-              label: clientLabel(client),
+            options={(clients.data?.items ?? []).map((option) => ({
+              value: option.userId,
+              label: clientLabel(option),
             }))}
             total={clients.data?.total ?? 0}
             value={counter.clientId}
-            onChange={(clientId) => changeCounter({ clientId })}
+            onChange={(clientId) => {
+              changeCounter({ clientId });
+              setClient(clients.data?.items.find((item) => item.userId === clientId) ?? null);
+            }}
             search={clientSearch}
             onSearchChange={setClientSearch}
             searchLabel="Buscar cliente"
@@ -144,11 +152,12 @@ export function CounterRentalScreen({ today = todayInGuatemala() }: { today?: st
             error={problems.clientId}
             alwaysSearch
           />
+          {client && <p className="text-[13px] text-coral-700">{clientContact(client)}</p>}
           {clients.isError && <FormAlert tone="error">No pudimos cargar los clientes.</FormAlert>}
           <p className="text-[13px] text-coral-700">
             El cliente lo paga con su cartera digital, desde su cuenta. Le avisamos por correo.
           </p>
-          <RentalEstimate distance={draft.distance} />
+          <RentalEstimate distance={draft.distance} texts={AT_COUNTER} />
           <Field id="counter-rental-price" label="Precio acordado" error={problems.price}>
             <Input
               id="counter-rental-price"

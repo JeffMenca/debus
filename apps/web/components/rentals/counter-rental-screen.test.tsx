@@ -92,7 +92,7 @@ async function fillTrip() {
   return user;
 }
 
-const ANA_LABEL = 'Ana Méndez · ana@correo.com · NIT 45218376';
+const ANA_LABEL = 'Ana Méndez · ana@correo.com · NIT 4521837-6';
 
 describe('CounterRentalScreen', () => {
   it('offers only the departments that have a branch, once each', async () => {
@@ -128,6 +128,26 @@ describe('CounterRentalScreen', () => {
       distanceKm: 92,
     });
     expect(push).toHaveBeenCalledWith('/sucursal/alquileres?estado=esperando-pago');
+  });
+
+  it('shows the email and NIT of the chosen client, which the select may cut', async () => {
+    api();
+    render(<CounterRentalScreen today="2026-10-21" />, { wrapper: queryWrapper().wrapper });
+    const user = await fillTrip();
+
+    await choose(user, 'Cliente', ANA_LABEL);
+
+    expect(screen.getByText('ana@correo.com · NIT 4521837-6')).toBeInTheDocument();
+  });
+
+  it('speaks to the branch admin about the distance and the price', async () => {
+    api();
+    render(<CounterRentalScreen today="2026-10-21" />, { wrapper: queryWrapper().wrapper });
+    await fillTrip();
+
+    expect(await screen.findByText(/Q\s?30\.00 por km/)).toBeInTheDocument();
+    expect(screen.queryByText(/La sucursal lo confirma/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/La sucursal la revisa contigo/)).not.toBeInTheDocument();
   });
 
   it('asks the server for the clients that match what is typed', async () => {

@@ -38,6 +38,34 @@ beforeEach(async () => {
 });
 
 describe('email queue', () => {
+  it('can send an email right away even if the clock of the service runs ahead', async () => {
+    const to = testEmail('queue-clock');
+    const sent: string[] = [];
+    const queue = queueWith({
+      send: async (message: MailMessage) => {
+        sent.push(message.to);
+      },
+    } as Mailer);
+    const realNow = Date.now;
+    Date.now = () => realNow() + 60_000;
+    const RealDate = Date;
+    global.Date = class extends RealDate {
+      constructor(...args: unknown[]) {
+        super(...((args.length ? args : [realNow() + 60_000]) as [number]));
+      }
+    } as DateConstructor;
+    try {
+      await queue.enqueue(undefined, [queued(to)]);
+    } finally {
+      global.Date = RealDate;
+      Date.now = realNow;
+    }
+
+    await queue.flush();
+
+    expect(sent).toEqual([to]);
+  });
+
   it('sends an email queued twice under the same key only once', async () => {
     const to = testEmail('queue-once');
     const queue = queueWith(smtp);

@@ -2,6 +2,7 @@ import {
   type CounterRentalRequest,
   type RentalRequest,
   guatemalaDateTime,
+  guatemalaDepartmentSchema,
   isLaterInstant,
 } from '@debus/contracts';
 import { parseMoney, parseWholeNumber } from '@/lib/number-input';
@@ -126,13 +127,25 @@ export function counterRequestFrom(
 ): { request?: CounterRentalRequest; problems?: RentalProblems & CounterProblems } {
   const trip = rentalRequestFrom(draft, now);
   const problems: RentalProblems & CounterProblems = { ...trip.problems };
+  const origin = guatemalaDepartmentSchema.safeParse(draft.origin);
+  const destination = guatemalaDepartmentSchema.safeParse(draft.destination);
   const price = parseMoney(counter.price);
 
-  if (problems.origin) problems.origin = 'Elige el departamento de salida.';
-  if (problems.destination) problems.destination = 'Elige el departamento de destino.';
+  if (!origin.success) problems.origin = 'Elige el departamento de salida.';
+  if (!destination.success) problems.destination = 'Elige el departamento de destino.';
   if (!counter.clientId) problems.clientId = 'Elige al cliente que alquila.';
   if (!price) problems.price = 'Escribe un precio mayor a Q 0.';
 
-  if (!trip.request || !counter.clientId || !price) return { problems };
-  return { request: { ...trip.request, clientId: counter.clientId, price } };
+  if (!trip.request || !origin.success || !destination.success || !counter.clientId || !price) {
+    return { problems };
+  }
+  return {
+    request: {
+      ...trip.request,
+      originLabel: origin.data,
+      destinationLabel: destination.data,
+      clientId: counter.clientId,
+      price,
+    },
+  };
 }

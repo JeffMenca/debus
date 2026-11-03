@@ -40,7 +40,7 @@ describe('rentalsArea', () => {
     expect(statusOf(built, byDestination('Parque Nacional Tikal').id)).toBe('CANCELLED');
     expect(byDestination('Chichicastenango').status).toBe('CANCELLED');
     expect(byDestination('Chichicastenango').paidOn).toBeNull();
-    expect(byDestination('Aeropuerto La Aurora').status).toBe('CONFIRMED');
+    expect(byDestination('Guatemala').status).toBe('CONFIRMED');
     expect(rentalsOf(built).filter((rental) => rental.channel === 'COUNTER')).toHaveLength(3);
   });
 

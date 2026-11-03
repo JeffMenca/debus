@@ -35,6 +35,12 @@ const INSERT_PROFILE = insertProfile(`
 
 const RECOVER_PROFILE = insertProfile('ON CONFLICT (user_id) DO NOTHING');
 
+// Events may arrive out of order, so a profile only takes what a newer version of the account says.
+const FOLLOW_ACCOUNT = `
+  UPDATE client_profiles
+  SET email = $2, full_name = $3, active = $4, account_version = $5, updated_at = now()
+  WHERE user_id = $1::uuid AND account_version < $5`;
+
 const INSERT_WALLET = `
   INSERT INTO wallets (client_id) VALUES ($1::uuid)
   ON CONFLICT (client_id) DO NOTHING`;
@@ -52,12 +58,22 @@ export class ProfilesHandler {
     await this.create(INSERT_PROFILE, row, envelope, tx ?? this.prisma);
   }
 
-  // Accounts whose registration never reached clientes come back through the republished account.
+  // Accounts whose registration never reached clientes come back through the republished account,
+  // and every profile keeps the name, the email and the state of its account.
   @OnEvent('UserUpdated')
   async updated(payload: unknown, envelope: EventEnvelope, tx?: SqlClient): Promise<void> {
-    const row = toRecoveredProfileRow(userUpdatedPayloadSchema.parse(payload));
-    if (!row) return;
-    await this.create(RECOVER_PROFILE, row, envelope, tx ?? this.prisma);
+    const account = userUpdatedPayloadSchema.parse(payload);
+    const sql = tx ?? this.prisma;
+    const row = toRecoveredProfileRow(account);
+    if (row) await this.create(RECOVER_PROFILE, row, envelope, sql);
+    await sql.$executeRawUnsafe(
+      FOLLOW_ACCOUNT,
+      account.userId,
+      account.email,
+      account.fullName,
+      account.active,
+      account.version,
+    );
   }
 
   private async create(

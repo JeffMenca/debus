@@ -47,7 +47,7 @@ describe('ProfilesService', () => {
         pageSize: 10,
       });
       expect(prisma.clientProfile.findMany).toHaveBeenCalledWith({
-        where: { role: 'CLIENT' },
+        where: { role: 'CLIENT', active: true },
         orderBy: [{ fullName: 'asc' }, { userId: 'asc' }],
         skip: 10,
         take: 10,
@@ -59,7 +59,7 @@ describe('ProfilesService', () => {
 
       await service.clientOptions({ page: 1, pageSize: 20, q: '50%' });
 
-      const where = { role: 'CLIENT', searchText: { contains: '50\\%' } };
+      const where = { role: 'CLIENT', active: true, searchText: { contains: '50\\%' } };
       expect(prisma.clientProfile.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where }),
       );

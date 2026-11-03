@@ -7,13 +7,32 @@ import { parseDistance } from '@/lib/rentals/rental-form';
 import { useRentalEstimate } from '@/lib/rentals/rentals-api';
 import { cn } from '@/lib/utils';
 
-function EstimateBody({ failed, estimate }: { failed: boolean; estimate?: RentalEstimateData }) {
+interface EstimateTexts {
+  failed: string;
+  note: string;
+}
+
+const FOR_CLIENT: EstimateTexts = {
+  failed: 'No pudimos calcular el precio ahora. La sucursal te lo confirmará igual.',
+  note: 'La sucursal lo confirma o lo ajusta.',
+};
+
+export const AT_COUNTER: EstimateTexts = {
+  failed: 'No pudimos calcular el precio ahora. Escribe el precio que acordaron.',
+  note: 'Puedes acordar otro precio.',
+};
+
+function EstimateBody({
+  failed,
+  estimate,
+  texts,
+}: {
+  failed: boolean;
+  estimate?: RentalEstimateData;
+  texts: EstimateTexts;
+}) {
   if (failed) {
-    return (
-      <span className="text-sm text-rose-700">
-        No pudimos calcular el precio ahora. La sucursal te lo confirmará igual.
-      </span>
-    );
+    return <span className="text-sm text-rose-700">{texts.failed}</span>;
   }
   if (!estimate) {
     return (
@@ -28,14 +47,22 @@ function EstimateBody({ failed, estimate }: { failed: boolean; estimate?: Rental
         {formatQuetzales(estimate.estimatedPrice)}
       </span>
       <span className="text-[13px] text-muted-foreground">
-        {formatQuetzales(estimate.ratePerKm)} por km. La sucursal lo confirma o lo ajusta.
+        {formatQuetzales(estimate.ratePerKm)} por km. {texts.note}
       </span>
     </>
   );
 }
 
 // The price the distance would cost with the rate in force, while the person types it.
-export function RentalEstimate({ distance, className }: { distance: string; className?: string }) {
+export function RentalEstimate({
+  distance,
+  className,
+  texts = FOR_CLIENT,
+}: {
+  distance: string;
+  className?: string;
+  texts?: EstimateTexts;
+}) {
   const km = useDebouncedValue(parseDistance(distance));
   const estimate = useRentalEstimate(km);
 
@@ -48,6 +75,7 @@ export function RentalEstimate({ distance, className }: { distance: string; clas
       <EstimateBody
         failed={km !== null && estimate.isError}
         estimate={km === null ? undefined : estimate.data}
+        texts={texts}
       />
     </div>
   );

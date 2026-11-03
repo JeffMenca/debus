@@ -28,6 +28,7 @@ export const GUATEMALA_DEPARTMENTS = [
   'Zacapa',
 ] as const;
 export type GuatemalaDepartment = (typeof GUATEMALA_DEPARTMENTS)[number];
+export const guatemalaDepartmentSchema = z.enum(GUATEMALA_DEPARTMENTS);
 
 export const GUATEMALA_BOUNDS = {
   minLatitude: 13.7,
@@ -65,7 +66,7 @@ export const longitudeSchema = z
 export const branchFieldsSchema = z.object({
   code: branchCodeSchema,
   name: text(2, BRANCH_NAME_MAX),
-  department: z.enum(GUATEMALA_DEPARTMENTS),
+  department: guatemalaDepartmentSchema,
   municipality: text(2, BRANCH_MUNICIPALITY_MAX),
   address: text(5, ADDRESS_MAX),
   phone: phoneSchema,
@@ -138,7 +139,7 @@ export const publicBranchLocationSchema = z.object({
   id: z.uuid(),
   name: z.string(),
   municipality: z.string(),
-  department: z.enum(GUATEMALA_DEPARTMENTS),
+  department: guatemalaDepartmentSchema,
   latitude: z.number(),
   longitude: z.number(),
 });

@@ -80,8 +80,7 @@ export function RentalHistory({ query, onChange }: RentalHistoryProps) {
     return (
       <div className="flex flex-col items-center gap-4 rounded-3xl bg-card px-6 py-10 text-center">
         <p className="text-muted-foreground">
-          Todavía no has alquilado un bus. Si alquilaste uno en ventanilla con tu NIT, también
-          aparecerá aquí.
+          Todavía no has alquilado un bus. Si alquilaste uno en ventanilla, también aparecerá aquí.
         </p>
         <Button asChild variant="secondary">
           <Link href="/alquiler">Pide tu cotización</Link>

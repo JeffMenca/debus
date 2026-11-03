@@ -79,6 +79,14 @@ describe('RentalHistory', () => {
     expect(screen.getByText('En ventanilla')).toBeInTheDocument();
   });
 
+  it('sends to the counter an old rental without a client that is still unpaid', async () => {
+    api({ items: [rental({ channel: 'COUNTER', clientId: null })] });
+    renderHistory();
+
+    expect(await screen.findByText('Se paga en ventanilla')).toBeInTheDocument();
+    expect(screen.queryByText('Precio listo, falta pagar')).not.toBeInTheDocument();
+  });
+
   it('pays a confirmed rental from the wallet with the chosen day and its id as key', async () => {
     const sent = api();
     renderHistory();

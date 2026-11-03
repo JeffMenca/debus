@@ -1,3 +1,4 @@
+import { GUATEMALA_DEPARTMENTS } from '@debus/contracts';
 import { SEED_BRANCHES } from '../catalog';
 import { SEED_CLIENTS } from '../clients-catalog';
 import { SEED_RENTALS, type RentalTarget } from './rental-catalog';
@@ -47,6 +48,13 @@ describe('SEED_RENTALS', () => {
       (rental) => `${rental.client}|${rental.origin}|${rental.destination}|${rental.passengers}`,
     );
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('uses departments as the places of a counter rental, as the API asks', () => {
+    for (const rental of SEED_RENTALS.filter((r) => r.channel === 'COUNTER')) {
+      expect(GUATEMALA_DEPARTMENTS).toContain(rental.origin);
+      expect(GUATEMALA_DEPARTMENTS).toContain(rental.destination);
+    }
   });
 
   it('keeps a counter rental at the counter: nothing to cancel before paying there', () => {

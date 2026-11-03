@@ -208,7 +208,13 @@ describe('rental changes', () => {
     const { wrapper } = queryWrapper();
     const confirm = renderHook(() => useConfirmRental(), { wrapper });
     const counter = renderHook(() => useRegisterCounterRental(), { wrapper });
-    const walkIn = { ...trip, clientId: rental().clientId as string, price: 2600 };
+    const walkIn = {
+      ...trip,
+      destinationLabel: 'Sololá' as const,
+      originLabel: 'Quetzaltenango' as const,
+      clientId: rental().clientId as string,
+      price: 2600,
+    };
 
     await mutate(() =>
       confirm.result.current.mutateAsync({ id: RENTAL_ID, request: { price: 2500 } }),

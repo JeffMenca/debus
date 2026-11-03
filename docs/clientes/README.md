@@ -8,7 +8,7 @@ En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · 
 
 ## 1. Para qué sirve y qué reglas cumple
 
-- **Perfil.** Una fila por cuenta, creada cuando `administracion` publica `UserRegistered` (el personal también tiene una, con los datos de cliente vacíos) o, si ese evento se perdió, cuando llega `UserUpdated` de una cuenta activa que no tiene perfil (ver [Recuperar perfiles](#recuperar-perfiles)). La persona puede cambiar su DPI, teléfono, NIT y dirección (`PUT /profile`); eso publica `ProfileUpdated`, que `ventas` copia para vincular las ventas de ventanilla por NIT. El NIT es único entre los perfiles que lo tienen (`409` "ya está en otra cuenta").
+- **Perfil.** Una fila por cuenta, creada cuando `administracion` publica `UserRegistered` (el personal también tiene una, con los datos de cliente vacíos) o, si ese evento se perdió, cuando llega `UserUpdated` de una cuenta activa que no tiene perfil (ver [Recuperar perfiles](#recuperar-perfiles)). La persona puede cambiar su DPI, teléfono, NIT y dirección (`PUT /profile`); eso publica `ProfileUpdated`, que `ventas` copia para vincular las ventas de ventanilla por NIT. El NIT es único entre los perfiles que lo tienen (`409` "ya está en otra cuenta"). Con cada `UserUpdated` más nuevo (por `version`) copia el nombre, el correo y si la cuenta está activa; una cuenta desactivada ya no se ofrece para alquileres de ventanilla.
 - **Cartera.** Una por perfil, creada junto con él. El saldo **nunca es negativo** (restricción `wallets_balance_non_negative`) y cada movimiento (`TOP_UP`, `TICKET`, `RENTAL`, `REFUND`) guarda el saldo que dejó. Cada operación de dinero lleva un `Idempotency-Key` y su combinación con la cartera es única: repetirla responde lo mismo y **nunca mueve el dinero dos veces**; la misma clave con otros datos responde 409.
 - **Recargar.** `POST /wallet/top-ups` con la clave y `paidOn` (la fecha de pago, que se puede elegir; hasta Q100,000). Publica `WalletCredited` y `notificaciones` manda el correo.
 - **Cobrar.** `POST /internal/wallet/debits` es solo entre servicios (`ventas` lo llama con la clave igual al id del boleto). Bloquea la cartera, revisa si ese cobro ya se aplicó (y entonces responde lo mismo), si el viaje se canceló y se devolvió el boleto (`422`), si ya pasó el plazo `payBy` (`422`) y si alcanza el saldo (`422`).
@@ -18,7 +18,7 @@ En producción: [aplicación](https://web-169401355798.us-central1.run.app/) · 
 
 ### Alquileres
 
-Un alquiler vive en la tabla `rentals` de `clientes`. Puede ser **en línea** (`ONLINE`), pedido por un cliente con cuenta, o **de ventanilla** (`COUNTER`), registrado por el admin de sucursal para un cliente existente, que elige con `GET /clients`. El NIT (`CF` si no tiene), el nombre y el correo salen de su perfil. Solo las filas de ventanilla anteriores a este cambio no tienen cliente.
+Un alquiler vive en la tabla `rentals` de `clientes`. Puede ser **en línea** (`ONLINE`), pedido por un cliente con cuenta, o **de ventanilla** (`COUNTER`), registrado por el admin de sucursal para un cliente existente, que elige con `GET /clients` (solo clientes activos; busca por nombre, correo o NIT, con guion o sin él). El NIT (`CF` si no tiene), el nombre y el correo salen de su perfil. Solo las filas de ventanilla anteriores a este cambio no tienen cliente.
 
 | Estado      | Qué significa                                                                                 | Lo ve el cliente como     | Lo ve la sucursal como |
 | ----------- | --------------------------------------------------------------------------------------------- | ------------------------- | ---------------------- |
@@ -206,6 +206,8 @@ erDiagram
     text phone
     text nit
     text address
+    boolean active
+    int account_version
     text search_text
     timestamptz created_at
     timestamptz updated_at

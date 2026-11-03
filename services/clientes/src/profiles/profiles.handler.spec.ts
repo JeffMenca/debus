@@ -172,14 +172,28 @@ describe('ProfilesHandler', () => {
       expect(queue.add).not.toHaveBeenCalled();
     });
 
-    it('ignores a deactivated account', async () => {
+    it('keeps the name, the email and the state of the account, only from a newer version', async () => {
+      const tx = sqlClient([]);
+      const change = { ...account, fullName: 'Ana Ruiz', email: 'ana@b.com', active: false };
+
+      await handler().updated(change, updatedEnvelope, tx);
+
+      const [sql, ...values] = tx.$executeRawUnsafe.mock.calls.find(([text]) =>
+        String(text).includes('UPDATE client_profiles'),
+      ) as unknown[];
+      expect(sql).toContain('account_version < $5');
+      expect(values).toEqual([account.userId, 'ana@b.com', 'Ana Ruiz', false, account.version]);
+    });
+
+    it('creates no profile for a deactivated account, and only marks one that exists', async () => {
       const tx = sqlClient();
       const queue = outbox();
 
       await handler({}, queue).updated({ ...account, active: false }, updatedEnvelope, tx);
 
       expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
-      expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+      expect(tx.$executeRawUnsafe).toHaveBeenCalledTimes(1);
+      expect(tx.$executeRawUnsafe.mock.calls[0]?.[0]).toContain('UPDATE client_profiles');
       expect(queue.add).not.toHaveBeenCalled();
     });
 

@@ -4078,12 +4078,180 @@
               ]
             },
             {
-              "name": "Buscar un cliente para el alquiler",
+              "name": "Registrarse como cliente de prueba",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/administracion/auth/signup",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "administracion",
+                    "auth",
+                    "signup"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Cliente de prueba\",\n  \"email\": \"{{testSignupEmail}}\",\n  \"dpi\": \"2345678901234\",\n  \"phone\": \"55550000\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 202\", function () {",
+                      "  pm.response.to.have.status(202);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Leer el enlace del cliente de prueba",
               "request": {
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/api/clientes/clients?pageSize=1",
+                  "raw": "{{mailpitUrl}}/api/v1/search?query=to:{{testSignupEmail}}",
+                  "host": [
+                    "{{mailpitUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "query",
+                      "value": "to:{{testSignupEmail}}"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var mailbox = pm.variables.get('mailpitUrl');",
+                      "var address = pm.variables.get('testSignupEmail');",
+                      "var tries = 0;",
+                      "function again() {",
+                      "  if (tries < 45) { setTimeout(poll, 2000); }",
+                      "}",
+                      "function poll() {",
+                      "  tries++;",
+                      "  pm.sendRequest(mailbox + '/api/v1/search?query=' + encodeURIComponent('to:' + address), function (error, found) {",
+                      "    var messages = (!error && found.json().messages) || [];",
+                      "    if (messages.length === 0) { return again(); }",
+                      "    pm.sendRequest(mailbox + '/api/v1/message/' + messages[0].ID, function (failure, message) {",
+                      "      var html = (!failure && message.json().HTML) || '';",
+                      "      var link = /href=\"[^\"]*crear-contrasena\\?token=([^\"&]+)/.exec(html);",
+                      "      if (link) { pm.collectionVariables.set('testClientToken', decodeURIComponent(link[1])); } else { again(); }",
+                      "    });",
+                      "  });",
+                      "}",
+                      "poll();"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test(\"Guarda el token del enlace\", function () {",
+                      "  pm.expect(!!pm.collectionVariables.get('testClientToken')).to.be.true;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Activar la cuenta del cliente de prueba",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/administracion/auth/password",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "administracion",
+                    "auth",
+                    "password"
+                  ]
+                },
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"{{testClientToken}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", function () {",
+                      "  pm.response.to.have.status(204);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Buscar el cliente de prueba",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/clientes/clients?q={{testSignupEmail}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -4094,8 +4262,8 @@
                   ],
                   "query": [
                     {
-                      "key": "pageSize",
-                      "value": "1"
+                      "key": "q",
+                      "value": "{{testSignupEmail}}"
                     }
                   ]
                 },
@@ -4116,13 +4284,22 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test(\"Responde 200\", function () {",
-                      "  pm.response.to.have.status(200);",
-                      "});",
-                      "pm.test(\"Guarda testClientId\", function () {",
-                      "  var json = pm.response.json();",
-                      "  pm.collectionVariables.set(\"testClientId\", json.items[0].userId);",
-                      "});"
+                      "var json = pm.response.json();",
+                      "var attemptsKey = 'retry ' + pm.info.requestName;",
+                      "var attempts = Number(pm.collectionVariables.get(attemptsKey) || 0);",
+                      "if (json.items.length === 0 && attempts < 25) {",
+                      "  pm.collectionVariables.set(attemptsKey, attempts + 1);",
+                      "  setTimeout(function () { postman.setNextRequest(pm.info.requestName); }, 2000);",
+                      "} else {",
+                      "  pm.test(\"Responde 200\", function () {",
+                      "    pm.response.to.have.status(200);",
+                      "  });",
+                      "  pm.test(\"Guarda testClientId\", function () {",
+                      "    var json = pm.response.json();",
+                      "    pm.expect(json.items[0].email).to.eql(pm.variables.get('testSignupEmail'));",
+                      "    pm.collectionVariables.set(\"testClientId\", json.items[0].userId);",
+                      "  });",
+                      "}"
                     ]
                   }
                 }
@@ -4161,7 +4338,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"Quetzaltenango\",\n  \"destinationLabel\": \"Panajachel\",\n  \"departureAt\": \"{{testRentalDeparture}}\",\n  \"returnAt\": null,\n  \"passengers\": 30,\n  \"distanceKm\": 92,\n  \"clientId\": \"{{testClientId}}\",\n  \"price\": 1500\n}",
+                  "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"Quetzaltenango\",\n  \"destinationLabel\": \"Sololá\",\n  \"departureAt\": \"{{testRentalDeparture}}\",\n  \"returnAt\": null,\n  \"passengers\": 30,\n  \"distanceKm\": 92,\n  \"clientId\": \"{{testClientId}}\",\n  \"price\": 1500\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -4606,55 +4783,6 @@
                     "exec": [
                       "pm.test(\"Responde 204\", function () {",
                       "  pm.response.to.have.status(204);",
-                      "});"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "Registrarse como cliente de prueba",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/api/administracion/auth/signup",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "administracion",
-                    "auth",
-                    "signup"
-                  ]
-                },
-                "auth": {
-                  "type": "noauth"
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"fullName\": \"Cliente de prueba\",\n  \"email\": \"{{testSignupEmail}}\",\n  \"dpi\": \"2345678901234\",\n  \"phone\": \"55550000\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"Responde 202\", function () {",
-                      "  pm.response.to.have.status(202);",
                       "});"
                     ]
                   }
@@ -10890,7 +11018,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"texto\",\n  \"destinationLabel\": \"texto\",\n  \"departureAt\": \"{{$isoTimestamp}}\",\n  \"returnAt\": \"{{$isoTimestamp}}\",\n  \"passengers\": 1,\n  \"distanceKm\": 1,\n  \"clientId\": \"{{testClientId}}\",\n  \"price\": 1\n}",
+              "raw": "{\n  \"branchId\": \"{{testBranchId}}\",\n  \"originLabel\": \"Alta Verapaz\",\n  \"destinationLabel\": \"Alta Verapaz\",\n  \"departureAt\": \"{{$isoTimestamp}}\",\n  \"returnAt\": \"{{$isoTimestamp}}\",\n  \"passengers\": 1,\n  \"distanceKm\": 1,\n  \"clientId\": \"{{testClientId}}\",\n  \"price\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
