@@ -257,9 +257,37 @@ describe('ImapMailbox', () => {
     await expect(
       mailboxOf(client, { timeoutMs: 20, pollMs: 5 }).latestLink('a@gmail.com', LINK_PATH, since),
     ).rejects.toThrow(
-      /reached a@gmail\.com \(IMAP: 1 addressed to it, 3 arrived in \[Gmail\]\/Todos since 2026-10-15T10:00:00\.000Z\)/,
+      /reached a@gmail\.com \(IMAP: 1 addressed to it, 3 arrived in \[Gmail\]\/Todos since 2026-10-15T10:00:00\.000Z;/,
     );
     expect(state.closed).toBe(1);
+  });
+
+  it('lists the tagged addresses of the same account it did see, and nothing else', async () => {
+    const { client } = fakeImap([
+      { seq: 1, date: at(1), to: 'equipo+cajero-gua@gmail.com', token: 'x' },
+      { seq: 2, date: at(2), to: 'amigo@gmail.com', token: 'y' },
+      { seq: 3, date: at(3), to: 'equipo@gmail.com' },
+    ]);
+    const failure = mailboxOf(client, { timeoutMs: 20, pollMs: 5 }).latestLink(
+      'equipo+admin-gua@gmail.com',
+      LINK_PATH,
+      since,
+    );
+    await expect(failure).rejects.toThrow(
+      'tagged addresses seen: +cajero-gua at 2026-10-15T10:00:01.000Z',
+    );
+    await expect(failure).rejects.not.toThrow('amigo');
+  });
+
+  it('says when it saw no tagged address at all', async () => {
+    const { client } = fakeImap([{ seq: 1, date: at(1), to: 'amigo@gmail.com' }]);
+    await expect(
+      mailboxOf(client, { timeoutMs: 20, pollMs: 5 }).latestLink(
+        'equipo+admin@gmail.com',
+        LINK_PATH,
+        since,
+      ),
+    ).rejects.toThrow('tagged addresses seen: none');
   });
 
   it('closes the connection even when the search fails', async () => {

@@ -45,6 +45,34 @@ const searchFrom = (since: Date): Date => new Date(since.getTime() - DAY_MS);
 
 const ENVELOPE = { envelope: true, internalDate: true } as const;
 
+const TAGGED_SHOWN = 10;
+
+// Only the tags of the seed's own account: the rest of the mailbox is someone's personal mail.
+function taggedOf(
+  headers: {
+    seq: number;
+    envelope?: { to?: { address?: string }[] };
+    internalDate?: Date | string;
+  }[],
+  to: string,
+): string[] {
+  const at = to.lastIndexOf('@');
+  const prefix = `${to.slice(0, at).split('+')[0]}+`;
+  const domain = to.slice(at);
+  return [...headers]
+    .sort((a, b) => b.seq - a.seq)
+    .flatMap(({ envelope, internalDate }) =>
+      (envelope?.to ?? []).flatMap(({ address }) => {
+        const lower = address?.toLowerCase() ?? '';
+        if (!lower.startsWith(prefix) || !lower.endsWith(domain)) return [];
+        const tag = lower.slice(prefix.length - 1, lower.length - domain.length);
+        const when = internalDate ? new Date(internalDate).toISOString() : 'unknown time';
+        return [`${tag} at ${when}`];
+      }),
+    )
+    .slice(0, TAGGED_SHOWN);
+}
+
 const isFresh = (at: Date, since: Date): boolean => at.getTime() >= since.getTime() - CLOCK_SKEW_MS;
 
 // Local stack: Mailpit keeps every email the services send.
@@ -136,6 +164,8 @@ export class ImapMailbox implements Mailbox {
   private addressed = 0;
   private arrived = 0;
   private folder = 'INBOX';
+  // The tags of the same account seen in the last search, newest first, for the error message.
+  private tagged: string[] = [];
 
   constructor(
     private readonly options: ImapOptions,
@@ -153,7 +183,7 @@ export class ImapMailbox implements Mailbox {
         async () => (await this.scan(client, folder, to, pathPattern, since, 1))[0] ?? null,
         () =>
           new Error(
-            `${missing(to, pathPattern).message} (IMAP: ${this.addressed} addressed to it, ${this.arrived} arrived in ${this.folder} since ${since.toISOString()})`,
+            `${missing(to, pathPattern).message} (IMAP: ${this.addressed} addressed to it, ${this.arrived} arrived in ${this.folder} since ${since.toISOString()}; tagged addresses seen: ${this.tagged.join(', ') || 'none'})`,
           ),
       ),
     );
@@ -200,6 +230,7 @@ export class ImapMailbox implements Mailbox {
         )
         .sort((a, b) => b.seq - a.seq);
       this.addressed = addressed.length;
+      this.tagged = taggedOf(headers, wanted);
       const found: string[] = [];
       for (const { seq } of addressed) {
         if (found.length >= limit) break;
