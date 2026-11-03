@@ -14,7 +14,8 @@ interface Polling {
   pollMs?: number;
 }
 
-const DEFAULT_TIMEOUT_MS = 60_000;
+// Gmail sometimes takes over a minute to file what notificaciones sent.
+const DEFAULT_TIMEOUT_MS = 180_000;
 const DEFAULT_POLL_MS = 500;
 // The clocks of the mail server and of this machine may differ a little.
 const CLOCK_SKEW_MS = 5_000;
